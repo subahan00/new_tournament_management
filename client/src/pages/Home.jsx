@@ -64,7 +64,7 @@ export default function Home() {
                     Compete against top players for exciting prizes every weekend
                   </p>
                   <button className="mt-6 px-6 py-2 bg-[#FFD700] hover:bg-yellow-400 hover:scale-105 text-black rounded-full font-semibold transition-all duration-300 shadow-md shadow-yellow-400/30">
-                    Register Now
+                  View Standings
                   </button>
                 </div>
               </motion.div>
@@ -91,7 +91,7 @@ export default function Home() {
                     Track your progress, rise through the ranks and earn fame
                   </p>
                   <button className="mt-6 px-6 py-2 bg-[#FFD700] hover:bg-yellow-400 hover:scale-105 text-black rounded-full font-semibold transition-all duration-300 shadow-md shadow-yellow-400/30">
-                    View Standings
+                    Enter
                   </button>
                 </div>
               </motion.div>

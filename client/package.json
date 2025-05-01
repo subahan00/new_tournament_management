@@ -7,8 +7,10 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
+    ,"dev": "react-scripts start"
   },
   "dependencies": {
+    "axios": "^1.9.0",
     "framer-motion": "^12.7.3",
     "html2pdf.js": "^0.10.3",
     "lucide-react": "^0.488.0",
