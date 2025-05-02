@@ -11,6 +11,7 @@ import LiveStandings from './pages/LiveStandings';
 import ResultsEntry from './pages/ResultsEntry';
 import WinnersArchive from './pages/WinnersArchive';
 import Login from './pages/Login';
+import Competitions from './pages/Competitions';
 
 const App = () => {
   return (
@@ -19,7 +20,7 @@ const App = () => {
         <Route path="/" element={<Home />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/players" element={<PlayerManagement />} />
-        <Route path="/competitions" element={<CompetitionManagement />} />
+        <Route path="/competitions" element={<Competitions />} />
         <Route path="/fixtures" element={<FixtureManagement />} />
         <Route path="/standings" element={<LiveStandings />} />
         <Route path="/results" element={<ResultsEntry />} />

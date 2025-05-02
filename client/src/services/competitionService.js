@@ -1,15 +1,25 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/competitions'; // Backend API URL
+const BASE_URL = 'http://localhost:5000';
 
-export const createCompetition = async (competitionData) => {
+// Public endpoints
+export const getAllCompetitions = async () => {
   try {
-    const response = await axios.post(API_URL, competitionData);
-    return response.data;
+    const response = await axios.get('http://localhost:5000/competitions');
+    return response.data.data; // Access the nested data array
   } catch (error) {
-    console.error('Error creating competition', error);
+    console.error('Error fetching competitions:', error);
     throw error;
   }
 };
 
-// Other API functions (fetch competitions, delete, etc.) can be added here
+// Admin endpoints (protected - will add auth later)
+export const createCompetition = async (competitionData) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/api/competitions/create`, competitionData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating competition:', error.response?.data || error.message);
+    throw error;
+  }
+};
