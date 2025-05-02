@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getAllCompetitions } from '../services/competitionService';
 import CompetitionCard from '../components/CompetitionCard';
@@ -15,7 +15,6 @@ const Competitions = () => {
     const fetchCompetitions = async () => {
       try {
         const data = await getAllCompetitions();
-        // Sort by date (assuming there's a 'createdAt' field)
         const sorted = [...(data || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setCompetitions(sorted);
       } catch (error) {
@@ -45,7 +44,7 @@ const Competitions = () => {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-16 h-16 border-4 border-gold-500 border-t-transparent rounded-full shadow-gold-lg"
+          className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full shadow-yellow-500"
         />
       </div>
     );
@@ -56,15 +55,18 @@ const Competitions = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="min-h-screen bg-black text-gold-500 py-12 px-4 sm:px-6 lg:px-8"
+      className="min-h-screen bg-cover bg-center bg-no-repeat text-white py-12 px-4 sm:px-6 lg:px-8"
+      style={{
+        backgroundImage: `url('/download (2).jpeg')`,
+      }}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className=" bg-black/20 rounded-xl p-4 max-w-7xl mx-auto shadow-lg shadow-yellow-400/30">
 
         {/* Home Button */}
         <div className="mb-8">
           <Link 
             to="/" 
-            className="inline-block bg-gold-500 text-black px-4 py-2 rounded-lg shadow-md hover:bg-gold-400 transition"
+            className="inline-block bg-yellow-400 text-black px-4 py-2 rounded-lg shadow-md hover:bg-yellow-300 transition"
           >
             ← Home
           </Link>
@@ -74,16 +76,16 @@ const Competitions = () => {
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-4xl md:text-5xl font-bold text-center text-gold-500 mb-12 font-serif"
+          className="text-4xl md:text-5xl font-bold text-center text-yellow-300 mb-12 font-serif drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]"
         >
-         Tournaments
+          Tournaments
         </motion.h1>
 
         {paginatedCompetitions.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center text-gold-300 py-10"
+            className="text-center text-yellow-200 py-10"
           >
             <p className="text-xl">No competitions available</p>
             <p className="mt-2">Be the first to create one!</p>
@@ -102,6 +104,7 @@ const Competitions = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4 }}
+                  className="hover:scale-[1.02] transition transform duration-300 shadow-xl shadow-yellow-300/20"
                 >
                   <CompetitionCard competition={comp} />
                 </motion.div>
@@ -114,10 +117,10 @@ const Competitions = () => {
                 <button
                   key={index + 1}
                   onClick={() => handlePageChange(index + 1)}
-                  className={`px-4 py-2 rounded ${
+                  className={`px-4 py-2 rounded font-medium ${
                     currentPage === index + 1
-                      ? 'bg-gold-300 text-black'
-                      : 'bg-gray-700 text-gold-300 hover:bg-gray-600'
+                      ? 'bg-yellow-300 text-black shadow-md shadow-yellow-400'
+                      : 'bg-gray-700 text-yellow-200 hover:bg-gray-600'
                   } transition`}
                 >
                   {index + 1}
