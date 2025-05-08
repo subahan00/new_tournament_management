@@ -2,9 +2,17 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const competitionRoutes = require('./routes/competitionRoutes');
+const authRoutes = require('./routes/authRoutes');
+const playerRoutes = require('./routes/playerRoutes');
+const competitionController = require('./controllers/competitionController');
+const authController = require('./controllers/authController');
+const playerController = require('./controllers/playerController');
 
 // Initialize Express app
 const app = express();
+require('dotenv').config();  // Load environment variables from .env file
+
+// Now you can use process.env.JWT_SECRET
 
 // Middleware
 app.use(cors()); // Enable CORS for all routes
@@ -31,11 +39,14 @@ mongoose.connection.on('disconnected', () => {
   console.log('Mongoose disconnected');
 });
 
+
 // Routes
 app.use('/competitions', competitionRoutes);
 
 app.use('/api/competitions', competitionRoutes);
-
+app.use('/api/auth', authRoutes);
+app.use('/api/players', playerRoutes);
+app.use('/api/competitions', competitionRoutes);
 app.use(cors({
   origin: 'http://localhost:3000', // Your React app
   methods: ['GET'] // Only allow GET for public endpoint
