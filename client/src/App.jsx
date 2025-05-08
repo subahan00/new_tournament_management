@@ -13,7 +13,7 @@ import WinnersArchive from './pages/WinnersArchive';
 import Login from './pages/Login';
 import Competitions from './pages/PublicCompetitions';
 import CreateCompetition from './pages/CompetitionManagement'; // <-- Import the new page
-  import ManageCompetitions from './pages/PublicCompetitions';
+  import ManageCompetitions from './pages/ManageCompetitions';
 const App = () => {
   return (
     <Router>
