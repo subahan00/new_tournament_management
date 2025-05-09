@@ -7,7 +7,10 @@ const playerRoutes = require('./routes/playerRoutes');
 const competitionController = require('./controllers/competitionController');
 const authController = require('./controllers/authController');
 const playerController = require('./controllers/playerController');
-
+const fixtureRoutes = require('./routes/fixtureRoutes');
+const fixtureController = require('./controllers/fixtureController');
+const { authenticate } = require('./utils/middlewares');  // Import the authenticate middleware
+const Competition = require('./models/Competition'); // Import the Competition model
 // Initialize Express app
 const app = express();
 require('dotenv').config();  // Load environment variables from .env file
@@ -42,6 +45,9 @@ mongoose.connection.on('disconnected', () => {
 
 // Routes
 app.use('/competitions', competitionRoutes);
+
+
+app.use('/api/fixtures', fixtureRoutes);
 
 app.use('/api/competitions', competitionRoutes);
 app.use('/api/auth', authRoutes);
