@@ -3,6 +3,14 @@ const Competition = require('../models/Competition');
 const { generateLeagueFixtures } = require('../utils/fixtureGenerator');
 const Player = require('../models/Player');
 
+// Helper: Schedule matches across weeks
+function calculateMatchDate(fixtureIndex) {
+  const startDate = new Date();
+  const weeksToAdd = Math.floor(fixtureIndex / 10); // 10 matches per week
+  startDate.setDate(startDate.getDate() + (weeksToAdd * 7));
+  return startDate;
+}
+
 exports.createFixturesForLeague = async (req, res) => {
   const { competitionId } = req.params;
 
@@ -44,7 +52,7 @@ exports.createFixturesForLeague = async (req, res) => {
     const fixturesWithMeta = fixturesData.map((f, index) => ({
       ...f,
       competitionId,
-      matchDate: calculateMatchDate(index), // Dynamic date scheduling
+      matchDate: calculateMatchDate(index),
       status: 'pending'
     }));
 
@@ -79,33 +87,90 @@ exports.createFixturesForLeague = async (req, res) => {
     });
   }
 };
+
 exports.getOngoingCompetitions = async (req, res) => {
   try {
     const competitions = await Competition.find({ status: 'ongoing' })
-      .select('name type startDate endDate');
+      .select('name type startDate');
     res.json(competitions);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch competitions' });
+    res.status(500).json({ error: err.message });
   }
 };
 
 exports.getCompetitionFixtures = async (req, res) => {
   try {
-    const fixtures = await Fixture.find({ 
-      competitionId: req.params.competitionId 
+    const fixtures = await Fixture.find({
+      competitionId: req.params.competitionId
     })
     .populate('homePlayer awayPlayer', 'name')
-    .sort('matchDate');
+    .sort('matchDate round');
     
     res.json(fixtures);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch fixtures' });
+    res.status(500).json({ error: err.message });
   }
 };
-// Helper: Schedule matches across weeks
-function calculateMatchDate(fixtureIndex) {
-  const startDate = new Date();
-  const weeksToAdd = Math.floor(fixtureIndex / 10); // 10 matches per week
-  startDate.setDate(startDate.getDate() + (weeksToAdd * 7));
-  return startDate;
-}
+
+exports.updateFixtureResult = async (req, res) => {
+  try {
+    const { fixtureId } = req.params;
+    const { homeScore, awayScore } = req.body;
+
+    // Validate inputs
+    if (typeof homeScore !== 'number' || typeof awayScore !== 'number') {
+      return res.status(400).json({ error: 'Scores must be numbers' });
+    }
+
+    // Calculate result
+    const result = 
+      homeScore > awayScore ? 'home' :
+      awayScore > homeScore ? 'away' : 'draw';
+
+    // Update fixture
+    const updatedFixture = await Fixture.findByIdAndUpdate(
+      fixtureId,
+      {
+        homeScore,
+        awayScore,
+        status: 'completed',
+        result,
+        completedAt: new Date()
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedFixture) {
+      return res.status(404).json({ error: 'Fixture not found' });
+    }
+
+    // Update standings (implement your logic)
+   
+
+    res.json({
+      success: true,
+      fixture: updatedFixture
+    });
+    const standings = await calculateStandings(fixture.competitionId);
+    io.emit('standings_update', {
+      competitionId: fixture.competitionId,
+      standings
+    });
+    
+      res.json({ 
+      fixture: updatedFixture,
+      standings 
+    });
+
+  } catch (err) {
+    console.error('Update result error:', {
+      error: err.message,
+      stack: err.stack,
+      body: req.body
+    });
+    res.status(500).json({ 
+      error: 'Failed to update result',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+};

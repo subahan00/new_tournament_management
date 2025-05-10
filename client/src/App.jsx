@@ -5,9 +5,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import AdminDashboard from './pages/AdminDashboard';
 import PlayerManagement from './pages/PlayerManagement';
-import CompetitionManagement from './pages/CompetitionManagement';
+
 import FixtureManagement from './pages/CreateFixtures';
-import LiveStandings from './pages/LiveStandings';
 import ResultsEntry from './pages/ResultsEntry';
 import WinnersArchive from './pages/WinnersArchive';
 import Login from './pages/Login';
@@ -17,6 +16,9 @@ import CreateCompetition from './pages/CompetitionManagement'; // <-- Import the
 import ManageFixtures from './pages/ManageFixtures'; // <-- Import the new page
 import CompetitionFixtures from './pages/CompetitionFixtures'; // <-- Import the new page
 // <-- Import the new page
+import CompetitionResults from './pages/CompetitionResults'; 
+  import ManageStandings from './components/ManageStandings';
+  import Standings from './components/Standings';// <-- Import the new page
 const App = () => {
   return (
     <Router>
@@ -27,7 +29,7 @@ const App = () => {
         <Route path="/competitions" element={<Competitions />} />
 
         <Route path="/fixtures" element={<FixtureManagement />} />
-        <Route path="/standings" element={<LiveStandings />} />
+      
         <Route path="/results" element={<ResultsEntry />} />
         <Route path="/winners" element={<WinnersArchive />} />
         <Route path="/login" element={<Login />} />
@@ -36,7 +38,11 @@ const App = () => {
         <Route path="/admin/create-fixture" element={<FixtureManagement />} />
       <Route path="/admin/manage-fixtures" element={<ManageFixtures />} />
       <Route path="/fixtures/:competitionId" element={<CompetitionFixtures />} /> 
+      <Route path ="/admin/post-result" element={<ResultsEntry/>}/>
+      <Route path="/results/:competitionId" element={<CompetitionResults />} />
         {/* Add any other routes you need */}
+         <Route path="/standings" element={<ManageStandings />} />
+        <Route path="/standings/:competitionId" element={<Standings />} />
       </Routes>
     </Router>
   );

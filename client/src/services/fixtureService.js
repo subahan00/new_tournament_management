@@ -24,7 +24,16 @@ export default {
   updateFixture: (fixtureId, updateData) => {
     return axios.patch(`${API}/fixtures/${fixtureId}`, updateData);
   },
-
+  updateFixtureResult: (fixtureId, { homeScore, awayScore }) => {
+    return axios.patch(`${API}/fixtures/${fixtureId}/result`, {
+      homeScore: Number(homeScore),
+      awayScore: Number(awayScore)
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  },
   // Advanced Methods
   generateRoundRobinFixtures: (competitionId) => {
     return axios.post(`${API}/fixtures/generate/round-robin/${competitionId}`);

@@ -5,7 +5,7 @@ const BASE_URL = 'http://localhost:5000';
 // Public endpoints
 export const getAllCompetitions = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/competitions`);
+    const response = await axios.get(`${BASE_URL}/api/competitions`);
     return response.data.data; // Access the nested data array
   } catch (error) {
     console.error('Error fetching competitions:', error);
