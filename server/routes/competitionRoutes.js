@@ -5,6 +5,7 @@ const { authenticate } = require('../utils/middlewares');  // Import the authent
 const Competition = require('../models/Competition'); // Import the Competition model
 // Public GET route (for fetching competitions)
 router.get('/', competitionController.getAllCompetitions); // For /competitions
+router.put('/:id', competitionController.updateCompetition);
 
 // Protected admin routes (to be accessed by authenticated admins only)
 router.post('/create', authenticate, competitionController.createCompetition); // For /api/competitions/create

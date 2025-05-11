@@ -16,5 +16,8 @@ const playerService = {
     return await api.delete(`/players/${playerId}`);
   }
 };
-
+export const createPlayer = async (playerData) => {
+  const response = await api.post('/players', playerData);
+  return response.data;
+};
 export default playerService;

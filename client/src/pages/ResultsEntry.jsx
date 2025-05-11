@@ -21,7 +21,7 @@ export default function ManageResults() {
         {competitions.map(comp => (
           <div 
             key={comp._id}
-            onClick={() => navigate(`/results/${comp._id}`)}
+            onClick={() => navigate(`/admin /results/${comp._id}`)}
             className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
           >
             <h3 className="font-semibold">{comp.name}</h3>

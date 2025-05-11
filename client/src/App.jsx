@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // Import the pages
 import Home from './pages/Home';
 import AdminDashboard from './pages/AdminDashboard';
-import PlayerManagement from './pages/PlayerManagement';
+import CreatePlayerForm from './pages/CreatePlayerForm';
 
 import FixtureManagement from './pages/CreateFixtures';
 import ResultsEntry from './pages/ResultsEntry';
@@ -19,15 +19,17 @@ import CompetitionFixtures from './pages/CompetitionFixtures'; // <-- Import the
 import CompetitionResults from './pages/CompetitionResults'; 
   import ManageStandings from './components/ManageStandings';
   import Standings from './components/Standings';// <-- Import the new page
+import { Edit } from 'lucide-react';
+import EditCompetition from './components/EditCompetition';
 const App = () => {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/players" element={<PlayerManagement />} />
+        <Route path="/admin/manage-players" element={<CreatePlayerForm />} />
         <Route path="/competitions" element={<Competitions />} />
-
+      <Route path='/admin/update-competition' element={<EditCompetition/>}/>
         <Route path="/fixtures" element={<FixtureManagement />} />
       
         <Route path="/results" element={<ResultsEntry />} />
@@ -39,7 +41,7 @@ const App = () => {
       <Route path="/admin/manage-fixtures" element={<ManageFixtures />} />
       <Route path="/fixtures/:competitionId" element={<CompetitionFixtures />} /> 
       <Route path ="/admin/post-result" element={<ResultsEntry/>}/>
-      <Route path="/results/:competitionId" element={<CompetitionResults />} />
+      <Route path="/admin/results/:competitionId" element={<CompetitionResults />} />
         {/* Add any other routes you need */}
          <Route path="/standings" element={<ManageStandings />} />
         <Route path="/standings/:competitionId" element={<Standings />} />

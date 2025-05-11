@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = 'http://localhost:5000';
+import api from './api'; // adjust the path if it's in a different folder
 
 // Public endpoints
 export const getAllCompetitions = async () => {
@@ -12,7 +13,14 @@ export const getAllCompetitions = async () => {
     throw error;
   }
 };
-
+export const getCompetition = async (id) => {
+  try {
+    const response = await api.get(`/competitions/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
 // Admin endpoints (protected - will add auth later)
 export const createCompetition = async (competitionData) => {
   try {
@@ -76,33 +84,50 @@ export const deleteCompetition = async (competitionId) => {
 // Admin endpoint to update competition (protected)
 export const updateCompetition = async (competitionId, competitionData) => {
   try {
-    const token = localStorage.getItem('authToken'); // Get the token
+    const token = localStorage.getItem('authToken');
 
     if (!token) {
       throw new Error('Unauthorized: No token found');
     }
 
     const response = await axios.put(
-      `${BASE_URL}/api/competitions/update/${competitionId}`,
+      `${BASE_URL}/api/competitions/${competitionId}`, // Typically RESTful URL (remove /update/)
       competitionData,
       {
         headers: {
-          Authorization: `Bearer ${token}`, // Include token in the Authorization header
-        },
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json' // Explicit content type
+        }
       }
     );
+    
     return response.data;
   } catch (error) {
-    console.error('Error updating competition:', error.response?.data || error.message);
+    const errorMessage = error.response?.data?.message || 
+                        error.message || 
+                        'Failed to update competition';
+    console.error('Error updating competition:', errorMessage);
+    
+    // Create new error object with proper message
+    throw new Error(errorMessage); 
+  }
+};
+const getAllPlayers = async () => {
+  try {
+    const response = await api.get('/players'); // Adjust endpoint as needed
+    return response.data;
+  } catch (error) {
     throw error;
   }
 };
-
 const competitionService = {
   createCompetition,
   deleteCompetition,
   getAllCompetitions,
   updateCompetition,
+  getAllPlayers,
+  getCompetition
 };
+
 
 export default competitionService;

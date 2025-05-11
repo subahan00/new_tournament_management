@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import competitionService from '../services/competitionService';
+import axios from '../services/api'; // Adjust this path based on your structure
 
 const CompetitionManagement = () => {
   const [competitions, setCompetitions] = useState([]);
@@ -15,32 +16,43 @@ const CompetitionManagement = () => {
   const [success, setSuccess] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedCompetition, setSelectedCompetition] = useState(null);
+  const [existingPlayers, setExistingPlayers] = useState([]);
 
-  const fetchCompetitions = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const competitions = await competitionService.getAllCompetitions();
-      
-      if (Array.isArray(competitions)) {
-        setCompetitions(competitions);
-      } else {
-        console.warn('Unexpected competitions format:', competitions);
-        setError('Could not parse competitions data');
-        setCompetitions([]);
-      }
-    } catch (err) {
-      console.error('Fetch competitions error:', err);
-      setError(err.message || 'Failed to fetch competitions. Please try again.');
+const fetchCompetitions = async () => {
+  try {
+    const res = await axios.get('/competitions');
+    const data = res.data;
+
+    // ✅ If data is an object, check if competitions are inside it
+    if (Array.isArray(data)) {
+      setCompetitions(data);
+    } else if (Array.isArray(data.competitions)) {
+      setCompetitions(data.competitions);
+    } else {
+      console.error('Invalid data format:', data);
       setCompetitions([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching competitions:', error);
+    setCompetitions([]);
+  }
+};
 
   useEffect(() => {
+    const fetchPlayers = async () => {
+      try {
+        const players = await competitionService.getAllPlayers();
+        setExistingPlayers(players);
+      } catch (err) {
+        console.error('Fetch players error:', err);
+        setError('Failed to fetch players');
+      }
+    };
+    
     fetchCompetitions();
+    fetchPlayers(); // Fetch players when component mounts
   }, []);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -50,13 +62,10 @@ const CompetitionManagement = () => {
     }));
   };
 
-  const handleAddPlayer = () => {
-    if (!playerName.trim()) {
-      setError('Player name cannot be empty');
-      return;
-    }
+  const handleAddPlayer = (playerName) => {
     
-    if (formData.players.includes(playerName.trim())) {
+
+    if (formData.players.includes(playerName)) {
       setError('This player is already added');
       return;
     }
@@ -69,9 +78,8 @@ const CompetitionManagement = () => {
     setError(null);
     setFormData(prev => ({
       ...prev,
-      players: [...prev.players, playerName.trim()]
+      players: [...prev.players, playerName]
     }));
-    setPlayerName('');
   };
 
   const handleRemovePlayer = (index) => {
@@ -92,11 +100,7 @@ const CompetitionManagement = () => {
       return false;
     }
     
-    if (formData.players.length !== formData.numberOfPlayers) {
-      setError(`Please add exactly ${formData.numberOfPlayers} players`);
-      return false;
-    }
-    
+  
     return true;
   };
 
@@ -106,13 +110,15 @@ const CompetitionManagement = () => {
     setSuccess(null);
     
     if (!validateForm()) return;
-
+console.log('Form data:', formData);
     setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        numberOfPlayers: parseInt(formData.numberOfPlayers),
-      };
+     // Ensure payload structure remains correct (no changes needed here if already using IDs)
+const payload = {
+  ...formData,
+  numberOfPlayers: parseInt(formData.numberOfPlayers),
+  players: formData.players // Now contains IDs instead of names
+};
       
       const response = await competitionService.createCompetition(payload);
       if (response && response.data) {
@@ -228,14 +234,10 @@ const CompetitionManagement = () => {
                 onChange={handleChange} 
                 className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white appearance-none"
               >
-                <option value="KO_REGULAR" className="bg-gray-900">KO_REGULAR</option>
-                <option value="KO_CLUBS" className="bg-gray-900">KO_CLUBS</option>
-                <option value="KO_BASE" className="bg-gray-900">KO_BASE</option>
-                <option value="ELITE_LEAGUE" className="bg-gray-900">ELITE_LEAGUE</option>
-                <option value="PRO_LEAGUE" className="bg-gray-900">PRO_LEAGUE</option>
-                <option value="SUPER_LEAGUE" className="bg-gray-900">SUPER_LEAGUE</option>
-                <option value="ROOKIE_LEAGUE" className="bg-gray-900">ROOKIE_LEAGUE</option>
-                <option value="FRIENDLY_LEAGUE" className="bg-gray-900">FRIENDLY_LEAGUE</option>
+                <option value="KO" className="bg-gray-900">KO TYPE</option>
+       
+                <option value="LEAGUE" className="bg-gray-900">LEAGUE TYPE</option>
+              
                 <option value="GNG" className="bg-gray-900">GNG</option>
                 <option value="NEW_TYPE" className="bg-gray-900">NEW_TYPE</option>
               </select>
@@ -255,31 +257,35 @@ const CompetitionManagement = () => {
               />
             </div>
 
-            <div>
-              <label className="block text-gold-300 mb-2 font-medium">
-                Add Players <span className="text-gold-400">({formData.players.length}/{formData.numberOfPlayers})</span>
-              </label>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="Enter player name"
-                  className="flex-1 bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white placeholder-gold-500/70"
-                />
-                <button 
-                  type="button" 
-                  onClick={handleAddPlayer} 
-                  disabled={!playerName.trim() || formData.players.length >= formData.numberOfPlayers}
-                  className="bg-gold-600 hover:bg-gold-500 disabled:bg-gold-900 disabled:text-gold-600 text-black font-medium px-5 py-3 rounded-lg transition-all duration-200 flex items-center"
-                >
-                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Add
-                </button>
-              </div>
-            </div>
+              
+        <label className="block text-gold-300 mb-2 font-medium">
+          Add Players <span className="text-gold-400">({formData.players.length}/{formData.numberOfPlayers})</span>
+        </label>
+        <div className="mb-4">
+          <p className="text-sm text-gold-500 mb-2">Select from existing players:</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+           {existingPlayers.map(player => (
+  <button
+    type="button"
+    key={player._id}
+    onClick={() => handleAddPlayer(player._id)} // Pass ID instead of name
+    disabled={formData.players.includes(player._id) || 
+              formData.players.length >= formData.numberOfPlayers}
+    className={`text-sm p-2 rounded-lg transition-colors
+      ${formData.players.includes(player.name) 
+        ? 'bg-gold-600 text-black cursor-not-allowed'
+        : 'bg-gray-800 hover:bg-gray-700 border border-gold-700/50'}
+      ${formData.players.length >= formData.numberOfPlayers 
+        && !formData.players.includes(player.name)
+        ? 'opacity-50 cursor-not-allowed' 
+        : ''}`}
+  >
+    {player.name}
+  </button>
+))}
+
+          </div>
+        </div>
 
             {formData.players.length > 0 && (
               <div className="bg-gray-800/50 border border-gold-700/30 rounded-lg p-4">
@@ -290,20 +296,25 @@ const CompetitionManagement = () => {
                   Current Players
                 </h4>
                 <ul className="space-y-2">
-                  {formData.players.map((name, idx) => (
-                    <li key={idx} className="flex justify-between items-center bg-gray-700/50 px-3 py-2 rounded">
-                      <span className="text-gold-200">{name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePlayer(idx)}
-                        className="text-red-400 hover:text-red-300 flex items-center"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </li>
-                  ))}
+  {formData.players.map((id, idx) => {
+    const player = existingPlayers.find(p => p._id === id);
+    return (
+      <li key={idx} className="flex justify-between items-center">
+        <span className="text-gold-200">
+          {player ? player.name : 'Unknown Player'}
+        </span>
+        <button
+          type="button"
+          onClick={() => handleRemovePlayer(idx)}
+          className="text-red-400 hover:text-red-300 flex items-center"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </li>
+    );
+  })}
                 </ul>
               </div>
             )}
