@@ -39,11 +39,23 @@ const competitionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Player'
   }],
+  currentRound: {
+    index: { type: Number, default: 0 },
+    name: String
+  },
+    totalRounds: Number,
+
+  isCompleted: { type: Boolean, default: false },
 
   status: {
     type: String,
     enum: ['upcoming', 'ongoing', 'completed'],
     default: 'upcoming'
+  },
+    winner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Player',
+    default: null
   }
 
 }, { timestamps: true });

@@ -1,6 +1,8 @@
 const Competition = require('../models/Competition');
 const Player = require('../models/Player');
 const mongoose = require('mongoose');
+const Fixture = require('../models/Fixture');
+const Standing = require('../models/Standing');
 
 const competitionController = {
   createCompetition: async (req, res) => {
@@ -126,6 +128,30 @@ const competitionController = {
       });
     }
   },
+ getAllPlayers :async (req, res) => {
+  try {
+    const { competitionId } = req.params;
+    
+    // Validate competition ID format if needed
+    if (!isValidId(competitionId)) {
+      throw httpError(400, 'Invalid competition ID');
+    }
+
+    const players = await CompetitionService.getPlayersByCompetitionId(competitionId);
+    
+    if (!players || players.length === 0) {
+      throw httpError(404, 'No players found in this competition');
+    }
+
+    res.json({
+      success: true,
+      count: players.length,
+      data: players
+    });
+  } catch (error) {
+    throw httpError(error.status || 500, error.message || 'Error retrieving players');
+  }
+},
 
   getAllCompetitions: async (req, res) => {
     try {
@@ -134,11 +160,8 @@ const competitionController = {
         .sort({ createdAt: -1 })
         .lean();
 
-      return res.status(200).json({
-        success: true,
-        count: competitions.length,
-        data: competitions
-      });
+          return res.status(200).json(competitions);
+
 
     } catch (err) {
       console.error('[Competition Controller] Fetch error:', err);
@@ -186,113 +209,128 @@ const competitionController = {
   updateCompetition: async (req, res) => {
     try {
       const { id } = req.params;
-      const updateData = req.body;
+      const { name, status } = req.body;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid competition ID format'
-        });
-      }
-
-      // Handle player updates
-      if (updateData.players) {
-        if (!Array.isArray(updateData.players)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Players must be an array of IDs'
-          });
-        }
-
-        const invalidIds = updateData.players.filter(id => 
-          !mongoose.Types.ObjectId.isValid(id)
-        );
-
-        if (invalidIds.length > 0) {
-          return res.status(400).json({
-            success: false,
-            message: `Invalid player IDs: ${invalidIds.join(', ')}`
-          });
-        }
-
-        const existingPlayers = await Player.countDocuments({ 
-          _id: { $in: updateData.players } 
-        });
-
-        if (existingPlayers !== updateData.players.length) {
-          return res.status(400).json({
-            success: false,
-            message: 'One or more players not found'
-          });
-        }
-      }
-
-      const updatedCompetition = await Competition.findByIdAndUpdate(
+      const competition = await Competition.findByIdAndUpdate(
         id,
-        { $set: updateData },
+        { name, status },
         { new: true, runValidators: true }
-      ).populate('players', 'name _id');
+      ).populate('players');
 
-      if (!updatedCompetition) {
-        return res.status(404).json({
-          success: false,
-          message: 'Competition not found'
-        });
-      }
+      if (!competition) throw new Error('Competition not found', 404);
 
-      return res.status(200).json({
-        success: true,
-        data: updatedCompetition
-      });
+      res.json({ success: true, data: competition });
 
-    } catch (err) {
-      console.error('[Competition Controller] Update error:', err);
-      return res.status(500).json({
-        success: false,
-        message: err.message || 'Failed to update competition'
-      });
+    } catch (error) {
+      handleCompetitionError(res, error);
     }
   },
 
-  deleteCompetition: async (req, res) => {
+   updateCompetitionPlayers: async (req, res) => {
     try {
       const { id } = req.params;
+      const { addedPlayers = [], removedPlayers = [] } = req.body;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid competition ID format'
-        });
-      }
+      await validatePlayerIds([...addedPlayers, ...removedPlayers]);
 
-      const competition = await Competition.findByIdAndDelete(id);
+      const competition = await Competition.findByIdAndUpdate(
+        id,
+        {
+          $addToSet: { players: { $each: addedPlayers } },
+          $pull: { players: { $in: removedPlayers } }
+        },
+        { new: true, runValidators: true }
+      ).populate('players');
 
-      if (!competition) {
-        return res.status(404).json({
-          success: false,
-          message: 'Competition not found'
-        });
-      }
+      if (!competition) throw new Error('Competition not found', 404);
 
-      // Optional: Handle associated data cleanup
-      await Player.updateMany(
-        { _id: { $in: competition.players } },
-        { $pull: { competitions: competition._id } }
+      // Archive affected fixtures instead of matches
+      await Fixture.updateMany(
+        { 
+          competitionId: id,
+          $or: [
+            { homePlayer: { $in: removedPlayers } },
+            { awayPlayer: { $in: removedPlayers } }
+          ]
+        },
+        { status: 'archived' }
       );
 
-      return res.status(200).json({
-        success: true,
-        message: 'Competition deleted successfully'
-      });
+      res.json({ success: true, data: competition });
 
-    } catch (err) {
-      console.error('[Competition Controller] Delete error:', err);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to delete competition'
-      });
+    } catch (error) {
+      handleCompetitionError(res, error);
     }
+  },
+
+getUpcomingLeagueCompetitions: async (req, res) => { 
+  try {
+    const competitions = await Competition.find({
+      type: { $in: ['LEAGUE', 'KO_REGULAR'] },
+      status: 'upcoming',
+    });
+
+    res.json({
+      success: true,
+      data: competitions
+    });
+  } catch (err) {
+    console.error('Error fetching upcoming competitions:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server Error' 
+    });
   }
+},
+
+ 
+deleteCompetition: async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("Competition ID to delete:", id);
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid competition ID format' });
+    }
+
+    // 1. Delete related data WITHOUT session
+    const [fixturesResult, standingsResult] = await Promise.all([
+      Fixture.deleteMany({ competition: id }),
+      Standing.deleteMany({ competition: id }),
+    ]);
+
+    // 2. Remove competition from players
+    const playersUpdate = await Player.updateMany(
+      { competitions: id },
+      { $pull: { competitions: id } }
+    );
+
+    // 3. Delete brackets
+
+    // 4. Delete competition
+    const competition = await Competition.findByIdAndDelete(id);
+
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Competition and all related data deleted successfully',
+      deleted: {
+        competition: competition.name,
+        fixtures: fixturesResult.deletedCount,
+        standings: standingsResult.deletedCount,
+        playersUpdated: playersUpdate.modifiedCount,
+      },
+    });
+  } catch (error) {
+    console.error('Error deleting competition:', error);
+    return res.status(500).json({ error: 'Server error while deleting competition' });
+  }
+}
+
+
 };
 
 module.exports = competitionController;

@@ -7,19 +7,21 @@ export default function ManageFixtures() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchCompetitions = async () => {
-      try {
-        const res = await fixtureService.getOngoingCompetitions();
-        setCompetitions(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCompetitions();
-  }, []);
+ useEffect(() => {
+  const fetchCompetitions = async () => {
+    try {
+      const res = await fixtureService.getOngoingCompetitions();
+      console.log("API competitions data:", res.data);  // <-- add this
+setCompetitions(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchCompetitions();
+}, []);
+
 
   if (loading) return <div>Loading...</div>;
 

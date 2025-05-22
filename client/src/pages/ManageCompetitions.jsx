@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import competitionService from '../services/competitionService';
-
+import { TrashIcon, CheckCircle } from 'lucide-react';
 const ManageCompetitions = () => {
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,7 +9,8 @@ const ManageCompetitions = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [competitionToDelete, setCompetitionToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [deleteStatus, setDeleteStatus] = useState(null);
+  const [deleteProgress, setDeleteProgress] = useState(0);
   // Validate competition data structure
   const validateCompetition = (comp) => ({
     id: comp?.id || '',
@@ -42,7 +43,14 @@ const ManageCompetitions = () => {
       setLoading(false);
     }
   };
-
+  useEffect(() => {
+    if (deleteStatus?.success) {
+      const timer = setTimeout(() => {
+        fetchCompetitions();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [deleteStatus]);
   useEffect(() => {
     fetchCompetitions();
   }, []);
@@ -57,25 +65,44 @@ const ManageCompetitions = () => {
     
     return name.includes(term) || status.includes(term);
   });
-
+  const deleteCompetition = useCallback(async (id) => {
+    try {
+      await competitionService.deleteCompetition(id);
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to delete competition');
+    }
+  }, []);
   const handleDelete = (id) => {
+    console.log('Deleting competition:', id);
     setCompetitionToDelete(id);
     setDeleteModalOpen(true);
   };
 
   const confirmDelete = async () => {
+          console.log('Deleting competition:', competitionToDelete);
+
     if (!competitionToDelete) return;
     
     try {
-      setLoading(true);
-      await deleteCompetition(competitionToDelete);
-      setCompetitions(prev => prev.filter(comp => comp.id !== competitionToDelete));
-      setDeleteModalOpen(false);
+      setDeleteStatus({ processing: true, message: 'Deleting competition...' });
+      console.log('Deleting competition:', competitionToDelete);
+      // 1. Make the API call
+      await competitionService.deleteCompetition(competitionToDelete);
+      
+      // 2. Optimistic UI update
+      setCompetitions(prev => prev.filter(c => c._id !== competitionToDelete));
+      
+      // 3. Update status and close modal
+      setDeleteStatus({ success: true, message: 'Competition deleted!' });
+      setTimeout(() => setDeleteModalOpen(false), 2000);
+      
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to delete competition');
-      console.error('Error deleting competition:', err);
-    } finally {
-      setLoading(false);
+      setDeleteStatus({ 
+        error: true,
+        message: err.message || 'Deletion failed. Please try again.'
+      });
+      // Re-fetch to ensure sync
+      fetchCompetitions();
     }
   };
 
@@ -230,9 +257,9 @@ const ManageCompetitions = () => {
                           </svg>
                         </Link>
                         <button
-                          onClick={() => handleDelete(competition.id)}
+                          onClick={() => handleDelete(competition._id)}
                           className="text-red-400 hover:text-red-300"
-                          disabled={loading}
+                        
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -256,50 +283,73 @@ const ManageCompetitions = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gold-700/30 rounded-lg p-6 max-w-md w-full">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-bold text-gold-200">Delete Competition</h3>
-              <button 
-                onClick={() => setDeleteModalOpen(false)}
-                className="text-gold-400 hover:text-gold-300"
-                disabled={loading}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-gray-800 border border-gold-500/30 rounded-xl w-full max-w-lg p-6">
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="text-xl font-bold text-gold-200">
+          {deleteStatus?.success ? 'Success!' : 'Confirm Deletion'}
+        </h3>
+        <button
+          onClick={() => setDeleteModalOpen(false)}
+          className="text-gold-400 hover:text-gold-300"
+        >
+          ✕
+        </button>
+      </div>
+
+      {deleteStatus?.processing ? (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin text-gold-500">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24">
+                {/* Spinner icon */}
+              </svg>
             </div>
-            <p className="text-gold-300 mb-6">
-              Are you sure you want to delete this competition? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setDeleteModalOpen(false)}
-                disabled={loading}
-                className="px-4 py-2 border border-gold-700/30 text-gold-300 rounded-lg hover:bg-gray-700 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={loading}
-                className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-600 transition-colors duration-200 flex items-center"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Deleting...
-                  </>
-                ) : 'Delete'}
-              </button>
-            </div>
+            <p className="text-gold-300">{deleteStatus.message}</p>
+          </div>
+          <div className="h-1 bg-gray-700 rounded-full">
+            <div 
+              className="h-full bg-gold-500/80 rounded-full transition-all duration-300"
+              style={{ width: `${deleteProgress}%` }}
+            ></div>
           </div>
         </div>
+      ) : deleteStatus?.success ? (
+        <div className="text-center py-6">
+          <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+          <p className="text-gold-300">{deleteStatus.message}</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-gold-300 mb-6">
+            This will permanently delete:
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>The competition details</li>
+              <li>All associated fixtures/matches</li>
+              <li>Standings and player statistics</li>
+              <li>Any related media files</li>
+            </ul>
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              className="px-4 py-2 border border-gold-500/30 text-gold-300 rounded-lg hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg flex items-center"
+            >
+              <TrashIcon className="w-5 h-5 mr-2" />
+              Confirm Permanent Deletion
+            </button>
+          </div>
+        </>
       )}
+    </div>
+  </div>
+)}
     </div>
     
   );

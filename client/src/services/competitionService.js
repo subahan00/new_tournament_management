@@ -1,44 +1,34 @@
 import axios from 'axios';
+const BASE_URL = 'http://localhost:5000/api';
 
-const BASE_URL = 'http://localhost:5000';
-import api from './api'; // adjust the path if it's in a different folder
-
-// Public endpoints
 export const getAllCompetitions = async () => {
-  try {
-    const response = await axios.get(`${BASE_URL}/api/competitions`);
-    return response.data.data; // Access the nested data array
+  try { 
+    const response = await axios.get(`${BASE_URL}/competitions`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching competitions:', error);
     throw error;
   }
 };
-export const getCompetition = async (id) => {
+
+export const getCompetition = async (competitionId) => {
   try {
-    const response = await api.get(`/competitions/${id}`);
+    const response = await axios.get(`${BASE_URL}/competitions/${competitionId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
-// Admin endpoints (protected - will add auth later)
+
 export const createCompetition = async (competitionData) => {
   try {
-    const token = localStorage.getItem('authToken'); // Assuming token is stored in localStorage after login
-
-    // If token is not available, throw an error
-    if (!token) {
-      throw new Error('Unauthorized: No token found');
-    }
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.post(
-      `${BASE_URL}/api/competitions/create`,
+      `${BASE_URL}/competitions/create`,
       competitionData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`, // Include token in the Authorization header
-        },
-      }
+      { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;
   } catch (error) {
@@ -47,87 +37,55 @@ export const createCompetition = async (competitionData) => {
   }
 };
 
-// Admin endpoint to delete competition (protected)
 export const deleteCompetition = async (competitionId) => {
   try {
     const token = localStorage.getItem('authToken');
-    if (!token) {
-      throw new Error('Unauthorized: No token found');
-    }
+    if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.delete(
-      `${BASE_URL}/api/competitions/delete/${competitionId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${BASE_URL}/competitions/delete/${competitionId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
     );
-    
-    // Return a consistent success object
-    return {
-      success: true,
-      data: response.data,
-      message: response.data?.message || 'Competition deleted successfully'
-    };
+    return response.data;
   } catch (error) {
     console.error('Error deleting competition:', error);
-    // Return a consistent error object
-    return {
-      success: false,
-      message: error.response?.data?.message || error.message,
-      error: error
-    };
+    throw error;
   }
 };
 
-// Admin endpoint to update competition (protected)
 export const updateCompetition = async (competitionId, competitionData) => {
   try {
     const token = localStorage.getItem('authToken');
-
-    if (!token) {
-      throw new Error('Unauthorized: No token found');
-    }
+    if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.put(
-      `${BASE_URL}/api/competitions/${competitionId}`, // Typically RESTful URL (remove /update/)
+      `${BASE_URL}/competitions/${competitionId}`,
       competitionData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json' // Explicit content type
-        }
-      }
+      { headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }}
     );
-    
     return response.data;
   } catch (error) {
-    const errorMessage = error.response?.data?.message || 
-                        error.message || 
-                        'Failed to update competition';
-    console.error('Error updating competition:', errorMessage);
-    
-    // Create new error object with proper message
-    throw new Error(errorMessage); 
+    console.error('Error updating competition:', error.response?.data || error.message);
+    throw error;
   }
 };
 const getAllPlayers = async () => {
   try {
-    const response = await api.get('/players'); // Adjust endpoint as needed
+    const response = await axios.get(`${BASE_URL}/players`); // Adjust endpoint as needed
     return response.data;
   } catch (error) {
     throw error;
   }
 };
-const competitionService = {
+//
+export default {
   createCompetition,
   deleteCompetition,
   getAllCompetitions,
   updateCompetition,
-  getAllPlayers,
-  getCompetition
+  getCompetition,
+  getAllPlayers
 };
-
-
-export default competitionService;

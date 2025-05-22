@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from 'react';
 import competitionService from '../services/competitionService';
-import axios from '../services/api'; // Adjust this path based on your structure
-
+import { useEffect, useState } from 'react';
 const CompetitionManagement = () => {
   const [competitions, setCompetitions] = useState([]);
   const [formData, setFormData] = useState({
@@ -18,30 +16,32 @@ const CompetitionManagement = () => {
   const [selectedCompetition, setSelectedCompetition] = useState(null);
   const [existingPlayers, setExistingPlayers] = useState([]);
 
-const fetchCompetitions = async () => {
-  try {
-    const res = await axios.get('/competitions');
-    const data = res.data;
-
-    // ✅ If data is an object, check if competitions are inside it
-    if (Array.isArray(data)) {
-      setCompetitions(data);
-    } else if (Array.isArray(data.competitions)) {
-      setCompetitions(data.competitions);
-    } else {
-      console.error('Invalid data format:', data);
+  const fetchCompetitions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const competitions = await competitionService.getAllCompetitions();
+      
+      if (Array.isArray(competitions)) {
+        setCompetitions(competitions);
+      } else {
+        console.warn('Unexpected competitions format:', competitions);
+        setError('Could not parse competitions data');
+        setCompetitions([]);
+      }
+    } catch (err) {
+      console.error('Fetch competitions error:', err);
+      setError(err.message || 'Failed to fetch competitions. Please try again.');
       setCompetitions([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching competitions:', error);
-    setCompetitions([]);
-  }
-};
-
+  };
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
         const players = await competitionService.getAllPlayers();
+        console.log('Fetched players:', players);
         setExistingPlayers(players);
       } catch (err) {
         console.error('Fetch players error:', err);
@@ -52,7 +52,9 @@ const fetchCompetitions = async () => {
     fetchCompetitions();
     fetchPlayers(); // Fetch players when component mounts
   }, []);
-
+  useEffect(() => {
+    fetchCompetitions();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,25 +64,23 @@ const fetchCompetitions = async () => {
     }));
   };
 
-  const handleAddPlayer = (playerName) => {
-    
+const handleAddPlayer = (playerId) => { // ✅ Changed from playerName to playerId
+  if (formData.players.includes(playerId)) {
+    setError('This player is already added');
+    return;
+  }
+  
+  if (formData.players.length >= formData.numberOfPlayers) {
+    setError(`Cannot add more than ${formData.numberOfPlayers} players`);
+    return;
+  }
 
-    if (formData.players.includes(playerName)) {
-      setError('This player is already added');
-      return;
-    }
-    
-    if (formData.players.length >= formData.numberOfPlayers) {
-      setError(`Cannot add more than ${formData.numberOfPlayers} players`);
-      return;
-    }
-
-    setError(null);
-    setFormData(prev => ({
-      ...prev,
-      players: [...prev.players, playerName]
-    }));
-  };
+  setError(null);
+  setFormData(prev => ({
+    ...prev,
+    players: [...prev.players, playerId] // ✅ Store IDs instead of names
+  }));
+};
 
   const handleRemovePlayer = (index) => {
     setFormData(prev => ({
@@ -100,7 +100,11 @@ const fetchCompetitions = async () => {
       return false;
     }
     
-  
+    if (formData.players.length !== formData.numberOfPlayers) {
+      setError(`Please add exactly ${formData.numberOfPlayers} players`);
+      return false;
+    }
+    
     return true;
   };
 
@@ -110,15 +114,13 @@ const fetchCompetitions = async () => {
     setSuccess(null);
     
     if (!validateForm()) return;
-console.log('Form data:', formData);
+
     setLoading(true);
     try {
-     // Ensure payload structure remains correct (no changes needed here if already using IDs)
-const payload = {
-  ...formData,
-  numberOfPlayers: parseInt(formData.numberOfPlayers),
-  players: formData.players // Now contains IDs instead of names
-};
+      const payload = {
+        ...formData,
+        numberOfPlayers: parseInt(formData.numberOfPlayers),
+      };
       
       const response = await competitionService.createCompetition(payload);
       if (response && response.data) {
@@ -257,33 +259,30 @@ const payload = {
               />
             </div>
 
-              
-        <label className="block text-gold-300 mb-2 font-medium">
+         
+                <label className="block text-gold-300 mb-2 font-medium">
           Add Players <span className="text-gold-400">({formData.players.length}/{formData.numberOfPlayers})</span>
         </label>
         <div className="mb-4">
           <p className="text-sm text-gold-500 mb-2">Select from existing players:</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-           {existingPlayers.map(player => (
-  <button
-    type="button"
-    key={player._id}
-    onClick={() => handleAddPlayer(player._id)} // Pass ID instead of name
-    disabled={formData.players.includes(player._id) || 
-              formData.players.length >= formData.numberOfPlayers}
-    className={`text-sm p-2 rounded-lg transition-colors
-      ${formData.players.includes(player.name) 
-        ? 'bg-gold-600 text-black cursor-not-allowed'
-        : 'bg-gray-800 hover:bg-gray-700 border border-gold-700/50'}
-      ${formData.players.length >= formData.numberOfPlayers 
-        && !formData.players.includes(player.name)
-        ? 'opacity-50 cursor-not-allowed' 
-        : ''}`}
-  >
-    {player.name}
-  </button>
-))}
-
+            {existingPlayers.map(player => (
+              <button
+                type="button"
+                key={player._id}
+                onClick={() => handleAddPlayer(player._id)}
+                disabled={formData.players.includes(player._id) || 
+                          formData.players.length >= formData.numberOfPlayers}
+                className={`text-sm p-2 rounded-lg transition-colors
+                  ${formData.players.includes(player._id) 
+                    ? 'bg-gold-600 text-black cursor-not-allowed'
+                    : 'bg-gray-800 hover:bg-gray-700 border border-gold-700/50'}
+                  ${formData.players.length >= formData.numberOfPlayers 
+                    ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {player.name}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -296,25 +295,20 @@ const payload = {
                   Current Players
                 </h4>
                 <ul className="space-y-2">
-  {formData.players.map((id, idx) => {
-    const player = existingPlayers.find(p => p._id === id);
-    return (
-      <li key={idx} className="flex justify-between items-center">
-        <span className="text-gold-200">
-          {player ? player.name : 'Unknown Player'}
-        </span>
-        <button
-          type="button"
-          onClick={() => handleRemovePlayer(idx)}
-          className="text-red-400 hover:text-red-300 flex items-center"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </li>
-    );
-  })}
+                  {formData.players.map((name, idx) => (
+                    <li key={idx} className="flex justify-between items-center bg-gray-700/50 px-3 py-2 rounded">
+                      <span className="text-gold-200">{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePlayer(idx)}
+                        className="text-red-400 hover:text-red-300 flex items-center"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </div>
             )}

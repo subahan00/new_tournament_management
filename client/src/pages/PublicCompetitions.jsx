@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllCompetitions } from '../services/competitionService';
+import competitionService from '../services/competitionService';
 import CompetitionCard from '../components/CompetitionCard';
 import { Link } from 'react-router-dom';
 
@@ -14,7 +14,7 @@ const Competitions = () => {
   useEffect(() => {
     const fetchCompetitions = async () => {
       try {
-        const data = await getAllCompetitions();
+        const data = await competitionService.getAllCompetitions();
         const sorted = [...(data || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setCompetitions(sorted);
       } catch (error) {

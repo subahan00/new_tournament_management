@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import fixtureService from "../services/fixtureService";
-import competitionService from "../services/competitionService";
 
 export default function FixtureManagement() {
   const [competitions, setCompetitions] = useState([]);
@@ -11,58 +10,98 @@ export default function FixtureManagement() {
   useEffect(() => {
     const fetchCompetitions = async () => {
       try {
-        const res = await fixtureService.getUpcomingLeagueCompetitions();
-        console.log('Fetched competitions:', res);
-        if (res && res.data && Array.isArray(res.data)) {
-          setCompetitions(res.data);
+        const response = await fixtureService.getUpcomingCompetitions();
+        const receivedData = response?.data?.data || response?.data || [];
+        if (Array.isArray(receivedData)) {
+          setCompetitions(receivedData);
         } else {
-          setError('No valid data received from server.');
+          setError("Invalid competition data format");
+          setCompetitions([]);
         }
       } catch (err) {
-        console.error('Fetch error:', err);
-        setError('Error fetching competitions.');
+        setError(err.message);
+        setCompetitions([]);
       } finally {
-        setLoading(false); // This will run regardless of success or failure
+        setLoading(false);
       }
     };
-  
+
     fetchCompetitions();
   }, []);
 
-  const handleCreateFixtures = async (competitionId) => {
+  const handleCreateFixtures = async (competition) => {
     try {
       setMessage("Creating fixtures...");
       setError(null);
-      const response = await fixtureService.createFixtures(competitionId);
-      setMessage(response.data.message || "Fixtures created successfully!");
+
+      let response;
+      console.log("competition",competition);
+      if (competition.type === "LEAGUE") {
+        response = await fixtureService.createLeagueFixtures(competition._id);
+      } else if (competition.type === "KO_REGULAR") {
+        response = await fixtureService.createKoFixtures(competition._id);
+      } else {
+        setError("Unsupported competition type");
+        return;
+      }
+
+      setMessage(
+        response?.data?.message ||
+          response?.message ||
+          "Fixtures created successfully!"
+      );
+
+      // Refresh competition list
+      const updated = await fixtureService.getUpcomingCompetitions();
+      const updatedData = updated?.data?.data || updated?.data || [];
+
+      if (Array.isArray(updatedData)) {
+        setCompetitions(updatedData);
+      } else {
+        setCompetitions([]);
+      }
     } catch (err) {
-      // Extract the backend's error message (if available)
-      const backendError = err.response?.data?.error || err.message;
-      console.error("Fixture creation failed:", backendError);
-      setError(backendError);
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Unknown error occurred";
+      console.error("Fixture creation failed:", errorMessage);
+      setError(errorMessage);
     }
   };
+
+  const safeCompetitions = Array.isArray(competitions) ? competitions : [];
 
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">Fixture Management</h2>
 
       {message && (
-        <div className="mb-4 text-sm text-white bg-blue-500 p-2 rounded shadow">{message}</div>
+        <div className="mb-4 text-sm text-white bg-blue-500 p-2 rounded shadow">
+          {message}
+        </div>
       )}
 
       {error && (
-        <div className="mb-4 text-sm text-white bg-red-500 p-2 rounded shadow">{error}</div>
+        <div className="mb-4 text-sm text-white bg-red-500 p-2 rounded shadow">
+          {error}
+        </div>
       )}
 
       {loading ? (
         <p>Loading competitions...</p>
-      ) : competitions.length === 0 ? (
-        <p className="text-gray-600">No eligible competitions available for fixture generation.</p>
+      ) : safeCompetitions.length === 0 ? (
+        <p className="text-gray-600">
+          No eligible competitions available for fixture generation.
+        </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {competitions.map((comp) => (
-            <div key={comp._id} className="bg-white p-4 rounded-lg shadow border">
+          {safeCompetitions.map((comp) => (
+            <div
+              key={comp._id}
+              className="bg-white p-4 rounded-lg shadow border"
+            >
               <h3 className="text-lg font-semibold">{comp.name}</h3>
               <p>Type: {comp.type}</p>
               <p>Status: {comp.status}</p>
@@ -71,7 +110,7 @@ export default function FixtureManagement() {
               </p>
 
               <button
-                onClick={() => handleCreateFixtures(comp._id)}
+                onClick={() => handleCreateFixtures(comp)}
                 className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1 rounded transition"
               >
                 Create Fixtures

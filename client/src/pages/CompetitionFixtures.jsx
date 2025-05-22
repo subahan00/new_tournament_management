@@ -7,20 +7,19 @@ export default function CompetitionFixtures() {
   const [fixtures, setFixtures] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFixtures = async () => {
-      try {
-        const res = await fixtureService.getCompetitionFixtures(competitionId);
-        setFixtures(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFixtures();
-  }, [competitionId]);
-
+ useEffect(() => {
+  const fetchFixtures = async () => {
+    try {
+      const res = await fixtureService.getCompetitionFixtures(competitionId);
+      setFixtures(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchFixtures();
+}, [competitionId]);
   if (loading) return <div>Loading fixtures...</div>;
 
   return (

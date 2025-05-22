@@ -1,26 +1,41 @@
 const express = require('express');
 const router = express.Router();
 const competitionController = require('../controllers/competitionController');
-const { authenticate } = require('../utils/middlewares');  // Import the authenticate middleware
-const Competition = require('../models/Competition'); // Import the Competition model
-// Public GET route (for fetching competitions)
-router.get('/', competitionController.getAllCompetitions); // For /competitions
-router.put('/:id', competitionController.updateCompetition);
+const { 
+  authenticate,
+  validateCompetition,
+  apiLimiter,
+  sanitizeInput,
+  errorHandler
+} = require('../utils/middlewares');
 
-// Protected admin routes (to be accessed by authenticated admins only)
-router.post('/create', authenticate, competitionController.createCompetition); // For /api/competitions/create
-router.delete('/delete/:id', authenticate, competitionController.deleteCompetition); // For /api/competitions/delete/:id
-router.get('/league/upcoming', async (req, res) => {
-    try {
-      const competitions = await Competition.find({
-        type: 'LEAGUE', // lowercase to match DB
-        status: 'upcoming',
-      });
-      res.json(competitions);
-    } catch (err) {
-      console.error('Error fetching upcoming league competitions:', err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-  
+// Apply global middlewares
+router.use(sanitizeInput);
+router.use(apiLimiter);
+
+// Public routes
+router.get('/', competitionController.getAllCompetitions);
+router.get('/league/upcoming', competitionController.getUpcomingLeagueCompetitions);
+router.get('/:id', competitionController.getCompetitionById);
+
+// Protected admin routes
+router.post('/create', 
+  authenticate,
+  validateCompetition,
+  competitionController.createCompetition
+);
+
+router.put('/:id', 
+  authenticate,
+  validateCompetition,
+  competitionController.updateCompetition
+);
+
+router.delete('/delete/:id',
+  competitionController.deleteCompetition
+);
+
+// Error handler
+router.use(errorHandler);
+
 module.exports = router;

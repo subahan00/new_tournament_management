@@ -20,8 +20,12 @@ import CompetitionResults from './pages/CompetitionResults';
   import ManageStandings from './components/ManageStandings';
   import Standings from './components/Standings';// <-- Import the new page
 import { Edit } from 'lucide-react';
-import EditCompetition from './components/EditCompetition';
-const App = () => {
+import EditCompetition from './components/CompetitionEdit';
+import ManageKoResults from './pages/ManageKoResults';
+import ResultKo from './pages/ResultKo';
+  import PublicKo from './pages/PublicKo';
+  import PublicManageKo from './pages/PublicManageKo';
+  const App = () => {
   return (
     <Router>
       <Routes>
@@ -45,6 +49,10 @@ const App = () => {
         {/* Add any other routes you need */}
          <Route path="/standings" element={<ManageStandings />} />
         <Route path="/standings/:competitionId" element={<Standings />} />
+        <Route path="/admin/manage-kos" element={<ManageKoResults />} />
+        <Route path="/admin/manage-kos/:competitionId" element={<ResultKo />} />
+        <Route path="/public-ko" element={<PublicKo />} />
+  <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
       </Routes>
     </Router>
   );
