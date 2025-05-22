@@ -143,7 +143,9 @@ const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers) => 
   const shuffledPlayers = shuffleArray(players);
   const fixtures = [];
   const numberOfMatches = numberOfPlayers / 2;
-  
+  console.log(numberOfPlayers);
+  console.log(numberOfMatches);
+  console.log(shuffledPlayers.length);
   // Determine the round name based on the number of players
   let roundName;
   switch (numberOfPlayers) {

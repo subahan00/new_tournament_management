@@ -228,6 +228,10 @@ exports.getFixturesByCompetition = async (req, res) => {
     const { competitionId } = req.params;
     
     const fixtures = await Fixture.find({ competitionId })
+      .populate({
+  path: 'competitionId',
+  select: 'name'
+})
       .populate('homePlayer','name')
       .populate('awayPlayer','name')
       .sort({ round: 1, createdAt: 1 });

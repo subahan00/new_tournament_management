@@ -3,122 +3,143 @@ import { useParams, Link } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 
 const PublicManageKo = () => {
-  const { competitionId } = useParams();
-  const [fixtures, setFixtures] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [groupedFixtures, setGroupedFixtures] = useState({});
+    const { competitionId } = useParams();
+    const [fixtures, setFixtures] = useState([]);
+    const [competitionName, setCompetitionName] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [groupedFixtures, setGroupedFixtures] = useState({});
 
-  useEffect(() => {
-    const loadFixtures = async () => {
-      try {
-        const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
-        const grouped = fixturesData.reduce((acc, fixture) => {
-          const round = fixture.round;
-          if (!acc[round]) acc[round] = [];
-          acc[round].push(fixture);
-          return acc;
-        }, {});
-        setGroupedFixtures(grouped);
-        setFixtures(fixturesData);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadFixtures();
-  }, [competitionId]);
+    const roundOrder = [
+        'Round of 32',
+        'Round of 16',
+        'Quarter-Final',
+        'Semi-Final',
+        'Final'
+    ];
 
-  const sortedRounds = Object.keys(groupedFixtures).sort();
 
-  if (isLoading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
-    </div>
-  );
+    useEffect(() => {
+        const loadFixtures = async () => {
+            try {
+                const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
 
-  if (error) return (
-    <div className="min-h-screen bg-black text-amber-500 flex items-center justify-center text-xl">
-      Error: {error}
-    </div>
-  );
+                // Extract competition name
+                if (fixturesData.length > 0) {
+                    setCompetitionName(fixturesData[0].competitionId?.name || 'Knockout Competition');
+                }
 
-  return (
-    <div className="min-h-screen bg-black p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center mb-4">
-          <Link 
-            to="/public-ko" 
-            className="px-3 py-1.5 border border-amber-500 text-amber-500 rounded-full text-xs hover:bg-amber-500/10 transition-colors"
-          >
-            ← Back
-          </Link>
-          <h1 className="text-lg font-bold text-amber-500 uppercase tracking-tight mx-auto">
-            Tournament Bracket
-          </h1>
+                // Corrected reduce syntax
+                const grouped = fixturesData.reduce((acc, fixture) => {
+                    const round = fixture.round;
+                    if (!acc[round]) acc[round] = [];
+                    acc[round].push(fixture);  // Removed extra closing parenthesis
+                    return acc;
+                }, {});
+
+                setGroupedFixtures(grouped);
+                setFixtures(fixturesData);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadFixtures();
+    }, [competitionId]);
+
+    const sortedRounds = Object.keys(groupedFixtures).sort((a, b) =>
+        roundOrder.indexOf(a) - roundOrder.indexOf(b)
+    );
+
+    if (isLoading) return (
+        <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gold-500 border-t-transparent"></div>
         </div>
+    );
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-          {sortedRounds.map((round) => (
-            <div key={round} className="bg-gray-900 rounded p-2 border border-amber-500/20">
-              <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-xs text-amber-500 font-medium truncate">{round}</h3>
-                <span className="text-[0.6rem] text-amber-500/60">
-                  {groupedFixtures[round].length} matches
-                </span>
-              </div>
-              
-              {groupedFixtures[round].map((fixture) => (
-                <div 
-                  key={fixture._id.$oid}
-                  className="group relative bg-black/20 rounded-sm p-1.5 mb-3 border border-amber-500/10 hover:border-amber-500 transition-all"
-                >
-                  <div className="flex items-center justify-between text-xs space-x-2">
-                    {/* Home Player */}
-                    <div className="flex items-center truncate">
-                      <span className="text-amber-400 truncate">
-                        {fixture.homePlayer?.name}
-                      </span>
-                      <span className="text-amber-500 ml-1 text-[0.7rem]">
-                        ({fixture.homeScore ?? '-'})
-                      </span>
+    if (error) return (
+        <div className="min-h-screen bg-zinc-900 text-gold-500 flex items-center justify-center text-xl">
+            Error: {error}
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-zinc-900 p-4">
+            <div className="max-w-7xl mx-auto">
+                <div className="flex items-center mb-6">
+                    <Link
+                        to="/competitions"
+                        className="px-4 py-2 border border-gold-600 text-gold-500 rounded-lg text-sm hover:bg-gold-600/10 transition-all duration-300"
+                    >
+                        ← Back
+                    </Link>
+                    <div className="text-6xl font-extrabold text-gold-500 uppercase tracking-[0.2em] mx-auto max-w-[90%] text-center py-5 shadow-2xl  via-gold-500 to-black rounded-2xl backdrop-blur-sm">
+                        {competitionName}
                     </div>
 
-                    {/* VS Separator */}
-                    <span className="text-amber-500 mx-1 text-[0.6rem]">vs</span>
 
-                    {/* Away Player */}
-                    <div className="flex items-center truncate">
-                      <span className="text-amber-400 truncate">
-                        {fixture.awayPlayer?.name}
-                      </span>
-                      <span className="text-amber-500 ml-1 text-[0.7rem]">
-                        ({fixture.awayScore ?? '-'})
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Status & Date */}
-                  {/* <div className="absolute -top-2 -right-1 flex items-center space-x-1">
-                    <span className="bg-amber-500 text-black px-1 text-[0.5rem] font-bold rounded">
-                      {fixture.status}
-                    </span>
-                    <span className="text-[0.5rem] text-amber-500/60">
-                      {new Date(fixture.matchDate.$date).toLocaleDateString('en-US', {
-                        month: 'numeric',
-                        day: 'numeric'
-                      })}
-                    </span>
-                  </div> */}
                 </div>
-              ))}
+
+                <div className="flex flex-col lg:flex-row gap-4 overflow-x-auto pb-4">
+                    {sortedRounds.map((round) => (
+                        <div
+                            key={round}
+                            className="min-w-[260px] lg:min-w-[300px] bg-zinc-800 rounded-lg p-3 border border-gold-500/20 shadow-lg"
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-2xl font-semibold text-gold-500 uppercase tracking-wide truncate">
+                                    {round}
+                                </h3>
+                                <span className="text-xs text-gold-500/60">
+                                    {groupedFixtures[round].length}
+                                </span>
+                            </div>
+
+                            <div className="space-y-2">
+                                {groupedFixtures[round].map((fixture) => (
+                                    <div
+                                        key={fixture._id.$oid}
+                                        className="relative bg-zinc-700/20 rounded-md p-2 border border-gold-500/10 hover:border-gold-500 transition-all duration-150 group"
+ >
+
+
+
+                                        <div className="flex flex-col space-y-1 text-xs">
+                                            <div className="absolute top-1 right-1 text-[0.55rem] text-gold-500/50 italic">
+                                                {fixture.status}
+                                            </div>
+                                            <div className="flex justify-between items-center px-1 py-1">
+                                                <div className="flex items-center">
+                                                    <span className="text-gold-300 text-base leading-none truncate">
+                                                        {fixture.homePlayer?.name}
+                                                    </span>
+                                                </div>
+                                                <span className="text-gold-500 ml-2 font-medium">
+                                                    {fixture.homeScore ?? '-'}
+                                                </span>
+                                            </div>
+
+                                            <div className="text-center text-[0.6rem] text-gold-500/40 py-0.5">vs</div>
+
+                                            <div className="flex justify-between items-center px-1 py-1">
+                                                <span className="text-gold-300 text-base truncate">
+                                                    {fixture.awayPlayer?.name}
+                                                </span>
+                                                <span className="text-gold-500 ml-2 font-medium">
+                                                    {fixture.awayScore ?? '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default PublicManageKo;
