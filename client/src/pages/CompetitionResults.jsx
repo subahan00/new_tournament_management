@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
-
+import io from 'socket.io-client';
 export default function CompetitionResults() {
+  const socket = io('http://localhost:5000'); 
   const { competitionId } = useParams();
   const [fixtures, setFixtures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,17 +17,13 @@ export default function CompetitionResults() {
   const [pendingSubmission, setPendingSubmission] = useState(null);
   
   const fixturesPerPage = 6; // Number of fixtures per page
-
-  useEffect(() => {
+useEffect(() => {
     const fetchFixtures = async () => {
       try {
         setLoading(true);
         setError(null);
-
         const response = await fixtureService.getCompetitionFixtures(competitionId);
-        console.log("Raw fixture response:", response);
         const fixturesData = Array.isArray(response?.data?.data) ? response.data.data : [];
-        console.log("Parsed fixtures data:", fixturesData);
         setFixtures(fixturesData);
       } catch (err) {
         console.error('Failed to fetch fixtures:', err);
@@ -38,6 +35,28 @@ export default function CompetitionResults() {
     };
 
     fetchFixtures();
+
+    // Set up socket listeners
+    socket.on('playerNameUpdate', ({ playerId, newName }) => {
+      setFixtures(prev => prev.map(f => ({
+        ...f,
+        homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
+        awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
+        homePlayer: f.homePlayer === playerId ? { ...f.homePlayer, name: newName } : f.homePlayer,
+        awayPlayer: f.awayPlayer === playerId ? { ...f.awayPlayer, name: newName } : f.awayPlayer
+      })));
+    });
+
+    socket.on('fixtureUpdate', (updatedFixture) => {
+      setFixtures(prev => prev.map(f => 
+        f._id === updatedFixture._id ? updatedFixture : f
+      ));
+    });
+
+    return () => {
+      socket.off('playerNameUpdate');
+      socket.off('fixtureUpdate');
+    };
   }, [competitionId]);
 
   const handleResultSubmit = async (fixtureId) => {
@@ -152,6 +171,9 @@ export default function CompetitionResults() {
     const bNum = parseInt(b.replace(/\D/g, '')) || 0;
     return aNum - bNum;
   });
+const renderPlayerName = (player, playerNameField) => {
+    return playerNameField || player?.name || 'TBD';
+  };
 
   const goToPage = (page) => {
     setCurrentPage(page);
@@ -358,7 +380,7 @@ export default function CompetitionResults() {
                           <div className="text-center flex-1">
                             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                               <h3 className="text-white font-semibold text-lg mb-1">
-                                {fixture.homePlayer?.name || 'TBD'}
+                                   {renderPlayerName(fixture.homePlayer, fixture.homePlayerName)}
                               </h3>
                               <p className="text-yellow-500 text-sm font-medium">HOME</p>
                             </div>
@@ -373,7 +395,7 @@ export default function CompetitionResults() {
                           <div className="text-center flex-1">
                             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                               <h3 className="text-white font-semibold text-lg mb-1">
-                                {fixture.awayPlayer?.name || 'TBD'}
+                                 {renderPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
                               </h3>
                               <p className="text-yellow-500 text-sm font-medium">AWAY</p>
                             </div>

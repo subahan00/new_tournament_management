@@ -24,6 +24,7 @@ router.post('/create',
   validateCompetition,
   competitionController.createCompetition
 );
+router.put('/:competitionId/player-name', competitionController.updatePlayerNameInCompetition);
 
 router.put('/:id', 
   authenticate,

@@ -25,6 +25,7 @@ import ManageKoResults from './pages/ManageKoResults';
 import ResultKo from './pages/ResultKo';
   import PublicKo from './pages/PublicKo';
   import PublicManageKo from './pages/PublicManageKo';
+  import UpdatePlayerName from './pages/updateCompetition';
   const App = () => {
   return (
     <Router>
@@ -33,7 +34,7 @@ import ResultKo from './pages/ResultKo';
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-players" element={<CreatePlayerForm />} />
         <Route path="/competitions" element={<Competitions />} />
-      <Route path='/admin/update-competition' element={<EditCompetition/>}/>
+      <Route path='/admin/update-competition' element={<UpdatePlayerName/>}/>
         <Route path="/fixtures" element={<FixtureManagement />} />
       
         <Route path="/results" element={<ResultsEntry />} />

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import { Trophy, ChevronLeft, Clock, Award, Calendar, Users, AlertTriangle, CheckCircle, Activity } from 'lucide-react';
+import io from 'socket.io-client';
 
 const ResultKo = () => {
+  const socket = io('http://localhost:5000');
   const { competitionId } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
-  
+
   const [selectedCompetition, setSelectedCompetition] = useState(state?.competition || null);
   const [fixtures, setFixtures] = useState([]);
   const [rounds, setRounds] = useState([]);
@@ -17,7 +19,7 @@ const ResultKo = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   // Load competition data if not passed through state
-  useEffect(() => {
+ useEffect(() => {
     const loadCompetitionData = async () => {
       if (!selectedCompetition && competitionId) {
         try {
@@ -41,6 +43,28 @@ const ResultKo = () => {
     };
 
     loadCompetitionData();
+
+    // Set up socket listeners
+    socket.on('playerNameUpdate', ({ playerId, newName }) => {
+      setFixtures(prev => prev.map(f => ({
+        ...f,
+        homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
+        awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
+        homePlayer: f.homePlayer === playerId ? { ...f.homePlayer, name: newName } : f.homePlayer,
+        awayPlayer: f.awayPlayer === playerId ? { ...f.awayPlayer, name: newName } : f.awayPlayer
+      })));
+    });
+
+    socket.on('fixtureUpdate', (updatedFixture) => {
+      setFixtures(prev => prev.map(f => 
+        f._id === updatedFixture._id ? updatedFixture : f
+      ));
+    });
+
+    return () => {
+      socket.off('playerNameUpdate');
+      socket.off('fixtureUpdate');
+    };
   }, [competitionId, selectedCompetition]);
 
   // Load fixtures for the selected competition
@@ -49,18 +73,20 @@ const ResultKo = () => {
       setLoading(true);
       setError('');
       setSuccessMessage('');
-      
+
       // Fetch fixtures for the selected competition
       let fixturesData = await fixtureService.fetchFixturesByCompetition(competition._id);
-      
+      console.log("Competition ID:", competition._id);
+      console.log('Fetched fixtures:', fixturesData);
       // If no fixtures exist, generate them automatically
       if (fixturesData.length === 0) {
         await fixtureService.generateFixtures(competition._id);
         fixturesData = await fixtureService.fetchFixturesByCompetition(competition._id);
+        console.log('Generated fixtures:', fixturesData);
       }
-      
+
       setFixtures(fixturesData);
-      
+
       // Organize fixtures by rounds
       organizeFixturesByRound(fixturesData, competition);
       setLoading(false);
@@ -72,72 +98,72 @@ const ResultKo = () => {
   };
 
   // Organize fixtures by rounds
- const organizeFixturesByRound = (fixturesData, competition) => {
-  const roundOrder = {
-    'Round of 32': 1,
-    'Round of 16': 2,
-    'Quarter Finals': 3,
-    'Semi Finals': 4,
-    'Final': 5
+  const organizeFixturesByRound = (fixturesData, competition) => {
+    const roundOrder = {
+      'Round of 32': 1,
+      'Round of 16': 2,
+      'Quarter Finals': 3,
+      'Semi Finals': 4,
+      'Final': 5
+    };
+
+    // Get unique rounds and sort them properly
+    const uniqueRounds = [...new Set(fixturesData.map(fixture => fixture.round))]
+      .sort((a, b) => roundOrder[a] - roundOrder[b]);
+
+    setRounds(uniqueRounds);
+
+    // Set current round to the first incomplete round
+    const firstIncomplete = uniqueRounds.find(round =>
+      fixturesData.filter(f => f.round === round).some(f => f.status !== 'completed')
+    ) || uniqueRounds[uniqueRounds.length - 1];
+
+    setCurrentRound(firstIncomplete);
   };
-
-  // Get unique rounds and sort them properly
-  const uniqueRounds = [...new Set(fixturesData.map(fixture => fixture.round))]
-    .sort((a, b) => roundOrder[a] - roundOrder[b]);
-
-  setRounds(uniqueRounds);
-  
-  // Set current round to the first incomplete round
-  const firstIncomplete = uniqueRounds.find(round => 
-    fixturesData.filter(f => f.round === round).some(f => f.status !== 'completed')
-  ) || uniqueRounds[uniqueRounds.length - 1];
-  
-  setCurrentRound(firstIncomplete);
-};
 
   // Handle fixture result update
   const handleUpdateResult = async (fixtureId, homeScore, awayScore) => {
-  try {
-    setLoading(true);
-    await fixtureService.updateKoFixtureResult(fixtureId, parseInt(homeScore), parseInt(awayScore));
-    
-    // Refresh data
-    const updatedFixtures = await fixtureService.fetchFixturesByCompetition(selectedCompetition._id);
-    setFixtures(updatedFixtures);
-    
-    // Force re-evaluation of rounds
-    organizeFixturesByRound(updatedFixtures, selectedCompetition);
-    
-    setSuccessMessage('Result updated successfully!');
-    setLoading(false);
-  } catch (err) {
-    setError('Failed to update result');
-    setLoading(false);
-    console.log('Current Round:', currentRound);
-console.log('Rounds List:', rounds);
-console.log('Is Round Completed:', isRoundCompleted());
-console.log('Has Next Round:', hasNextRound());
-console.log('Button Enabled:', isNextRoundButtonEnabled());
-  }
-};
+    try {
+      setLoading(true);
+      await fixtureService.updateKoFixtureResult(fixtureId, parseInt(homeScore), parseInt(awayScore));
+
+      // Refresh data
+      const updatedFixtures = await fixtureService.fetchFixturesByCompetition(selectedCompetition._id);
+      setFixtures(updatedFixtures);
+
+      // Force re-evaluation of rounds
+      organizeFixturesByRound(updatedFixtures, selectedCompetition);
+
+      setSuccessMessage('Result updated successfully!');
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to update result');
+      setLoading(false);
+      console.log('Current Round:', currentRound);
+      console.log('Rounds List:', rounds);
+      console.log('Is Round Completed:', isRoundCompleted());
+      console.log('Has Next Round:', hasNextRound());
+      console.log('Button Enabled:', isNextRoundButtonEnabled());
+    }
+  };
 
   // Handle advancing to next round
   const handleAdvanceToNextRound = async () => {
     try {
       setLoading(true);
       await fixtureService.advanceToNextRound(selectedCompetition._id, currentRound);
-      
+
       // Refresh fixtures after advancing
       const updatedFixtures = await fixtureService.fetchFixturesByCompetition(selectedCompetition._id);
       setFixtures(updatedFixtures);
       organizeFixturesByRound(updatedFixtures, selectedCompetition);
-      
+
       // Move to the next round in the UI
       const currentRoundIndex = rounds.indexOf(currentRound);
       if (currentRoundIndex < rounds.length - 1) {
         setCurrentRound(rounds[currentRoundIndex + 1]);
       }
-      
+
       setSuccessMessage('Advanced to next round successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
       setLoading(false);
@@ -160,43 +186,51 @@ console.log('Button Enabled:', isNextRoundButtonEnabled());
   };
 
   // Check if there is a next round available - FIXED VERSION
-const hasNextRound = () => {
-  if (!rounds || rounds.length === 0) return false;
-  
-  // Check if there are any rounds after the current round in the tournament structure
-  const roundOrder = {
-    'Round of 32': 1,
-    'Round of 16': 2,
-    'Quarter Finals': 3,
-    'Semi Finals': 4,
-    'Final': 5
+  const hasNextRound = () => {
+    if (!rounds || rounds.length === 0) return false;
+
+    // Check if there are any rounds after the current round in the tournament structure
+    const roundOrder = {
+      'Round of 32': 1,
+      'Round of 16': 2,
+      'Quarter Finals': 3,
+      'Semi Finals': 4,
+      'Final': 5
+    };
+
+    const currentRoundOrder = roundOrder[currentRound];
+    return currentRoundOrder < 5;  // Final is always the last round
   };
-  
-  const currentRoundOrder = roundOrder[currentRound];
-  return currentRoundOrder < 5;  // Final is always the last round
-};
 
   // Determine if the next round button should be enabled
-const isNextRoundButtonEnabled = () => {
-  // Only enable if current round is completed AND there's a next round
-  return isRoundCompleted() && hasNextRound();
-};
+  const isNextRoundButtonEnabled = () => {
+    // Only enable if current round is completed AND there's a next round
+    return isRoundCompleted() && hasNextRound();
+  };
   // Get players with their names
-  const getPlayerName = (playerId) => {
-    const player = fixtures.find(f => 
-      f.homePlayer._id === playerId || f.awayPlayer._id === playerId
-    )?.homePlayer._id === playerId 
-      ? fixtures.find(f => f.homePlayer._id === playerId)?.homePlayer
-      : fixtures.find(f => f.awayPlayer._id === playerId)?.awayPlayer;
-    console.log('Player:', playerId.name);
-    console.log('Player ID:', playerId);    
-   
-    return playerId.name;
+    const getPlayerName = (player) => {
+    if (!player) return 'Unknown Player';
+    
+    // Handle both direct player objects and player IDs
+    const playerObj = typeof player === 'object' ? player : 
+      fixtures.find(f => f.homePlayer?._id === player)?.homePlayer || 
+      fixtures.find(f => f.awayPlayer?._id === player)?.awayPlayer;
+
+    if (!playerObj) return 'Unknown Player';
+
+    // Handle different name formats
+    if (playerObj.firstName && playerObj.lastName) {
+      return `${playerObj.firstName} ${playerObj.lastName}`;
+    }
+    if (playerObj.name) {
+      return playerObj.name;
+    }
+    return 'Unknown Player';
   };
 
   // Get status badge color based on status
-    const getStatusBadgeColor = (status) => {
-    switch(status) {
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
       case 'completed': return 'bg-emerald-900/30 text-gold-500 border border-emerald-800';
       case 'pending': return 'bg-amber-900/30 text-gold-500 border border-amber-800';
       case 'upcoming': return 'bg-sky-900/30 text-gold-500 border border-sky-800';
@@ -206,7 +240,7 @@ const isNextRoundButtonEnabled = () => {
 
   // Get status icon based on status
   const getStatusIcon = (status) => {
-    switch(status) {
+    switch (status) {
       case 'completed': return <CheckCircle size={16} className="me-1" />;
       case 'pending': return <Clock size={16} className="me-1" />;
       case 'upcoming': return <Calendar size={16} className="me-1" />;
@@ -215,12 +249,19 @@ const isNextRoundButtonEnabled = () => {
   };
 
   // Render loading spinner
- const renderLoadingSpinner = () => (
+  const renderLoadingSpinner = () => (
     <div className="fixed inset-0 bg-black-900/95 backdrop-blur-sm flex justify-center items-center z-50">
       <div className="animate-pulse-slow rounded-full h-16 w-16 border-4 border-gold-500 border-t-transparent"></div>
     </div>
   );
-
+ const renderPlayerInitials = (player) => {
+    const name = getPlayerName(player);
+    return name
+      .split(' ')
+      .map(n => n?.[0]?.toUpperCase() ?? '')
+      .join('')
+      .slice(0, 2) || '?';
+  };
   // Render alert messages
   const renderAlerts = () => (
     <>
@@ -247,7 +288,7 @@ const isNextRoundButtonEnabled = () => {
     );
   }
 
- return (
+  return (
     <div className="result-ko container mx-auto px-4 py-8 bg-black-900 min-h-screen">
       {/* Header Section */}
       <div className="bg-black-800 border border-gold-800 rounded-xl mb-8 p-6 shadow-gold-lg">
@@ -303,7 +344,7 @@ const isNextRoundButtonEnabled = () => {
               <div className="space-y-4">
                 {/* Desktop Progress */}
                 <div className="hidden md:block relative h-2 bg-gold-800/20 rounded-full mb-8">
-                  <div 
+                  <div
                     className="absolute h-2 bg-gold-500 rounded-full transition-all duration-500"
                     style={{ width: `${(rounds.indexOf(currentRound) / (rounds.length - 1)) * 100}%` }}
                   ></div>
@@ -314,11 +355,10 @@ const isNextRoundButtonEnabled = () => {
                       style={{ left: `${(index / (rounds.length - 1)) * 100}%` }}
                     >
                       <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all ${
-                          currentRound === round 
-                            ? 'bg-gold-500 border-2 border-gold-500 scale-125' 
-                            : 'bg-black-900 border-2 border-gold-500 hover:scale-110'
-                        }`}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all ${currentRound === round
+                          ? 'bg-gold-500 border-2 border-gold-500 scale-125'
+                          : 'bg-black-900 border-2 border-gold-500 hover:scale-110'
+                          }`}
                         onClick={() => setCurrentRound(round)}
                       >
                         <span className={`text-sm font-bold ${currentRound === round ? 'text-black-900' : 'text-gold-500'}`}>
@@ -339,11 +379,10 @@ const isNextRoundButtonEnabled = () => {
                   {rounds.map(round => (
                     <button
                       key={round}
-                      className={`text-sm py-2 rounded-lg transition-colors ${
-                        currentRound === round
-                          ? 'bg-gold-500 text-black-900 font-medium'
-                          : 'bg-gold-500/10 text-gold-500 border border-gold-800 hover:bg-gold-500/20'
-                      }`}
+                      className={`text-sm py-2 rounded-lg transition-colors ${currentRound === round
+                        ? 'bg-gold-500 text-black-900 font-medium'
+                        : 'bg-gold-500/10 text-gold-500 border border-gold-800 hover:bg-gold-500/20'
+                        }`}
                       onClick={() => setCurrentRound(round)}
                     >
                       {round}
@@ -354,11 +393,10 @@ const isNextRoundButtonEnabled = () => {
                 {/* Advance Button */}
                 {currentRound !== 'Final' && (
                   <button
-                    className={`w-full md:w-auto py-3 px-6 rounded-lg flex items-center justify-center space-x-2 transition-all ${
-                      isNextRoundButtonEnabled()
-                        ? 'bg-gold-500 text-black-900 hover:bg-gold-600'
-                        : 'bg-gold-500/20 text-gold-500/50 cursor-not-allowed'
-                    }`}
+                    className={`w-full md:w-auto py-3 px-6 rounded-lg flex items-center justify-center space-x-2 transition-all ${isNextRoundButtonEnabled()
+                      ? 'bg-gold-500 text-black-900 hover:bg-gold-600'
+                      : 'bg-gold-500/20 text-gold-500/50 cursor-not-allowed'
+                      }`}
                     disabled={!isNextRoundButtonEnabled()}
                     onClick={handleAdvanceToNextRound}
                   >
@@ -394,169 +432,169 @@ const isNextRoundButtonEnabled = () => {
                         {['Home Player', 'Score', 'Away Player', 'Status', 'Actions'].map((header, idx) => (
                           <th
                             key={header}
-                            className={`px-4 py-3 text-left text-gold-500 font-medium ${
-                              idx === 0 ? 'rounded-l-lg' : idx === 4 ? 'rounded-r-lg' : ''
-                            }`}
+                            className={`px-4 py-3 text-left text-gold-500 font-medium ${idx === 0 ? 'rounded-l-lg' : idx === 4 ? 'rounded-r-lg' : ''
+                              }`}
                           >
                             {header}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                   <tbody className="divide-y divide-gold-800/20">
-  {fixtures
-    .filter(fixture => fixture.round === currentRound)
-    .map(fixture => {
-      const homePlayerName = fixture.homePlayer.firstName ? 
-        `${fixture.homePlayer.firstName} ${fixture.homePlayer.lastName}` : 
-        getPlayerName(fixture.homePlayer);
-      
-      const awayPlayerName = fixture.awayPlayer.firstName ? 
-        `${fixture.awayPlayer.firstName} ${fixture.awayPlayer.lastName}` : 
-        getPlayerName(fixture.awayPlayer);
-      
-      return (
-        <tr key={fixture._id} className="hover:bg-gold-500/5 transition-colors">
-          <td className="px-4 py-3 text-gold-400 font-medium">{homePlayerName}</td>
-          <td className="py-3 text-center">
-            {fixture.status === 'completed' ? (
-              <div className="px-3 py-1 bg-gold-500/10 rounded-full inline-flex items-center justify-center">
-                <span className={`font-bold ${
-                  fixture.homeScore > fixture.awayScore ? 'text-emerald-400' : 'text-gold-400'
-                }`}>
-                  {fixture.homeScore}
-                </span>
-                <span className="mx-2 text-gold-500">-</span>
-                <span className={`font-bold ${
-                  fixture.awayScore > fixture.homeScore ? 'text-emerald-400' : 'text-gold-400'
-                }`}>
-                  {fixture.awayScore}
-                </span>
-              </div>
-            ) : (
-              <span className="badge bg-gold-500/10 text-gold-500 border border-gold-800">
-                Not played
-              </span>
-            )}
-          </td>
-          <td className="text-gold-400 font-medium">{awayPlayerName}</td>
-          <td className="py-3">
-            <span className={`badge flex items-center ${getStatusBadgeColor(fixture.status)}`}>
-              {getStatusIcon(fixture.status)}
-              {fixture.status}
-            </span>
-          </td>
-          <td className="px-4 py-3 text-right">
-            {fixture.status === 'pending' ? (
-              <button
-                className="btn bg-gold-500/10 text-gold-500 border border-gold-800 hover:bg-gold-500/20 flex items-center transition-colors"
-                data-bs-toggle="modal"
-                data-bs-target={`#resultModal-${fixture._id}`}
-              >
-                <Activity size={16} className="mr-2" />
-                Update Result
-              </button>
-            ) : (
-              <span className="text-emerald-400 flex items-center">
-                <CheckCircle size={16} className="mr-2" />
-                Completed
-              </span>
-            )}
-            
-            {/* Modal */}
-            <div
-              className="modal fade"
-              id={`resultModal-${fixture._id}`}
-              tabIndex="-1"
-              aria-labelledby={`resultModalLabel-${fixture._id}`}
-              aria-hidden="true"
-            >
-              <div className="modal-dialog modal-dialog-centered">
-                <div className="modal-content bg-black-800 border border-gold-800 rounded-xl">
-                  <div className="modal-header border-b border-gold-800 p-4">
-                    <h5 className="modal-title text-gold-500 flex items-center">
-                      <Trophy size={20} className="mr-2" />
-                      Update Match Result
-                    </h5>
-                    <button
-                      type="button"
-                      className="btn-close text-gold-500"
-                      data-bs-dismiss="modal"
-                      aria-label="Close"
-                    ></button>
-                  </div>
-                  <div className="modal-body p-4">
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      const homeScore = e.target.homeScore.value;
-                      const awayScore = e.target.awayScore.value;
-                      handleUpdateResult(fixture._id, homeScore, awayScore);
-                      document.querySelector(`#resultModal-${fixture._id} .btn-close`).click();
-                    }}>
-                      <div className="p-4 border border-gold-800 rounded-lg bg-black-900 mb-4">
-                        <div className="flex items-center justify-between">
-                          {/* Home Player */}
-                          <div className="text-center">
-                            <div className="mb-2 mx-auto rounded-full bg-gold-500/10 p-3">
-                              <span className="text-gold-500 font-bold text-xl">
-                                {homePlayerName.split(' ').map(n => n[0]).join('')}
-                              </span>
-                            </div>
-                            <h6 className="text-gold-400 font-medium">{homePlayerName}</h6>
-                          </div>
-                          
-                          {/* VS & Inputs */}
-                          <div className="flex flex-col items-center mx-4">
-                            <span className="text-gold-500 font-bold mb-2">VS</span>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                className="w-12 text-center bg-black-800 border border-gold-800 rounded-lg text-gold-400 py-2"
-                                name="homeScore"
-                                min="0"
-                                required
-                                defaultValue={fixture.homeScore || 0}
-                              />
-                              <span className="text-gold-500">-</span>
-                              <input
-                                type="number"
-                                className="w-12 text-center bg-black-800 border border-gold-800 rounded-lg text-gold-400 py-2"
-                                name="awayScore"
-                                min="0"
-                                required
-                                defaultValue={fixture.awayScore || 0}
-                              />
-                            </div>
-                          </div>
-                          
-                          {/* Away Player */}
-                          <div className="text-center">
-                            <div className="mb-2 mx-auto rounded-full bg-gold-500/10 p-3">
-                              <span className="text-gold-500 font-bold text-xl">
-                                {awayPlayerName.split(' ').map(n => n[0]).join('')}
-                              </span>
-                            </div>
-                            <h6 className="text-gold-400 font-medium">{awayPlayerName}</h6>
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="submit"
-                        className="w-full py-2 bg-gold-500 text-black-900 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center"
-                      >
-                        <CheckCircle size={18} className="mr-2" />
-                        Save Result
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </td>
-        </tr>
-      );
-    })}
-</tbody>
+                    <tbody className="divide-y divide-gold-800/20">
+                      {fixtures
+                        .filter(fixture => fixture.round === currentRound)
+                        .map(fixture => {
+                          const homePlayerName = fixture.homePlayer.firstName ?
+                            `${fixture.homePlayer.firstName} ${fixture.homePlayer.lastName}` :
+                            getPlayerName(fixture.homePlayer);
+
+                          const awayPlayerName = fixture.awayPlayer.firstName ?
+                            `${fixture.awayPlayer.firstName} ${fixture.awayPlayer.lastName}` :
+                            getPlayerName(fixture.awayPlayer);
+
+                          return (
+                            <tr key={fixture._id} className="hover:bg-gold-500/5 transition-colors">
+                              <td className="px-4 py-3 text-gold-400 font-medium">{getPlayerName(fixture.homePlayer)}</td>
+                              <td className="py-3 text-center">
+                                {fixture.status === 'completed' ? (
+                                  <div className="px-3 py-1 bg-gold-500/10 rounded-full inline-flex items-center justify-center">
+                                    <span className={`font-bold ${fixture.homeScore > fixture.awayScore ? 'text-emerald-400' : 'text-gold-400'
+                                      }`}>
+                                      {fixture.homeScore}
+                                    </span>
+                                    <span className="mx-2 text-gold-500">-</span>
+                                    <span className={`font-bold ${fixture.awayScore > fixture.homeScore ? 'text-emerald-400' : 'text-gold-400'
+                                      }`}>
+                                      {fixture.awayScore}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="badge bg-gold-500/10 text-gold-500 border border-gold-800">
+                                    Not played
+                                  </span>
+                                )}
+                              </td>
+                              <td className="text-gold-400 font-medium">{awayPlayerName}</td>
+                              <td className="py-3">
+                                <span className={`badge flex items-center ${getStatusBadgeColor(fixture.status)}`}>
+                                  {getStatusIcon(fixture.status)}
+                                  {fixture.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {fixture.status === 'pending' ? (
+                                  <button
+                                    className="btn bg-gold-500/10 text-gold-500 border border-gold-800 hover:bg-gold-500/20 flex items-center transition-colors"
+                                    data-bs-toggle="modal"
+                                    data-bs-target={`#resultModal-${fixture._id}`}
+                                  >
+                                    <Activity size={16} className="mr-2" />
+                                    Update Result
+                                  </button>
+                                ) : (
+                                  <span className="text-emerald-400 flex items-center">
+                                    <CheckCircle size={16} className="mr-2" />
+                                    Completed
+                                  </span>
+                                )}
+
+                                {/* Modal */}
+                                <div
+                                  className="modal fade"
+                                  id={`resultModal-${fixture._id}`}
+                                  tabIndex="-1"
+                                  aria-labelledby={`resultModalLabel-${fixture._id}`}
+                                  aria-hidden="true"
+                                >
+                                  <div className="modal-dialog modal-dialog-centered">
+                                    <div className="modal-content bg-black-800 border border-gold-800 rounded-xl">
+                                      <div className="modal-header border-b border-gold-800 p-4">
+                                        <h5 className="modal-title text-gold-500 flex items-center">
+                                          <Trophy size={20} className="mr-2" />
+                                          Update Match Result
+                                        </h5>
+                                        <button
+                                          type="button"
+                                          className="btn-close text-gold-500"
+                                          data-bs-dismiss="modal"
+                                          aria-label="Close"
+                                        ></button>
+                                      </div>
+                                      <div className="modal-body p-4">
+                                        <form onSubmit={(e) => {
+                                          e.preventDefault();
+                                          const homeScore = e.target.homeScore.value;
+                                          const awayScore = e.target.awayScore.value;
+                                          handleUpdateResult(fixture._id, homeScore, awayScore);
+                                          document.querySelector(`#resultModal-${fixture._id} .btn-close`).click();
+                                        }}>
+                                          <div className="p-4 border border-gold-800 rounded-lg bg-black-900 mb-4">
+                                            <div className="flex items-center justify-between">
+                                              {/* Home Player */}
+                                              <div className="text-center">
+                                                <div className="mb-2 mx-auto rounded-full bg-gold-500/10 p-3">
+                                                  <span className="text-gold-500 font-bold text-xl">
+                                             {renderPlayerInitials(fixture.homePlayer)}
+                                                  </span>
+                                                </div>
+                                                <h6 className="text-gold-400 font-medium">
+                                                  {homePlayerName || 'Unknown Player'}
+                                                </h6>
+                                              </div>
+
+                                              {/* VS & Inputs */}
+                                              <div className="flex flex-col items-center mx-4">
+                                                <span className="text-gold-500 font-bold mb-2">VS</span>
+                                                <div className="flex items-center gap-2">
+                                                  <input
+                                                    type="number"
+                                                    className="w-12 text-center bg-black-800 border border-gold-800 rounded-lg text-gold-400 py-2"
+                                                    name="homeScore"
+                                                    min="0"
+                                                    required
+                                                    defaultValue={fixture.homeScore || 0}
+                                                  />
+                                                  <span className="text-gold-500">-</span>
+                                                  <input
+                                                    type="number"
+                                                    className="w-12 text-center bg-black-800 border border-gold-800 rounded-lg text-gold-400 py-2"
+                                                    name="awayScore"
+                                                    min="0"
+                                                    required
+                                                    defaultValue={fixture.awayScore || 0}
+                                                  />
+                                                </div>
+                                              </div>
+
+                                              {/* Away Player */}
+                                              <div className="text-center">
+                                                <div className="mb-2 mx-auto rounded-full bg-gold-500/10 p-3">
+                                                  <span className="text-gold-500 font-bold text-xl">
+                                                    {renderPlayerInitials(fixture.awayPlayer)}
+                                                  </span>
+                                                </div>
+                                                <h6 className="text-gold-400 font-medium">{awayPlayerName || 'Unknown Player'}</h6>
+                                              </div>
+
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="submit"
+                                            className="w-full py-2 bg-gold-500 text-black-900 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center"
+                                          >
+                                            <CheckCircle size={18} className="mr-2" />
+                                            Save Result
+                                          </button>
+                                        </form>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
                   </table>
                 </div>
               ) : (

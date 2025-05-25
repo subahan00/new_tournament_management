@@ -13,10 +13,10 @@ const authRoutes = require('./routes/authRoutes');
 const playerRoutes = require('./routes/playerRoutes');
 const fixtureRoutes = require('./routes/fixtureRoutes');
 const standingRoutes = require('./routes/standingRoutes');
-
+const Admin = require('./models/Admin'); // Import the Admin model
 const app = express();
 const server = http.createServer(app);
-
+const bcrypt = require('bcryptjs');
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
@@ -63,7 +63,38 @@ app.use('/api/standings', standingRoutes); // ✅ Now properly connected
 app.get('/', (req, res) => {
   res.status(200).json({ status: 'API is running' });
 });
+// Add this new route for password reset
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { username, oldPassword, newPassword } = req.body;
 
+  try {
+    // 1. Find the user by username
+    const user = await Admin.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // 2. Verify old password
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    // 3. Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // 4. Update the password
+    user.password = hashedPassword;
+    await user.save();
+
+    // 5. Return success response
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error during password reset' });
+  }
+});
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });

@@ -5,35 +5,37 @@ const mongoose = require('mongoose');
 const Player = require('../models/Player');
 const calculateStandings = async (competitionId) => {
   try {
-    // 1. Validate competition and players
+    // 1. Get competition WITHOUT populating players
     const competition = await Competition.findById(competitionId)
       .select('players')
-      .populate('players', 'name')
       .lean();
 
     if (!competition) throw new Error('Competition not found');
     if (!competition.players?.length) throw new Error('No players in competition');
 
-    // 2. Get completed fixtures with player data
+    // 2. Get completed fixtures WITHOUT player population
     const fixtures = await Fixture.find({
       competitionId,
       status: 'completed'
-    })
-      .populate('homePlayer awayPlayer', 'name _id')
+    }).lean();
+
+    // 3. Get existing standings for competition-specific names
+    const existingStandings = await Standing.find({ competition: competitionId })
+      .select('player playerName')
       .lean();
 
-    // 3. Initialize standings map with player data
+    // 4. Initialize standings with competition-specific names
     const standingsMap = new Map();
-   const validPlayers = await Player.find({ 
-  _id: { $in: competition.players }
-});
+    
+    // Create base standings using existing names or global names
+    for (const playerId of competition.players) {
+      const existing = existingStandings.find(s => s.player.equals(playerId));
+      const globalPlayer = await Player.findById(playerId).select('name').lean();
 
-    competition.players.forEach(player => {
-        if (!validPlayers.some(vp => vp._id.equals(player._id))) return;
-
-      standingsMap.set(player._id.toString(), {
+      standingsMap.set(playerId.toString(), {
         competition: new mongoose.Types.ObjectId(competitionId),
-        player: player._id,
+        player: playerId,
+        playerName: existing?.playerName || globalPlayer?.name || 'Unknown Player',
         matchesPlayed: 0,
         wins: 0,
         draws: 0,
@@ -42,51 +44,49 @@ const calculateStandings = async (competitionId) => {
         goalsAgainst: 0,
         points: 0
       });
-    });
+    }
 
-    // 4. Process fixtures
+    // 5. Process fixtures using competition-specific names
     fixtures.forEach(fixture => {
-      const homeId = fixture.homePlayer._id.toString();
-      const awayId = fixture.awayPlayer._id.toString();
-
-      const home = standingsMap.get(homeId);
-      const away = standingsMap.get(awayId);
+      const homeEntry = standingsMap.get(fixture.homePlayer.toString());
+      const awayEntry = standingsMap.get(fixture.awayPlayer.toString());
 
       // Update match counts
-      home.matchesPlayed++;
-      away.matchesPlayed++;
+      homeEntry.matchesPlayed++;
+      awayEntry.matchesPlayed++;
 
-      // Update goals
-      home.goalsFor += fixture.homeScore;
-      home.goalsAgainst += fixture.awayScore;
-      away.goalsFor += fixture.awayScore;
-      away.goalsAgainst += fixture.homeScore;
+      // Update goals using FIXTURE STORED NAMES
+      homeEntry.goalsFor += fixture.homeScore;
+      homeEntry.goalsAgainst += fixture.awayScore;
+      awayEntry.goalsFor += fixture.awayScore;
+      awayEntry.goalsAgainst += fixture.homeScore;
 
       // Update points and results
       switch (fixture.result) {
         case 'home':
-          home.wins++;
-          home.points += 3;
-          away.losses++;
+          homeEntry.wins++;
+          homeEntry.points += 3;
+          awayEntry.losses++;
           break;
         case 'away':
-          away.wins++;
-          away.points += 3;
-          home.losses++;
+          awayEntry.wins++;
+          awayEntry.points += 3;
+          homeEntry.losses++;
           break;
         case 'draw':
-          home.draws++;
-          away.draws++;
-          home.points++;
-          away.points++;
+          homeEntry.draws++;
+          awayEntry.draws++;
+          homeEntry.points++;
+          awayEntry.points++;
           break;
       }
 
-      standingsMap.set(homeId, home);
-      standingsMap.set(awayId, away);
+      // Preserve existing names
+      homeEntry.playerName = homeEntry.playerName;
+      awayEntry.playerName = awayEntry.playerName;
     });
 
-    // 5. Prepare for database update
+    // 6. Prepare bulk operations with name preservation
     const bulkOps = Array.from(standingsMap.values()).map(standing => ({
       updateOne: {
         filter: { 
@@ -103,10 +103,10 @@ const calculateStandings = async (competitionId) => {
       }
     }));
 
-    // 6. Update database
+    // 7. Update database
     await Standing.bulkWrite(bulkOps, { ordered: false });
 
-    // 7. Return sorted standings
+    // Return sorted standings with competition names
     return Array.from(standingsMap.values()).sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
       const bGD = b.goalsFor - b.goalsAgainst;

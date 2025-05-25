@@ -36,41 +36,36 @@ exports.getOngoingCompetitions = async (req, res) => {
 exports.getStandings = async (req, res) => {
   try {
     const competitionId = req.params.competitionId;
-    
-    // 1. Verify competition exists with players
-    const competition = await Competition.findById(competitionId)
-      .select('players')
-      .populate('players', 'name');
-      
-    if (!competition) throw new Error('Competition not found');
-    if (!competition.players?.length) throw new Error('No players in competition');
 
-    // 2. Calculate and get fresh standings
+    // 1. Verify competition exists
+    const competition = await Competition.findById(competitionId);
+    if (!competition) throw new Error('Competition not found');
+
+    // 2. Calculate standings using competition-specific data
     await calculateStandings(competitionId);
-    
-    // 3. Fetch standings with player data
+
+    // 3. Fetch standings with LOCAL player names (don't populate from Player model)
     const standings = await Standing.find({ competition: competitionId })
-      .populate({
-        path: 'player',
-        select: 'name',
-        model: 'Player'
-      })
+      .select('-__v -_id') // Exclude unnecessary fields
       .sort({ points: -1, goalsFor: -1 })
       .lean();
 
-    // 4. Validate and format response
-    const validatedStandings = standings.map(standing => ({
+    // 4. Format response using competition-specific names
+    const formattedStandings = standings.map(standing => ({
       ...standing,
-      player: {
-        name: standing.player?.name || 'Deleted Player',
-        _id: standing.player?._id || null
-      }
+      playerName: standing.playerName || 'Unknown Player', // Use stored competition name
+      playerId: standing.player // Keep reference if needed
     }));
 
-    res.json(validatedStandings);
+    res.json(formattedStandings);
 
   } catch (err) {
     console.error('Standings error:', err);
-    res.status(500).json([]);
+    res.status(500).json({
+      success: false,
+      message: err.message.includes('Competition') 
+        ? err.message 
+        : 'Failed to retrieve standings'
+    });
   }
 };

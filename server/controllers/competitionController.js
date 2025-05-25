@@ -128,6 +128,57 @@ const competitionController = {
       });
     }
   },
+// controllers/competitionController.js
+updatePlayerNameInCompetition : async (req, res) => {
+  const { competitionId } = req.params;
+  const { playerId, newName } = req.body;
+
+  try {
+    // Validate competition exists
+    const competition = await Competition.findById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ success: false, message: 'Competition not found' });
+    }
+
+    // Validate player is part of the competition
+    if (!competition.players.includes(playerId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Player not part of this competition' 
+      });
+    }
+
+    // Update competition-specific fixtures
+    const [homeUpdates, awayUpdates] = await Promise.all([
+      Fixture.updateMany(
+        { competitionId, homePlayer: playerId },
+        { $set: { homePlayerName: newName } }
+      ),
+      Fixture.updateMany(
+        { competitionId, awayPlayer: playerId },
+        { $set: { awayPlayerName: newName } }
+      )
+    ]);
+
+    // Update competition-specific standings
+    const standingsUpdate = await Standing.updateMany(
+      { competition: competitionId, player: playerId },
+      { $set: { playerName: newName } }
+    );
+
+    res.json({
+      success: true,
+      message: `Updated ${homeUpdates.modifiedCount + awayUpdates.modifiedCount} fixtures`,
+      standingsUpdated: standingsUpdate.modifiedCount
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+},
  getAllPlayers :async (req, res) => {
   try {
     const { competitionId } = req.params;
@@ -283,20 +334,20 @@ getUpcomingLeagueCompetitions: async (req, res) => {
   }
 },
 
- 
 deleteCompetition: async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Competition ID to delete:", id);
 
+    // Validate competition ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid competition ID format' });
     }
+        console.log('Deleting competition with ID:', id);
 
-    // 1. Delete related data WITHOUT session
+    // 1. Delete related fixtures and standings
     const [fixturesResult, standingsResult] = await Promise.all([
-      Fixture.deleteMany({ competition: id }),
-      Standing.deleteMany({ competition: id }),
+      Fixture.deleteMany({ competitionId: id }),
+      Standing.deleteMany({ competition: id })
     ]);
 
     // 2. Remove competition from players
@@ -304,10 +355,9 @@ deleteCompetition: async (req, res) => {
       { competitions: id },
       { $pull: { competitions: id } }
     );
-
-    // 3. Delete brackets
-
-    // 4. Delete competition
+console.log('Fixtures deleted:', fixturesResult.deletedCount);
+console.log('Standings deleted:', standingsResult.deletedCount);
+    // 3. Delete competition itself
     const competition = await Competition.findByIdAndDelete(id);
 
     if (!competition) {
@@ -316,20 +366,22 @@ deleteCompetition: async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Competition and all related data deleted successfully',
-      deleted: {
-        competition: competition.name,
+      message: 'Competition deleted with related data',
+      deletedCounts: {
         fixtures: fixturesResult.deletedCount,
         standings: standingsResult.deletedCount,
-        playersUpdated: playersUpdate.modifiedCount,
-      },
+        playersUpdated: playersUpdate.modifiedCount
+      }
     });
+
   } catch (error) {
     console.error('Error deleting competition:', error);
-    return res.status(500).json({ error: 'Server error while deleting competition' });
+    return res.status(500).json({ 
+      error: 'Server error while deleting competition',
+      details: error.message 
+    });
   }
 }
-
 
 };
 

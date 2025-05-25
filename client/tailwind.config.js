@@ -6,6 +6,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        serif: ['"Cormorant Garamond"', 'serif'] // Or another premium font
+      },
       colors: {
         black: {
           DEFAULT: '#000000',  // <-- This brings back 'bg-black'

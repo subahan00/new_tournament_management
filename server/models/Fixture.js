@@ -1,23 +1,31 @@
 const mongoose = require('mongoose');
 
 const fixtureSchema = new mongoose.Schema({
-  competitionId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Competition', 
-    required: true 
+  competitionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Competition',
+    required: true
   },
   round: String,
-  homePlayer: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Player',
-    required: true 
-  },
-  awayPlayer: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Player',
-    required: true 
-  },
-  matchDate: { 
+homePlayer: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Player',
+  required: true
+},
+homePlayerName: {
+  type: String,
+  required: true
+},
+awayPlayer: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Player',
+  required: true
+},
+awayPlayerName: {
+  type: String,
+  required: true
+},
+  matchDate: {
     type: Date,
     default: Date.now
   },
@@ -41,16 +49,16 @@ const fixtureSchema = new mongoose.Schema({
     enum: ['home', 'away', 'draw', null],
     default: null
   }
-}, { 
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
 // Validation for player-competition relationship
-fixtureSchema.pre('save', async function(next) {
+fixtureSchema.pre('save', async function (next) {
   const Competition = mongoose.model('Competition');
-  
+
   // Check if both players belong to the competition
   const competition = await Competition.findOne({
     _id: this.competitionId,

@@ -2,21 +2,35 @@
 const Competition = require('../models/Competition');
 
 // League Type Generation (keep existing implementation)
-function generateLeagueFixtures(players) {
+function generateLeagueFixtures(players, playerNames = new Map()) {
     const fixtures = [];
     const totalPlayers = players.length;
 
+    // Validate input
+    if (!Array.isArray(players) || players.length < 2) {
+        throw new Error('Invalid players array');
+    }
+
     for (let round = 0; round < 3; round++) {
-      for (let i = 0; i < totalPlayers; i++) {
-        for (let j = i + 1; j < totalPlayers; j++) {
-          fixtures.push({
-            round: `Round ${round + 1}`,
-            homePlayer: round % 2 === 0 ? players[i] : players[j],
-            awayPlayer: round % 2 === 0 ? players[j] : players[i],
-            isNeutralVenue: round === 2
-          });
+        for (let i = 0; i < totalPlayers; i++) {
+            for (let j = i + 1; j < totalPlayers; j++) {
+                const homeId = players[i];
+                const awayId = players[j];
+                
+                fixtures.push({
+                    round: `Round ${round + 1}`,
+                    homePlayer: round % 2 === 0 ? homeId : awayId,
+                    homePlayerName: playerNames.get(
+                        (round % 2 === 0 ? homeId : awayId).toString()
+                    ) || `Player ${(round % 2 === 0 ? homeId : awayId).toString().slice(-4)}`,
+                    awayPlayer: round % 2 === 0 ? awayId : homeId,
+                    awayPlayerName: playerNames.get(
+                        (round % 2 === 0 ? awayId : homeId).toString()
+                    ) || `Player ${(round % 2 === 0 ? awayId : homeId).toString().slice(-4)}`,
+                    isNeutralVenue: round === 2
+                });
+            }
         }
-      }
     }
     return fixtures;
 }
@@ -61,12 +75,14 @@ const generateKnockoutFixtures = {
 //   return array.sort(() => Math.random() - 0.5);
 // }
 
-function pairPlayers(players, competitionId, roundName) {
+function pairPlayers(players, competitionId, roundName, playerNames) { // Add playerNames parameter
   return Array.from({ length: Math.ceil(players.length / 2) }, (_, i) => ({
-    competition: competitionId,
+    competitionId,
     round: roundName,
     homePlayer: players[i * 2],
+    homePlayerName: playerNames.get(players[i * 2]),
     awayPlayer: players[i * 2 + 1] || null,
+    awayPlayerName: players[i * 2 + 1] ? playerNames.get(players[i * 2 + 1]) : 'Bye',
     status: 'pending',
     matchDate: calculateRoundDate(roundName)
   }));
@@ -138,31 +154,20 @@ const shuffleArray = (array) => {
  * @param {number} numberOfPlayers - Number of players in the competition
  * @returns {Array} - Array of fixture objects for the first round
  */
-const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers) => {
-  // Shuffle players to randomize fixtures
+const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers, playerNames) => {
   const shuffledPlayers = shuffleArray(players);
   const fixtures = [];
   const numberOfMatches = numberOfPlayers / 2;
-  console.log(numberOfPlayers);
-  console.log(numberOfMatches);
-  console.log(shuffledPlayers.length);
-  // Determine the round name based on the number of players
-  let roundName;
-  switch (numberOfPlayers) {
-    case 32: roundName = 'Round of 32'; break;
-    case 16: roundName = 'Round of 16'; break;
-    case 8: roundName = 'Quarter Finals'; break;
-    case 4: roundName = 'Semi Finals'; break;
-    case 2: roundName = 'Final'; break;
-    default: roundName = 'Round 1';
-  }
-  
+  const roundName = getRoundName(numberOfPlayers, 0);
+
   for (let i = 0; i < numberOfMatches; i++) {
     fixtures.push({
       competitionId,
       round: roundName,
       homePlayer: shuffledPlayers[i * 2],
+      homePlayerName: playerNames.get(shuffledPlayers[i * 2]),
       awayPlayer: shuffledPlayers[i * 2 + 1],
+      awayPlayerName: playerNames.get(shuffledPlayers[i * 2 + 1]),
       status: 'pending',
       homeScore: null,
       awayScore: null,
@@ -218,7 +223,9 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
       competitionId,
       round: nextRound,
       homePlayer: winners[i * 2],
+      homePlayerName: playerNames.get(winners[i * 2]),
       awayPlayer: winners[i * 2 + 1],
+      awayPlayerName: playerNames.get(winners[i * 2 + 1]),
       status: 'pending',
       homeScore: null,
       awayScore: null,
@@ -232,11 +239,12 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
 module.exports = {
   generateLeagueFixtures,
   generateKnockoutFixtures,
-  ROUND_NAMES, 
-   generateFirstRoundFixtures,
+  ROUND_NAMES,
+  generateFirstRoundFixtures,
   generateNextRoundFixtures,
   calculateTotalRounds,
   getRoundName,
-  shuffleArray
+  shuffleArray,
+  pairPlayers // Add this if not already exported
 };
 

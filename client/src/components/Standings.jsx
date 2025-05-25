@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'; 
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
 import io from 'socket.io-client';
-import { 
-  ExclamationTriangleIcon, 
-  QuestionMarkCircleIcon , 
+import {
+  ExclamationTriangleIcon,
+  QuestionMarkCircleIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 const socket = io('http://localhost:5000', {
@@ -18,24 +18,22 @@ export default function Standings() {
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-const [message, setMessage] = useState('');
+  const [message, setMessage] = useState('');
   const safeStandings = Array.isArray(standings) ? standings : [];
   const handleDownloadCSV = () => {
     const headers = ['Position,Player,Played,Wins,Draws,Losses,GF,GA,GD,Points'];
     const csvContent = safeStandings
       .map((standing, index) => {
-        const playerName = standing.player?.name.replace('Deleted-', '') || 'Unknown Player';
+        const playerName = standing.playerName?.replace('Deleted-', '') || 'Unknown Player';
         const gd = standing.goalsFor - standing.goalsAgainst;
-        return `${index + 1},${playerName},${standing.matchesPlayed || 0},${standing.wins || 0},${
-          standing.draws || 0},${standing.losses || 0},${standing.goalsFor || 0},${
-          standing.goalsAgainst || 0},${gd},${standing.points || 0}`;
+        return `${index + 1},"${playerName}",${standing.matchesPlayed || 0},${standing.wins || 0},${standing.draws || 0},${standing.losses || 0},${standing.goalsFor || 0},${standing.goalsAgainst || 0},${gd},${standing.points || 0}`;
       })
       .join('\n');
 
     const blob = new Blob([headers + '\n' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `standings-${competitionId}.csv`);
     link.style.visibility = 'hidden';
@@ -96,7 +94,7 @@ const [message, setMessage] = useState('');
       <div className="p-6 bg-black min-h-screen flex items-center justify-center">
         <div className="text-red-500 text-xl text-center">
           ⚠️ {error}
-          <button 
+          <button
             onClick={() => window.location.reload()}
             className="mt-4 bg-yellow-500 text-black px-4 py-2 rounded-md hover:bg-yellow-400 transition-colors block mx-auto"
           >
@@ -107,7 +105,7 @@ const [message, setMessage] = useState('');
     );
   }
 
-   return (
+  return (
     <div className="p-6 bg-black min-h-screen text-amber-500">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8 border-b border-amber-600 pb-4">
@@ -128,8 +126,8 @@ const [message, setMessage] = useState('');
             <thead className="bg-amber-900/40 uppercase">
               <tr>
                 {['#', 'Player', 'Played', 'Wins', 'Draws', 'Losses', 'GF', 'GA', 'GD', 'Points'].map((header) => (
-                  <th 
-                    key={header} 
+                  <th
+                    key={header}
                     className="px-6 py-4 text-left font-bold text-amber-300/90 tracking-wider"
                   >
                     {header}
@@ -142,20 +140,20 @@ const [message, setMessage] = useState('');
               {safeStandings.map((standing, index) => {
                 const goalDifference = standing.goalsFor - standing.goalsAgainst;
                 return (
-                  <tr 
-                    key={standing._id || index} 
+                  <tr
+                    key={standing._id || index}
                     className="hover:bg-amber-900/20 transition-all duration-150 even:bg-zinc-900/30"
                   >
                     <td className="px-6 py-4 font-medium text-amber-400">{index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {standing.player ? (
-                        standing.player.name.startsWith('Deleted-') ? (
+                      {standing.playerName ? (
+                        standing.playerName.startsWith('Deleted-') ? (
                           <span className="text-red-400/90 flex items-center">
                             <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
-                            {standing.player.name.replace('Deleted-', '')}
+                            {standing.playerName.replace('Deleted-', '')}
                           </span>
                         ) : (
-                          <span className="text-amber-200">{standing.player.name}</span>
+                          <span className="text-amber-200">{standing.playerName}</span>
                         )
                       ) : (
                         <span className="text-amber-600 flex items-center">
@@ -165,8 +163,8 @@ const [message, setMessage] = useState('');
                       )}
                     </td>
                     {['matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst'].map((key) => (
-                      <td 
-                        key={key} 
+                      <td
+                        key={key}
                         className="px-6 py-4 text-amber-200/80 text-center"
                       >
                         {standing[key] || 0}

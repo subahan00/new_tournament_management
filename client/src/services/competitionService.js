@@ -52,6 +52,17 @@ export const deleteCompetition = async (competitionId) => {
     throw error;
   }
 };
+export const updatePlayerNameInCompetition = async (competitionId, playerId, newName) => {
+  try {
+    const response = await axios.put(`${BASE_URL}/competitions/${competitionId}/player-name`, {
+      playerId,
+      newName,
+    });
+    return response.data;
+  } catch (error) {
+    return { success: false, message: error.response?.data?.message || error.message };
+  }
+};
 
 export const updateCompetition = async (competitionId, competitionData) => {
   try {
