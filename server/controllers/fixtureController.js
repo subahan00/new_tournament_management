@@ -246,26 +246,16 @@ exports.createFixturesForLeague = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
- exports.getFixturesByCompetition = async (req, res) => {
+exports.getFixturesByCompetition = async (req, res) => {
   try {
     const fixtures = await Fixture.find({ competitionId: req.params.competitionId })
+      .populate('homePlayer', 'name') // Only get the 'name' field
+      .populate('awayPlayer', 'name')
       .select('-__v')
       .sort('matchDate round')
       .lean();
 
-    const formattedFixtures = fixtures.map(f => ({
-      ...f,
-      homePlayer: { 
-        _id: f.homePlayer, 
-        name: f.homePlayerName 
-      },
-      awayPlayer: { 
-        _id: f.awayPlayer, 
-        name: f.awayPlayerName 
-      }
-    }));
-
-    res.status(200).json(formattedFixtures);
+    res.status(200).json(fixtures); // no need to format manually now
   } catch (error) {
     console.error('Fixture Fetch Error:', error);
     res.status(500).json({ 
@@ -274,6 +264,7 @@ exports.createFixturesForLeague = async (req, res) => {
     });
   }
 };
+
  
 // Enhanced knockout fixture generation
 exports.generateKoFixtures = async (req, res) => {

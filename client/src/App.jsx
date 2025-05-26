@@ -26,6 +26,8 @@ import ResultKo from './pages/ResultKo';
   import PublicKo from './pages/PublicKo';
   import PublicManageKo from './pages/PublicManageKo';
   import UpdatePlayerName from './pages/updateCompetition';
+  import AdminWinnerForm from './pages/AdminWinnerForm';
+  import HallOfFame from './pages/HallOfFame';
   const App = () => {
   return (
     <Router>
@@ -36,12 +38,13 @@ import ResultKo from './pages/ResultKo';
         <Route path="/competitions" element={<Competitions />} />
       <Route path='/admin/update-competition' element={<UpdatePlayerName/>}/>
         <Route path="/fixtures" element={<FixtureManagement />} />
-      
+        <Route path ="/post-winner" element={<AdminWinnerForm/>}/>
         <Route path="/results" element={<ResultsEntry />} />
         <Route path="/winners" element={<WinnersArchive />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin/create-competition" element={<CreateCompetition />} /> {/* <-- Add this */}
         <Route path="/admin/manage-competitions" element ={<ManageCompetitions/>}/>
+      <Route path ="/hall-of-fame" element={<HallOfFame/>}/>
         <Route path="/admin/create-fixture" element={<FixtureManagement />} />
       <Route path="/admin/manage-fixtures" element={<ManageFixtures />} />
       <Route path="/fixtures/:competitionId" element={<CompetitionFixtures />} /> 

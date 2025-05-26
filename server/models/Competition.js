@@ -59,5 +59,18 @@ const competitionSchema = new mongoose.Schema({
   }
 
 }, { timestamps: true });
+// In your Competition model schema
+competitionSchema.pre('save', async function(next) {
+  if (this.isModified('status') && this.status === 'completed') {
+    try {
+      // Delete all associated fixtures
+      await mongoose.model('Fixture').deleteMany({ competitionId: this._id });
+      console.log(`Deleted fixtures for completed competition: ${this.name}`);
+    } catch (err) {
+      return next(err);
+    }
+  }
+  next();
+}); 
 
 module.exports = mongoose.model('Competition', competitionSchema);

@@ -63,7 +63,34 @@ export const updatePlayerNameInCompetition = async (competitionId, playerId, new
     return { success: false, message: error.response?.data?.message || error.message };
   }
 };
-
+// services/competitionService.js
+export const updateCompetitionStatus = async (competitionId, newStatus) => {
+  try {
+    const response = await axios.put(
+      `http://localhost:5000/api/competitions/${competitionId}/status`,
+      { status: newStatus },  // Ensure correct payload format
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    return { 
+      success: true, 
+      data: response.data.data,
+      message: response.data.message 
+    };
+    
+  } catch (error) {
+    console.error('Status update error:', error.response?.data);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to update competition status',
+      error: error.response?.data
+    };
+  }
+};
 export const updateCompetition = async (competitionId, competitionData) => {
   try {
     const token = localStorage.getItem('authToken');

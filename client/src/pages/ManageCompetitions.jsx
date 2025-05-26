@@ -249,7 +249,7 @@ const ManageCompetitions = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <Link
-                          to={`/admin/update-competition/${competition.id}`}
+                          to={`/admin/update-competition`}
                           className="text-gold-400 hover:text-gold-300"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -17,6 +17,7 @@ const Admin = require('./models/Admin'); // Import the Admin model
 const app = express();
 const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
+const resultRoutes=require('./routes/resultRoutes')
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
@@ -58,7 +59,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/players', playerRoutes);
 app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes); // ✅ Now properly connected
-
+app.use('/api/result',resultRoutes); // ✅ Now properly connected
 // Health Check
 app.get('/', (req, res) => {
   res.status(200).json({ status: 'API is running' });
