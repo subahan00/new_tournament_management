@@ -20,7 +20,7 @@ import CompetitionResults from './pages/CompetitionResults';
   import ManageStandings from './components/ManageStandings';
   import Standings from './components/Standings';// <-- Import the new page
 import { Edit } from 'lucide-react';
-import EditCompetition from './components/CompetitionEdit';
+
 import ManageKoResults from './pages/ManageKoResults';
 import ResultKo from './pages/ResultKo';
   import PublicKo from './pages/PublicKo';

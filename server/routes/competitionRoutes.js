@@ -11,7 +11,8 @@ const {
   errorHandler
 } = require('../utils/middlewares');
 
-// Apply global middlewares
+// Apply global middlewar
+
 router.use(sanitizeInput);
 router.use(apiLimiter);
 

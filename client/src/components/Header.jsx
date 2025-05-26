@@ -9,25 +9,9 @@ const Header = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch competitions data
-  useEffect(() => {
-    const fetchCompetitions = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get('/api/competitions'); // Replace with your API endpoint
-        setCompetitions(response.data);
-      } catch (err) {
-        console.error('Error fetching competitions:', err);
-        setError('Failed to load competitions');
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    fetchCompetitions();
-  }, []);
 
+   
   // Close menu when clicking outside (optional)
   useEffect(() => {
     const handleClickOutside = (e) => {

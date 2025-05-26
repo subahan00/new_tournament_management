@@ -120,7 +120,7 @@ const AdminDashboard = () => {
             <h3 className="text-gold-500 uppercase text-xs font-semibold tracking-wider mb-2 mt-4">Archive</h3>
             <ul className="space-y-1">
               <li>
-                <Link to="/winners" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
+                <Link to="/post-winner" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
                   Winners Archive
                 </Link>
               </li>

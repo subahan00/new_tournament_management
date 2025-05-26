@@ -3,7 +3,10 @@
     "$oid": "6816476cfb68b9b64d46df82"
   },
   "username": "admin",
-  "password": "$2b$10$RiBGqO5YYmu5cfEuWh3H4.0eYvzwcEnVjANrt.1RRTmDS/0t4DSSa"
+  "password": "$2b$10$yaR4odslkH0ASohBFSzYhucs0Alv7DCNE6UIF1CD.zGnhQcaf53By",
+  "updatedAt": {
+    "$date": "2025-05-25T05:28:55.342Z"
+  }
 },
 {
   "_id": {

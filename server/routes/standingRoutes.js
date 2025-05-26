@@ -5,4 +5,4 @@ const { getOngoingCompetitions, getStandings } = require('../controllers/standin
 router.get('/ongoing', getOngoingCompetitions);
 router.get('/:competitionId', getStandings);
 
-module.exports = router;    
+module.exports = router;   
