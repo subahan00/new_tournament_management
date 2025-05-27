@@ -1,5 +1,6 @@
 import axios from 'axios';
-const API = 'http://localhost:5000/api';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default {
   getOngoingCompetitions: () => axios.get(`${API}/standings/ongoing`),

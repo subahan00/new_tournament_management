@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
-
 const Login = () => {
   const [credentials, setCredentials] = useState({
     username: '',
@@ -60,7 +59,7 @@ const Login = () => {
     setError('');
     setIsLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', credentials);
+      const res = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/login`, credentials);
       const token = res.data.token;
       localStorage.setItem('authToken', token);
       navigate('/admin/dashboard');
@@ -87,7 +86,7 @@ const Login = () => {
 
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/auth/reset-password', 
+      await axios.post(` /api/auth/reset-password`, 
         {
           username: resetPasswordData.username,
           oldPassword: resetPasswordData.oldPassword,

@@ -19,7 +19,7 @@ const CompetitionsPage = () => {
  useEffect(() => {
     const fetchCompetitions = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/competitions');
+        const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/competitions`);
         setCompetitions(response.data);
       } catch (error) {
         console.error('Error fetching competitions:', error);
@@ -81,7 +81,7 @@ const handleStatusSubmit = async (e) => {
   // Refresh competition data after updates
   const refreshCompetitionData = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/competitions/${selectedCompetition._id}`);
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/competitions/${selectedCompetition._id}`);
       setSelectedCompetition(response.data);
       
       // Update competitions list

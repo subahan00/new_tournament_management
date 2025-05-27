@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import io from 'socket.io-client';
 export default function CompetitionResults() {
-  const socket = io('http://localhost:5000'); 
+  const socket = io(`${process.env.REACT_APP_BACKEND_URL}`); 
   const { competitionId } = useParams();
   const [fixtures, setFixtures] = useState([]);
   const [loading, setLoading] = useState(true);

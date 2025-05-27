@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:5000'); // Add your backend URL
+const socket = io(`${process.env.REACT_APP_BACKEND_URL}`); // Add your backend URL
 
 const PublicManageKo = () => {
     const { competitionId } = useParams();

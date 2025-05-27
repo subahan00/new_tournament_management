@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import io from 'socket.io-client';
 
 // Initialize socket connection
-const socket = io('http://localhost:5000'); // Update with your backend URL
+const socket = io(`${process.env.REACT_APP_BACKEND_URL}`); // Update with your backend URL
 
 export default function CompetitionFixtures() {
   const { competitionId } = useParams();

@@ -1,5 +1,5 @@
 import axios from 'axios';
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const getAllCompetitions = async () => {
   try { 
@@ -13,7 +13,7 @@ export const getAllCompetitions = async () => {
 
 export const getCompetition = async (competitionId) => {
   try {
-    const response = await axios.get(`${BASE_URL}/competitions/${competitionId}`);
+    const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/competitions/${competitionId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
@@ -67,7 +67,7 @@ export const updatePlayerNameInCompetition = async (competitionId, playerId, new
 export const updateCompetitionStatus = async (competitionId, newStatus) => {
   try {
     const response = await axios.put(
-      `http://localhost:5000/api/competitions/${competitionId}/status`,
+      `${process.env.REACT_APP_BACKEND_URL}/api/competitions/${competitionId}/status`,
       { status: newStatus },  // Ensure correct payload format
       {
         headers: {

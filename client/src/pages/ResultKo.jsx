@@ -3,9 +3,8 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import { Trophy, ChevronLeft, Clock, Award, Calendar, Users, AlertTriangle, CheckCircle, Activity } from 'lucide-react';
 import io from 'socket.io-client';
-
 const ResultKo = () => {
-  const socket = io('http://localhost:5000');
+  const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
   const { competitionId } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();

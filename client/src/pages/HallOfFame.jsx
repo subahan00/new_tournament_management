@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Trophy, Crown, Star, Medal, Zap, Award, Calendar, DollarSign, User, Sparkles, ChevronRight, Eye, X } from 'lucide-react';
-
 const HallOfFame = () => {
   const [winners, setWinners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -11,7 +10,7 @@ const HallOfFame = () => {
 useEffect(() => {
     const fetchWinners = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/result');
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/result`);
         if (!response.ok) throw new Error('Failed to fetch winners');
         const data = await response.json();
         setWinners(data);
