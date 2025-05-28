@@ -340,7 +340,7 @@ const AdminDashboard = () => {
               </div>
               <div className="space-y-3">
                 <Link 
-                  to="/winners" 
+                  to="/hall-of-fame" 
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
