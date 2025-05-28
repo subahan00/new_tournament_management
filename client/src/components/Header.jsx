@@ -11,7 +11,7 @@ const Header = () => {
 
 
 
-   
+
   // Close menu when clicking outside (optional)
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -65,35 +65,34 @@ const Header = () => {
 
       {/* Mobile nav menu */}
       <div
-        className={`mobile-menu-container md:hidden bg-black text-white px-4 pt-3 pb-6 transition-all duration-300 ease-in-out ${
-          menuOpen ? 'block' : 'hidden'
-        }`}
+        className={`mobile-menu-container md:hidden bg-black text-white px-4 pt-3 pb-6 transition-all duration-300 ease-in-out ${menuOpen ? 'block' : 'hidden'
+          }`}
       >
         <nav className="flex flex-col">
-          <Link 
-            to="/" 
-            onClick={() => setMenuOpen(false)} 
+          <Link
+            to="/"
+            onClick={() => setMenuOpen(false)}
             className="block py-3 border-b border-white/10 text-lg hover:text-[#FFD700] transition-colors duration-200"
           >
             Home
           </Link>
-          <Link 
-            to="/fixtures" 
-            onClick={() => setMenuOpen(false)} 
+          <Link
+            to="/fixtures"
+            onClick={() => setMenuOpen(false)}
             className="block py-3 border-b border-white/10 text-lg hover:text-[#FFD700] transition-colors duration-200"
           >
             Fixtures
           </Link>
-          <Link 
-            to="/standings" 
-            onClick={() => setMenuOpen(false)} 
+          <Link
+            to="/standings"
+            onClick={() => setMenuOpen(false)}
             className="block py-3 border-b border-white/10 text-lg hover:text-[#FFD700] transition-colors duration-200"
           >
             Standings
           </Link>
-          <Link 
-            to="/competitions" 
-            onClick={() => setMenuOpen(false)} 
+          <Link
+            to="/competitions"
+            onClick={() => setMenuOpen(false)}
             className="block py-3 border-b border-white/10 text-lg hover:text-[#FFD700] transition-colors duration-200"
           >
             Competitions
@@ -103,9 +102,9 @@ const Header = () => {
               </span>
             )}
           </Link>
-          <Link 
-            to="/about" 
-            onClick={() => setMenuOpen(false)} 
+          <Link
+            to="/about"
+            onClick={() => setMenuOpen(false)}
             className="block py-3 text-lg hover:text-[#FFD700] transition-colors duration-200"
           >
             About
