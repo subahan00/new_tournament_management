@@ -7,7 +7,7 @@ import {
   QuestionMarkCircleIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
-const socket = io('http://localhost:5000', {
+const socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000
