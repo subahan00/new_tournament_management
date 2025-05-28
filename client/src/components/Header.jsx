@@ -58,6 +58,8 @@ const Header = () => {
             )}
           </Link>
           <Link to="/about" className="hover:text-[#FFD700] transition-colors duration-200">About</Link>
+         <Link to="/login" className="hover:text-[#FFD700] transition-colors duration-200">admin login</Link>
+
         </nav>
       </div>
 
