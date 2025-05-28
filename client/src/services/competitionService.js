@@ -1,5 +1,6 @@
 import axios from 'axios';
 const BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
+console.log('Backend URL:', BASE_URL);
 
 export const getAllCompetitions = async () => {
   try { 
