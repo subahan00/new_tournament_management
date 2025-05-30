@@ -19,8 +19,7 @@ import CompetitionFixtures from './pages/CompetitionFixtures'; // <-- Import the
 import CompetitionResults from './pages/CompetitionResults'; 
   import ManageStandings from './components/ManageStandings';
   import Standings from './components/Standings';// <-- Import the new page
-import { Edit } from 'lucide-react';
-
+import ApplicantList from './pages/ApplicationList';
 import ManageKoResults from './pages/ManageKoResults';
 import ResultKo from './pages/ResultKo';
   import PublicKo from './pages/PublicKo';
@@ -34,6 +33,7 @@ import ResultKo from './pages/ResultKo';
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/applicant-list" element={<ApplicantList />} />
         <Route path="/admin/manage-players" element={<CreatePlayerForm />} />
         <Route path="/competitions" element={<Competitions />} />
       <Route path='/admin/update-competition' element={<UpdatePlayerName/>}/>

@@ -15,11 +15,10 @@ const fixtureRoutes = require('./routes/fixtureRoutes');
 const standingRoutes = require('./routes/standingRoutes');
 const Admin = require('./models/Admin');
 const resultRoutes = require('./routes/resultRoutes');
-
 const app = express();
 const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
-
+const Applicant=require('./models/Application');
 // ✅ Allow both localhost and deployed frontend
 const allowedOrigins = [
   'http://localhost:3000',
@@ -58,12 +57,12 @@ io.on('connection', (socket) => {
 });
 
 // ✅ MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect("mongodb://localhost:27017/official90", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+.then(() => console.log('✅ Connected to MongoDB'))
+.catch(err => console.error('❌ MongoDB connection error:', err));
 
 // ✅ API Routes
 app.use('/api/competitions', competitionRoutes);
@@ -72,7 +71,6 @@ app.use('/api/players', playerRoutes);
 app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes);
 app.use('/api/result', resultRoutes);
-
 // ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;
@@ -100,7 +98,26 @@ app.post('/api/auth/reset-password', async (req, res) => {
     res.status(500).json({ message: 'Server error during password reset' });
   }
 });
+app.post('/submit', async (req, res) => {
+  try {
+    const newApplicant = new Applicant(req.body);
+    await newApplicant.save();
+    res.status(201).json({ message: 'Application submitted successfully' });
+  } catch (error) {
+    console.error('Submission error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
+app.get('/admin/applicants', async (req, res) => {
+  try {
+    const applicants = await Applicant.find().sort({ createdAt: -1 });
+    res.json(applicants);
+  } catch (error) {
+    console.error('Fetch error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 // ✅ Serve Frontend
 app.use(express.static(path.join(__dirname, '../client/build')));
 app.get(/^(?!\/api).*/, (req, res) => {
