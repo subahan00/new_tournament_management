@@ -204,6 +204,7 @@ const ResultKo = () => {
   // Determine if the next round button should be enabled
   const isNextRoundButtonEnabled = () => {
     // Only enable if current round is completed AND there's a next round
+    console.log()
     return isRoundCompleted() && hasNextRound();
   };
   // Get players with their names

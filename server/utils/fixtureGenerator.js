@@ -186,7 +186,7 @@ const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers, pla
  * @param {number} numberOfPlayers - Initial number of players in the competition
  * @returns {Array} - Array of fixture objects for the next round
  */
-const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentRound, numberOfPlayers) => {
+const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentRound, numberOfPlayers,playerNames) => {
   const winners = currentRoundFixtures
     .filter(fixture => fixture.result !== null)
     .map(fixture => {

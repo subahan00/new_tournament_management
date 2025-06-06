@@ -26,7 +26,7 @@ const AdminWinnerForm = () => {
     }
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api`, formData);
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/result`, formData);
       setSuccess('Winner added successfully!');
       setFormData({
         competitionName: '',

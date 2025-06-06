@@ -23,7 +23,7 @@ const middlewares = {
       res.status(401).json({ message });
     }
   },
-
+  
   // Competition validation middleware
   validateCompetition: [
     

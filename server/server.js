@@ -19,6 +19,9 @@ const app = express();
 const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
 const Applicant=require('./models/Application');
+const wallpaperRoutes = require('./routes/wallpaperRoutes');
+
+
 // ✅ Allow both localhost and deployed frontend
 const allowedOrigins = [
   'http://localhost:3000',
@@ -55,9 +58,11 @@ io.on('connection', (socket) => {
     console.log('Client disconnected:', socket.id);
   });
 });
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ✅ MongoDB Connection
-mongoose.connect("mongodb://localhost:27017/official90", {
+mongoose.connect("mongodb://127.0.0.1:27017/official90", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -71,6 +76,7 @@ app.use('/api/players', playerRoutes);
 app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes);
 app.use('/api/result', resultRoutes);
+app.use('/api/wallpaper', wallpaperRoutes);
 // ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;
@@ -128,6 +134,15 @@ app.get(/^(?!\/api).*/, (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Internal Server Error:', err.stack);
   res.status(500).json({ message: 'Internal server error' });
+});
+// Error handling middleware
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File too large' });
+    }
+  }
+  res.status(500).json({ message: error.message });
 });
 
 // ✅ Start Server

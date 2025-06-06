@@ -39,7 +39,7 @@ export default function FixtureManagement() {
       if (competition.type === "LEAGUE") {
         response = await fixtureService.createLeagueFixtures(competition._id);
       } else if (competition.type === "KO_REGULAR") {
-        response = await fixtureService.createKoFixtures(competition._id);
+        response = await fixtureService.generateFixtures(competition._id);
       } else {
         setError("Unsupported competition type");
         return;

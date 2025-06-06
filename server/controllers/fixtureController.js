@@ -2,6 +2,7 @@ const Fixture = require('../models/Fixture');
 const Competition = require('../models/Competition');
 const Player = require('../models/Player');
 const mongoose = require('mongoose');
+const Standings = require('../models/Standing');
 const {
   generateLeagueFixtures,
   generateKnockoutFixtures,
@@ -471,13 +472,21 @@ async function updateCompetitionPlayerNames(competitionId, playerId, storedName)
           winnerId
         });
       }
+      const playerNames = new Map();
+currentRoundFixtures.forEach(fixture => {
+  playerNames.set(fixture.homePlayer, fixture.homePlayerName);
+  playerNames.set(fixture.awayPlayer, fixture.awayPlayerName);
+});
 
       // Generate next round fixtures
       const nextRoundFixtures = generateNextRoundFixtures(
         currentRoundFixtures,
         competitionId,
         currentRound,
-        competition.numberOfPlayers
+        competition.numberOfPlayers,
+          playerNames
+        
+
       );
 
       // Save new fixtures and update competition
