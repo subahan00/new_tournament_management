@@ -29,6 +29,7 @@ const allowedOrigins = [
 ];
 
 // ✅ Updated Middleware for CORS
+app.set('trust proxy', true);
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
