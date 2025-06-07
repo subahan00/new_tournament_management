@@ -77,6 +77,8 @@ app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes);
 app.use('/api/result', resultRoutes);
 app.use('/api/wallpaper', wallpaperRoutes);
+
+
 // ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;

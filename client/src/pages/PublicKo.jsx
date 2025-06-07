@@ -8,11 +8,15 @@ const PublicKo = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
+   useEffect(() => {
     const loadCompetitions = async () => {
       try {
         const data = await fixtureService.fetchCompetitions();
-        setCompetitions(data);
+        // Filter competitions to only show KO_REGULAR type
+        const koRegularCompetitions = data.filter(
+          comp => comp.type === "KO_REGULAR"
+        );
+        setCompetitions(koRegularCompetitions);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -21,6 +25,7 @@ const PublicKo = () => {
     };
     loadCompetitions();
   }, []);
+
 
   const handleCompetitionClick = (competitionId) => {
     navigate(`/manage-ko/${competitionId}`);

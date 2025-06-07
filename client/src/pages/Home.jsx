@@ -16,7 +16,8 @@ export default function Home() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-
+const [showTutorial, setShowTutorial] = useState(true);
+const [tutorialStep, setTutorialStep] = useState(0);
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -141,10 +142,10 @@ export default function Home() {
                         to="/view" // Navigate to the new page
                         className="relative px-8 py-3 w-full max-w-[280px] bg-gradient-to-br from-[#ffc107] via-[#ffab00] to-[#e65100] hover:from-[#ffab00] hover:via-[#ffc107] hover:to-[#ff8f00] text-black rounded-full font-bold text-lg transition-all duration-500 shadow-xl hover:shadow-2xl hover:shadow-[#ffc107]/50 transform hover:-translate-y-1 border-2 border-[#1a237e]/40 hover:border-[#1a237e]/70 overflow-hidden group/btn focus:outline-none focus:ring-4 focus:ring-[#ffab00]/50"
                       >
-                                                <span className="relative z-10">View Tournaments</span>
+                        <span className="relative z-10">View Tournaments</span>
 
                       </Link>
-                      
+
                     </div>
                   </div>
                 </div>
@@ -171,18 +172,21 @@ export default function Home() {
                     <div className="mb-4">
                       <div className="w-12 h-1 bg-gradient-to-r from-[#ffc107] to-[#ffab00] mx-auto mb-3 sm:mb-4 shadow-lg"></div>
                       <h2 className="text-3xl sm:text-4xl font-bold mb-3 sm:mb-4 tracking-wider text-[#ffc107] group-hover:text-[#ffab00] transition-colors duration-300 drop-shadow-lg">
-                        LIVE LEADERBOARDS
+                       HD FOOTBALL WALLPAPERS
                       </h2>
                       <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-[#1a237e]/80 to-transparent mx-auto mb-3 sm:mb-4"></div>
                     </div>
                     <p className="text-base sm:text-lg font-medium max-w-sm leading-relaxed text-gray-200 mb-6">
-                      Track your progress, ascend the ranks and achieve legendary status.
+                      Download exclusive high-definition football wallpapers for your devices.
                     </p>
                     <div className="flex justify-center w-full mt-auto">
-                      <button className="relative px-8 py-3 w-full max-w-[280px] bg-gradient-to-br from-[#ffc107] via-[#ffab00] to-[#e65100] hover:from-[#ffab00] hover:via-[#ffc107] hover:to-[#ff8f00] text-black rounded-full font-bold text-lg transition-all duration-500 shadow-xl hover:shadow-2xl hover:shadow-[#ffc107]/50 transform hover:-translate-y-1 border-2 border-[#1a237e]/30 overflow-hidden group/btn">
-                        <span className="relative z-10">Enter Arena</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
-                      </button>
+                      <Link
+                        to="/wallpaper" // Navigate to the new page
+                        className="relative px-8 py-3 w-full max-w-[280px] bg-gradient-to-br from-[#ffc107] via-[#ffab00] to-[#e65100] hover:from-[#ffab00] hover:via-[#ffc107] hover:to-[#ff8f00] text-black rounded-full font-bold text-lg transition-all duration-500 shadow-xl hover:shadow-2xl hover:shadow-[#ffc107]/50 transform hover:-translate-y-1 border-2 border-[#1a237e]/40 hover:border-[#1a237e]/70 overflow-hidden group/btn focus:outline-none focus:ring-4 focus:ring-[#ffab00]/50"
+                      >
+                        <span className="relative z-10">View Wallpapers</span>
+
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -413,6 +417,7 @@ export default function Home() {
         .animation-delay-500 { animation-delay: 0.5s; }
         .animation-delay-700 { animation-delay: 0.7s; }
       `}</style>
+      
     </div>
   );
 }

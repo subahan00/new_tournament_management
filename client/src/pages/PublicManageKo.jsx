@@ -1,309 +1,234 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import io from 'socket.io-client';
 
-// Define the "Premium Black and Gold" color palette
-const premiumColors = {
-  background: '#0A0A0A',      // A very dark, near-black for the main background
-  elementBackground: '#141414',// Slightly lighter black for cards/elements
-  goldPrimary: '#D4AF37',     // A rich, classic gold (e.g., "Golden")
-  goldSecondary: '#E0C05E',  // A slightly brighter/paler gold for hovers or highlights
-  textPrimary: '#E0E0E0',      // A soft, off-white for primary text (less harsh than pure white)
-  textSecondary: '#888888',    // A muted grey for less important text or subtle details
-  goldTransparent: 'rgba(212, 175, 55, 0.2)', // Primary gold with transparency for borders/lines
-  goldHoverTransparent: 'rgba(224, 192, 94, 0.4)', // Secondary gold with more transparency for hover
-};
-
+// Initialize socket connection
 const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
 
+// --- Helper Components for Cleaner JSX ---
+
+const Loader = () => (
+  <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-gold-500"></div>
+  </div>
+);
+
+const ErrorDisplay = ({ message }) => (
+  <div className="min-h-screen bg-black flex items-center justify-center text-xl text-red-500">
+    Error: {message}
+  </div>
+);
+
+const MainHeader = ({ competitionName }) => (
+  <header className="sticky top-0 z-30 bg-black/70 backdrop-blur-md border-b border-gold-900">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between h-16">
+        <Link
+          to="/"
+          className="text-gold-400 hover:text-white transition-colors duration-300"
+        >
+          <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </Link>
+        <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gold-300 to-gold-500">
+          {competitionName}
+        </h1>
+        <div className="w-6"></div> {/* Spacer */}
+      </div>
+    </div>
+  </header>
+);
+
+// --- Main Component ---
+
 const PublicManageKo = () => {
-    const { competitionId } = useParams();
-    const [fixtures, setFixtures] = useState([]);
-    const [competitionName, setCompetitionName] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [groupedFixtures, setGroupedFixtures] = useState({});
+  const { competitionId } = useParams();
+  const [fixtures, setFixtures] = useState([]);
+  const [competitionName, setCompetitionName] = useState('Knockout Competition');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    const roundOrder = [
-        'Round of 32', 'Round of 16', 'Quarter-Final', 'Semi-Final', 'Final'
-    ];
+  const roundOrder = useMemo(() => ['Round of 32', 'Round of 16', 'Quarter-Final', 'Semi-Final', 'Final'], []);
 
-    useEffect(() => {
-        const loadFixtures = async () => {
-            setIsLoading(true);
-            try {
-                const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
-                if (fixturesData.length > 0) {
-                    setCompetitionName(fixturesData[0].competitionId?.name || 'Knockout Competition');
-                }
-                // Initial grouping
-                const grouped = fixturesData.reduce((acc, fixture) => {
-                    const round = fixture.round;
-                    if (!acc[round]) acc[round] = [];
-                    acc[round].push(fixture);
-                    return acc;
-                }, {});
-                setGroupedFixtures(grouped);
-                setFixtures(fixturesData); // Set fixtures after grouping
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        loadFixtures();
-
-        socket.on('fixtureUpdate', (updatedFixture) => {
-            setFixtures(prevFixtures => {
-                const newFixtures = prevFixtures.map(f =>
-                    f._id === updatedFixture._id ? updatedFixture : f
-                );
-                // Re-group fixtures when they update
-                const regrouped = newFixtures.reduce((acc, fixture) => {
-                    const round = fixture.round;
-                    if (!acc[round]) acc[round] = [];
-                    acc[round].push(fixture);
-                    return acc;
-                }, {});
-                setGroupedFixtures(regrouped);
-                return newFixtures;
-            });
-        });
-        
-
-        socket.on('playerNameUpdate', ({ playerId, newName }) => {
-            setFixtures(prevFixtures => {
-                const newFixtures = prevFixtures.map(f => ({
-                    ...f,
-                    homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
-                    awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
-                }));
-                 // Re-group fixtures when they update
-                 const regrouped = newFixtures.reduce((acc, fixture) => {
-                    const round = fixture.round;
-                    if (!acc[round]) acc[round] = [];
-                    acc[round].push(fixture);
-                    return acc;
-                }, {});
-                setGroupedFixtures(regrouped);
-                return newFixtures;
-            });
-        });
-
-        return () => {
-            socket.off('fixtureUpdate');
-            socket.off('playerNameUpdate');
-        };
-    }, [competitionId]);
-
-    // This useEffect for grouping is now partially redundant if grouping happens on fixture updates,
-    // but can be kept for initial load or if fixtures state is set directly elsewhere.
-    // Consider if it's still needed or if logic can be consolidated.
-    useEffect(() => {
-        const grouped = fixtures.reduce((acc, fixture) => {
-            const round = fixture.round;
-            if (!acc[round]) acc[round] = [];
-            acc[round].push(fixture);
-            return acc;
-        }, {});
-        setGroupedFixtures(grouped);
-    }, [fixtures]);
-
-
-    const sortedRounds = Object.keys(groupedFixtures).sort((a, b) =>
-        roundOrder.indexOf(a) - roundOrder.indexOf(b)
-    );
-
-    const getPlayerName = (player, playerName) => {
-        if (playerName) return playerName;
-        if (typeof player === 'object' && player !== null) return player.name || 'TBD';
-        return 'TBD';
+  useEffect(() => {
+    const loadFixtures = async () => {
+      setIsLoading(true);
+      try {
+        const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
+        if (fixturesData.length > 0) {
+          setCompetitionName(fixturesData[0].competitionId?.name || 'Knockout Competition');
+        }
+        setFixtures(fixturesData);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    if (isLoading) return (
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: premiumColors.background }}>
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style={{ borderColor: premiumColors.goldPrimary, borderTopColor: 'transparent' }}></div>
-        </div>
-    );
+    loadFixtures();
 
-    if (error) return (
-        <div className="min-h-screen flex items-center justify-center text-xl" style={{ backgroundColor: premiumColors.background, color: premiumColors.goldPrimary }}>
-            Error: {error}
-        </div>
-    );
+    const handleFixtureUpdate = (updatedFixture) => {
+      setFixtures(prev => prev.map(f => (f._id === updatedFixture._id ? updatedFixture : f)));
+    };
 
-    return (
-        <div className="min-h-screen p-4" style={{ backgroundColor: premiumColors.background, color: premiumColors.textPrimary }}>
-            <style>
-                {`
-                body {
-                  color: ${premiumColors.textPrimary};
-                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Example of a clean font */
-                }
-                .round-column:not(:last-child)::after { /* Vertical connector between rounds */
-                    content: '';
-                    position: absolute;
-                    right: -2.5rem; /* Half of the increased gap (5rem / 2) */
-                    top: 50%;
-                    transform: translateY(-50%);
-                    height: 70%; 
-                    width: 1px; /* Thinner line */
-                    background: linear-gradient(to bottom,
-                        ${premiumColors.goldPrimary}1A 0%, /* Gold with low opacity */
-                        ${premiumColors.goldPrimary}4D 50%, /* Gold with medium opacity */
-                        ${premiumColors.goldPrimary}1A 100%);
-                    z-index: 0;
-                }
+    const handlePlayerNameUpdate = ({ playerId, newName }) => {
+      setFixtures(prev =>
+        prev.map(f => ({
+          ...f,
+          homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
+          awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
+        }))
+      );
+    };
 
-                .fixture-item::before { /* Horizontal connector from fixture to next round's vertical line */
-                    content: '';
-                    position: absolute;
-                    right: -2.5rem; 
-                    top: 50%;
-                    transform: translateY(-50%);
-                    width: 2.5rem; /* Length of the horizontal connector */
-                    height: 1px; /* Thinner line */
-                    background: ${premiumColors.goldPrimary}4D; /* Gold with medium opacity */
-                    z-index: 0;
-                }
-                .round-column:last-child .fixture-item::before {
-                    display: none;
-                }
+    socket.on('fixtureUpdate', handleFixtureUpdate);
+    socket.on('playerNameUpdate', handlePlayerNameUpdate);
 
-                /* Optional: lines connecting paired fixtures to a central point for the next match */
-                /* This requires more complex logic or SVG for true bracket drawing */
+    return () => {
+      socket.off('fixtureUpdate', handleFixtureUpdate);
+      socket.off('playerNameUpdate', handlePlayerNameUpdate);
+    };
+  }, [competitionId]);
 
-                @media (max-width: 1024px) {
-                    .round-column::after,
-                    .fixture-item::before {
-                        display: none;
-                    }
-                    .competition-title-main {
-                        font-size: 2rem; /* Adjust title size for mobile */
-                    }
-                    .round-title {
-                        font-size: 1.1rem;
-                    }
-                }
+  const groupedFixtures = useMemo(() => {
+    return fixtures.reduce((acc, fixture) => {
+      const round = fixture.round;
+      if (!acc[round]) acc[round] = [];
+      acc[round].push(fixture);
+      return acc;
+    }, {});
+  }, [fixtures]);
 
-                .fixture-item:hover {
-                  border-color: ${premiumColors.goldSecondary} !important;
-                  box-shadow: 0 0 15px ${premiumColors.goldPrimary}33; /* Subtle glow on hover */
-                }
-                `}
-            </style>
+  const sortedRounds = useMemo(() => {
+    return Object.keys(groupedFixtures).sort((a, b) => roundOrder.indexOf(a) - roundOrder.indexOf(b));
+  }, [groupedFixtures, roundOrder]);
 
-            <div className="max-w-full mx-auto">
-                <div className="flex items-center mb-8"> {/* Increased bottom margin */}
-                    <Link
-                        to="/competitions"
-                        className="px-3 py-1.5 border rounded-md text-xs transition-all duration-300 z-10"
-                        style={{ 
-                            borderColor: premiumColors.goldPrimary, 
-                            color: premiumColors.goldPrimary,
-                            backgroundColor: 'transparent' 
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.backgroundColor = `${premiumColors.goldPrimary}20`; // Gold with low opacity
-                            e.currentTarget.style.color = premiumColors.goldSecondary;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = premiumColors.goldPrimary;
-                        }}
-                    >
-                        ← Back
-                    </Link>
-                    <div 
-                        className="competition-title-main text-4xl md:text-5xl font-bold tracking-wider mx-auto text-center py-3" // Simplified, using font-bold
-                        style={{ color: premiumColors.goldPrimary }}
-                    >
-                        {competitionName}
+  const getPlayerName = (player, playerName) => {
+    if (playerName) return playerName;
+    if (typeof player === 'object' && player !== null) return player.name;
+    return 'TBD';
+  };
+
+  if (isLoading) return <Loader />;
+  if (error) return <ErrorDisplay message={error} />;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-gray-300 font-sans">
+      <MainHeader competitionName={competitionName} />
+
+      <main className="p-4 md:p-6">
+        <div className="flex overflow-x-auto space-x-6 lg:space-x-8 pb-4 custom-scrollbar">
+          {sortedRounds.map((round) => (
+            <div key={round} className="round-column flex-shrink-0 w-72 md:w-80">
+              <div className="round-header p-3 rounded-t-lg bg-gray-900/50 border-b-2 border-gold-700">
+                <h3 className="text-lg font-semibold text-center text-gold-400 tracking-wide uppercase">
+                  {round}
+                </h3>
+              </div>
+              <div className="space-y-3 p-3 bg-black/20 rounded-b-lg">
+                {(groupedFixtures[round] || []).map((fixture) => (
+                  <div
+                    key={fixture._id}
+                    className="fixture-item relative p-3 rounded-lg bg-gray-800/50 border border-gray-700/50 hover:border-gold-600/70 transition-all duration-300 shadow-md hover:shadow-gold-900/50"
+                  >
+                    <div className="flex justify-between items-center space-x-2">
+                      <span className="truncate text-sm font-medium text-gray-200">
+                        {getPlayerName(fixture.homePlayer, fixture.homePlayerName)}
+                      </span>
+                      <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
+                        {fixture.homeScore ?? '-'}
+                      </span>
                     </div>
-                </div>
-
-                <div className="flex flex-col lg:flex-row gap-x-20 gap-y-10 overflow-x-auto pb-6"> {/* Increased gap-x significantly */}
-                    {sortedRounds.map((round) => (
-                        <div
-                            key={round}
-                            className="relative round-column min-w-[280px] lg:min-w-[300px] flex-shrink-0"
-                        >
-                            <div 
-                                className="sticky top-2 p-2 rounded-lg shadow-md" // Added subtle shadow
-                                style={{ 
-                                    backgroundColor: `${premiumColors.elementBackground}E6`, // Element bg with opacity for sticky header
-                                    backdropFilter: 'blur(5px)', 
-                                    zIndex: 10, 
-                                    borderBottom: `1px solid ${premiumColors.goldPrimary}33` // Subtle gold underline for round header
-                                }}
-                            >
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 
-                                        className="round-title text-xl font-semibold uppercase tracking-wide" // Class for easier targeting
-                                        style={{ color: premiumColors.goldPrimary }}
-                                    >
-                                        {round}
-                                    </h3>
-                                    <span className="text-xs" style={{ color: premiumColors.textSecondary }}>
-                                        {groupedFixtures[round]?.length || 0} Matches {/* Added fallback for length */}
-                                    </span>
-                                </div>
-
-                                <div className="space-y-3">
-                                    {(groupedFixtures[round] || []).map((fixture) => ( // Added fallback for fixtures array
-                                        <div
-                                            key={fixture._id}
-                                            className="relative fixture-item p-3 rounded-lg transition-all duration-200"
-                                            style={{ 
-                                                backgroundColor: premiumColors.elementBackground,
-                                                border: `1px solid ${premiumColors.goldTransparent}`,
-                                                boxShadow: `0 1px 3px ${premiumColors.background}99` // Darker shadow for depth
-                                            }}
-                                        >
-                                            <div className="relative flex flex-col space-y-1.5 text-sm z-10"> {/* Base text size slightly up */}
-                                             
-                                                
-                                                {/* Player 1 */}
-                                                <div className="flex justify-between items-center">
-                                                    <span className="truncate font-medium" style={{ color: premiumColors.textPrimary, maxWidth: '75%' }}> {/* Max width for name */}
-                                                        {getPlayerName(fixture.homePlayer, fixture.homePlayerName)}
-                                                    </span>
-                                                    <span 
-                                                        className="font-bold px-2 py-0.5 rounded text-center min-w-[28px]"
-                                                        style={{ backgroundColor: `${premiumColors.background}CC`, color: premiumColors.goldPrimary }}
-                                                    >
-                                                        {fixture.homeScore ?? '-'}
-                                                    </span>
-                                                </div>
-
-                                                <div className="text-center text-[0.7rem] py-0.5" style={{ color: premiumColors.textSecondary }}>
-                                                    vs
-                                                </div>
-                                                
-                                                {/* Player 2 */}
-                                                <div className="flex justify-between items-center">
-                                                    <span className="truncate font-medium" style={{ color: premiumColors.textPrimary, maxWidth: '75%' }}>
-                                                        {getPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
-                                                    </span>
-                                                    <span 
-                                                        className="font-bold px-2 py-0.5 rounded text-center min-w-[28px]"
-                                                        style={{ backgroundColor: `${premiumColors.background}CC`, color: premiumColors.goldPrimary }}
-                                                    >
-                                                        {fixture.awayScore ?? '-'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                    <div className="text-center text-xs text-gray-500 my-1">vs</div>
+                    <div className="flex justify-between items-center space-x-2">
+                      <span className="truncate text-sm font-medium text-gray-200">
+                        {getPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
+                      </span>
+                      <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
+                        {fixture.awayScore ?? '-'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          ))}
         </div>
-    );
+      </main>
+
+      <style>
+        {`
+          /* Custom scrollbar for better aesthetics */
+          .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: #111;
+            border-radius: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #b8860b; /* Darker gold */
+            border-radius: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #daa520; /* Lighter gold */
+          }
+
+          /* Bracket Connectors - Desktop Only */
+          @media (min-width: 1024px) {
+            .round-column {
+              position: relative;
+            }
+            .fixture-item:not(:only-child)::after {
+              content: '';
+              position: absolute;
+              left: 50%;
+              bottom: -0.75rem; /* 12px */
+              transform: translateX(-50%);
+              width: 1px;
+              height: 0.75rem; /* 12px */
+              background-color: rgba(218, 165, 32, 0.3); /* gold-alpha */
+            }
+
+            .fixture-item::before {
+              content: '';
+              position: absolute;
+              right: -1.5rem; /* half of space-x-8 */
+              top: 50%;
+              transform: translateY(-50%);
+              width: 1rem; /* Adjust length of the horizontal line */
+              height: 1px;
+              background-color: rgba(218, 165, 32, 0.3); /* gold-alpha */
+            }
+            
+            .round-column:last-child .fixture-item::before {
+                display: none;
+            }
+            
+            /* Logic for connecting to the next round bracket */
+            .fixture-item:nth-child(odd)::before {
+                top: calc(50% + 2.5rem); /* Adjust based on fixture height */
+                border-top: 1px solid rgba(218, 165, 32, 0.3);
+                border-right: 1px solid rgba(218, 165, 32, 0.3);
+                border-top-right-radius: 0.5rem;
+                height: calc(100% + 0.75rem); /* space-y-3 */
+            }
+
+            .fixture-item:nth-child(even)::before {
+                top: calc(50% - 2.5rem);
+                border-bottom: 1px solid rgba(218, 165, 32, 0.3);
+                border-right: 1px solid rgba(218, 165, 32, 0.3);
+                border-bottom-right-radius: 0.5rem;
+                height: calc(100% + 0.75rem);
+            }
+          }
+        `}
+      </style>
+    </div>
+  );
 };
 
 export default PublicManageKo;
