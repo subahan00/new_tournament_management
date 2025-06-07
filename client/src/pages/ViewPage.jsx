@@ -10,14 +10,11 @@ const ViewPage = () => {
     { label: "Knockout Fixtures", icon: <GitMerge className="w-8 h-8 md:w-10 md:h-10" />, path: "/public-ko", special: false },
     { label: "League Standings", icon: <BarChart3 className="w-8 h-8 md:w-10 md:h-10" />, path: "/standings", special: false },
     { label: "Hall of Fame", icon: <Award className="w-8 h-8 md:w-10 md:h-10" />, path: "/hall-of-fame", special: false },
-    { label: "Player Directory", icon: <Users className="w-8 h-8 md:w-10 md:h-10" />, path: "/players", special: false }, // Improvised option
-    { label: "FAQs & Support", icon: <ShieldQuestion className="w-8 h-8 md:w-10 md:h-10" />, path: "/support", special: false }, // Improvised option
-    { label: "JOIN THIS CLASH", icon: <Zap className="w-10 h-10 md:w-12 md:h-12" />, path: "/join-tournament", special: true },
+    { label: "Player Directory", icon: <Users className="w-8 h-8 md:w-10 md:h-10" />, path: "#", special: false }, // Improvised option
+    { label: "FAQs & Support", icon: <ShieldQuestion className="w-8 h-8 md:w-10 md:h-10" />, path: "", special: false }, // Improvised option
+    { label: "JOIN THIS CLASH", icon: <Zap className="w-10 h-10 md:w-12 md:h-12" />, path: "/", special: true },
   ];
 
-  // IMPORTANT: Ensure the .stylish-gaming-bg and .bg-radial-gradient-hero classes 
-  // are available globally (e.g., in your main CSS file like index.css or App.css)
-  // or define them within the <style jsx> block below if they are only used here and on Home.
 
   return (
     
@@ -84,8 +81,8 @@ const ViewPage = () => {
                 Follow us on social media and join our community channels to never miss an update on upcoming tournaments and events.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                <a href="#" className="w-full sm:w-auto text-center text-[#ffab00] hover:text-black hover:bg-gradient-to-r hover:from-[#ffc107] hover:to-[#ffab00] transition-all duration-300 text-sm md:text-base font-semibold py-2.5 px-5 border-2 border-[#ffab00] rounded-lg transform hover:scale-105">Community Discord</a>
-                <a href="#" className="w-full sm:w-auto text-center text-[#ffab00] hover:text-black hover:bg-gradient-to-r hover:from-[#ffc107] hover:to-[#ffab00] transition-all duration-300 text-sm md:text-base font-semibold py-2.5 px-5 border-2 border-[#ffab00] rounded-lg transform hover:scale-105">Follow on X</a>
+                <a href="https://www.instagram.com/official.t90__/" className="w-full sm:w-auto text-center text-[#ffab00] hover:text-black hover:bg-gradient-to-r hover:from-[#ffc107] hover:to-[#ffab00] transition-all duration-300 text-sm md:text-base font-semibold py-2.5 px-5 border-2 border-[#ffab00] rounded-lg transform hover:scale-105">Community Discord</a>
+                <a href="https://x.com/officialpes9" className="w-full sm:w-auto text-center text-[#ffab00] hover:text-black hover:bg-gradient-to-r hover:from-[#ffc107] hover:to-[#ffab00] transition-all duration-300 text-sm md:text-base font-semibold py-2.5 px-5 border-2 border-[#ffab00] rounded-lg transform hover:scale-105">Follow on X</a>
             </div>
         </div>
       </main>

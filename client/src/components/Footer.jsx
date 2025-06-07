@@ -59,7 +59,7 @@ export default function Footer() {
             <h4 className="text-[#ffc107] text-lg font-bold mb-4 tracking-wide">Connect With Us</h4> {/* Smaller heading */}
             <div className="flex justify-center md:justify-end space-x-4"> {/* Reduced spacing */}
               <a
-                href="https://www.instagram.com/_subahan07"
+                href="https://www.instagram.com/official.t90__/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative p-3 rounded-lg border border-[#ffc107]/30 hover:border-pink-400 bg-gradient-to-br from-[#ffc107]/5 to-transparent hover:from-pink-500/20 hover:to-purple-500/20 transition-all duration-500 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/20" /* Smaller padding */
@@ -69,7 +69,7 @@ export default function Footer() {
               </a>
               
               <a
-                href="https://t.me/your_username"
+                href="https://t.me/official_t90x"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative p-3 rounded-lg border border-[#ffc107]/30 hover:border-blue-400 bg-gradient-to-br from-[#ffc107]/5 to-transparent hover:from-blue-500/20 hover:to-cyan-500/20 transition-all duration-500 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20" /* Smaller padding */

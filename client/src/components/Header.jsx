@@ -54,10 +54,10 @@ const Header = () => {
         <nav className="hidden md:flex space-x-8 text-sm font-semibold">
           {[
             { to: "/", label: "Home" },
-            { to: "/fixtures", label: "Fixtures" },
+            
             { to: "/standings", label: "Standings" },
             { to: "/competitions", label: "Competitions", hasCount: true },
-            { to: "/about", label: "About" },
+            
             { to: "/login", label: "Admin", isSpecial: true }
           ].map((item, index) => (
             <Link
@@ -96,10 +96,10 @@ const Header = () => {
           <nav className="flex flex-col space-y-2">
             {[
               { to: "/", label: "Home" },
-              { to: "/fixtures", label: "Fixtures" },
+    
               { to: "/standings", label: "Standings" },
               { to: "/competitions", label: "Competitions", hasCount: true },
-              { to: "/about", label: "About" },
+              
               { to: "/login", label: "Admin Login", isSpecial: true }
             ].map((item, index) => (
               <Link

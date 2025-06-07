@@ -135,7 +135,7 @@ const [tutorialStep, setTutorialStep] = useState(0);
                       <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-[#1a237e]/80 to-transparent mx-auto mb-3 sm:mb-4"></div>
                     </div>
                     <p className="text-base sm:text-lg font-medium max-w-sm leading-relaxed text-gray-200 mb-6">
-                      Compete against elite players for prestigious prizes every weekend.
+                      Compete against elite players every weekend.
                     </p>
                     <div className="flex justify-center w-full mt-auto">
                       <Link
@@ -172,7 +172,7 @@ const [tutorialStep, setTutorialStep] = useState(0);
                     <div className="mb-4">
                       <div className="w-12 h-1 bg-gradient-to-r from-[#ffc107] to-[#ffab00] mx-auto mb-3 sm:mb-4 shadow-lg"></div>
                       <h2 className="text-3xl sm:text-4xl font-bold mb-3 sm:mb-4 tracking-wider text-[#ffc107] group-hover:text-[#ffab00] transition-colors duration-300 drop-shadow-lg">
-                       HD FOOTBALL WALLPAPERS
+                     FOOTBALL WALLPAPERS
                       </h2>
                       <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-[#1a237e]/80 to-transparent mx-auto mb-3 sm:mb-4"></div>
                     </div>
@@ -184,7 +184,7 @@ const [tutorialStep, setTutorialStep] = useState(0);
                         to="/wallpaper" // Navigate to the new page
                         className="relative px-8 py-3 w-full max-w-[280px] bg-gradient-to-br from-[#ffc107] via-[#ffab00] to-[#e65100] hover:from-[#ffab00] hover:via-[#ffc107] hover:to-[#ff8f00] text-black rounded-full font-bold text-lg transition-all duration-500 shadow-xl hover:shadow-2xl hover:shadow-[#ffc107]/50 transform hover:-translate-y-1 border-2 border-[#1a237e]/40 hover:border-[#1a237e]/70 overflow-hidden group/btn focus:outline-none focus:ring-4 focus:ring-[#ffab00]/50"
                       >
-                        <span className="relative z-10">View Wallpapers</span>
+                        <span className="relative z-10">View HD Wallpapers</span>
 
                       </Link>
                     </div>
