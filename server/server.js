@@ -63,7 +63,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ✅ MongoDB Connection
 mongoose.connect("mongodb://127.0.0.1:27017/official90", {
-  useNewUrlParser: true,
+useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => console.log('✅ Connected to MongoDB'))
@@ -123,6 +123,16 @@ app.get('/admin/applicants', async (req, res) => {
     res.json(applicants);
   } catch (error) {
     console.error('Fetch error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+app.delete('/admin/applicants/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await Applicant.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Applicant deleted successfully' });
+  } catch (error) {
+    console.error('Delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

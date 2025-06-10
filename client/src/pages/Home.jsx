@@ -88,11 +88,6 @@ const [tutorialStep, setTutorialStep] = useState(0);
           </div>
         </div>
 
-        <div className="fixed right-0 top-1/2 transform -translate-y-1/2 z-40">
-          <div className="bg-gradient-to-l from-[#ffc107] via-[#ffab00] to-transparent text-black font-bold text-sm px-6 py-2 transform rotate-90 origin-right shadow-lg border-t border-[#1a237e]/20">
-            ⭐ JOIN NOW ⭐
-          </div>
-        </div>
 
         <main className="flex-grow container mx-auto px-6 pt-28 pb-16 sm:pt-32 relative z-10">
           <section className="text-center">

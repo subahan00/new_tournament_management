@@ -132,7 +132,7 @@ router.get('/admin/all', async (req, res) => {
     const skip = (page - 1) * limit;
 
     const wallpapers = await Wallpaper.find()
-      .populate('uploadedBy', 'username email')
+  
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

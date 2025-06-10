@@ -41,9 +41,13 @@ export const uploadWallpaper = async (wallpaperData) => {
 };
 
 
-// Get all wallpapers (admin)
 export const getAllWallpapersAdmin = async (page = 1, limit = 20, token) => {
-  return axios.get(`${API_BASE_URL}/admin/all?page=${page}&limit=${limit}`, {
+  // This endpoint matches the 'router.get('/admin/all', ...)' route
+  return axios.get(`${API_BASE_URL}/admin/all`, {
+    params: {
+        page,
+        limit
+    },
     headers: {
       Authorization: `Bearer ${token}`
     }

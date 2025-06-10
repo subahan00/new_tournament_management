@@ -30,7 +30,7 @@ import ViewPage from './pages/ViewPage';
 import AdminUploadPage from './pages/AdminUploadPage';
 import PublicWallpaperPage from './pages/PublicWallpaperPage';
 import { AuthProvider } from './contexts/AuthContext';
-
+import DeleteWallpaper from './pages/deleteWallpaper';
 const App = () => {
   return (
     <AuthProvider>
@@ -49,7 +49,7 @@ const App = () => {
           <Route path="/wallpaper" element={<PublicWallpaperPage />} />
           <Route path="/view" element={<ViewPage />} />
           <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
-
+          <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
           {/* Admin protected routes */}
           <Route 
             path="/admin/dashboard" 
