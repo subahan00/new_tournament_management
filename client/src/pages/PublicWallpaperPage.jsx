@@ -244,7 +244,7 @@ const PublicWallpaper = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-yellow-500 mx-auto"></div>
-          <p className="mt-4 text-lg font-medium text-yellow-100">Loading premium football wallpapers...</p>
+          <p className="mt-4 text-lg font-medium text-yellow-100">Loading football wallpapers...</p>
         </div>
       </div>
     );
@@ -256,7 +256,7 @@ const PublicWallpaper = () => {
       <div className="bg-gradient-to-r from-gray-800 via-yellow-900 to-gray-800 text-white py-16 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/30 z-0"></div>
         <div className="max-w-7xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-yellow-400 font-serif">Premium Football Wallpapers</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-yellow-400 font-serif">Official90 Football Wallpapers</h1>
           <p className="text-xl max-w-3xl mx-auto mb-8 text-yellow-100">
             Exclusive collection of high-definition wallpapers for true football enthusiasts
           </p>
@@ -355,7 +355,7 @@ const PublicWallpaper = () => {
           
           <div className="text-yellow-500 text-sm">
             <span className="bg-yellow-900/50 px-3 py-1 rounded-full">
-              {wallpapers.length} Premium Wallpapers
+              {wallpapers.length} Wallpapers
             </span>
           </div>
         </div>
@@ -447,7 +447,7 @@ const PublicWallpaper = () => {
               </button>
               
               <div className="text-yellow-500 text-sm flex items-center gap-2">
-                <span>Premium Collection</span>
+                <span>Football Collection</span>
                 <div className="w-8 h-px bg-yellow-500"></div>
                 <span>{filters.category || filters.tag ? 'Filtered' : 'All'}</span>
               </div>
@@ -468,7 +468,7 @@ const PublicWallpaper = () => {
           
           {wallpapers.length === 0 ? (
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-yellow-700/30">
-              <p className="text-yellow-500 text-xl">No premium wallpapers found. Try different filters.</p>
+              <p className="text-yellow-500 text-xl">No  wallpapers found. Try different filters.</p>
             </div>
           ) : (
             <>
