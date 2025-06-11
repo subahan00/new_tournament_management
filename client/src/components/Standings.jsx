@@ -7,128 +7,169 @@ import {
   QuestionMarkCircleIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
+
+// Initialize Socket.IO connection with reconnection logic
 const socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
   reconnection: true,
   reconnectionAttempts: 5,
-  reconnectionDelay: 1000
+  reconnectionDelay: 1000,
 });
 
 export default function Standings() {
+  // Extract competitionId from URL parameters
   const { competitionId } = useParams();
+
+  // State variables for standings data, loading status, error messages, and potential general messages
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState('');
+  const [competitionName, setCompetitionName] = useState('Competition'); // State for competition name
+
+  // Ensure standings is always an array for safe mapping
   const safeStandings = Array.isArray(standings) ? standings : [];
+
+  // Function to handle CSV download
   const handleDownloadCSV = () => {
+    // Define CSV headers
     const headers = ['Position,Player,Played,Wins,Draws,Losses,GF,GA,GD,Points'];
+    
+    // Map standings data to CSV format
     const csvContent = safeStandings
       .map((standing, index) => {
+        // Clean player name and calculate goal difference
         const playerName = standing.playerName?.replace('Deleted-', '') || 'Unknown Player';
-        const gd = standing.goalsFor - standing.goalsAgainst;
+        const gd = (standing.goalsFor || 0) - (standing.goalsAgainst || 0); // Ensure numeric operation
+        
+        // Return CSV row
         return `${index + 1},"${playerName}",${standing.matchesPlayed || 0},${standing.wins || 0},${standing.draws || 0},${standing.losses || 0},${standing.goalsFor || 0},${standing.goalsAgainst || 0},${gd},${standing.points || 0}`;
       })
       .join('\n');
 
+    // Create a Blob for the CSV file
     const blob = new Blob([headers + '\n' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // Create a temporary link element to trigger download
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
 
     link.setAttribute('href', url);
-    link.setAttribute('download', `standings-${competitionId}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    link.setAttribute('download', `${competitionName.replace(/\s+/g, '_').toLowerCase()}-standings-${competitionId}.csv`); // Dynamic filename
+    link.style.visibility = 'hidden'; // Hide the link
+    document.body.appendChild(link); // Append to body to make it clickable
+    link.click(); // Programmatically click the link to trigger download
+    document.body.removeChild(link); // Clean up the temporary link
   };
+
+  // useEffect hook for data fetching and real-time updates
   useEffect(() => {
+    // Function to fetch standings data from the API
     const fetchStandings = async () => {
       try {
         const { data } = await standingService.getStandings(competitionId);
-        setStandings(Array.isArray(data) ? data : []);
+        // Assuming the API also returns competition details, including name
+        if (data && data.standings) {
+          setStandings(Array.isArray(data.standings) ? data.standings : []);
+          setCompetitionName(data.competitionName || 'Competition'); // Set competition name
+        } else {
+          setStandings(Array.isArray(data) ? data : []); // Fallback if data structure is different
+          setCompetitionName('League'); // Default name if not provided
+        }
       } catch (err) {
         console.error('Failed to load standings:', err);
-        setError('Failed to load standings data');
-        setStandings([]);
+        setError('Failed to load standings data. Please try again.');
+        setStandings([]); // Clear standings on error
       } finally {
-        setLoading(false);
+        setLoading(false); // Set loading to false regardless of success or failure
       }
     };
 
-    fetchStandings();
+    fetchStandings(); // Initial fetch
 
+    // Socket.IO event handler for real-time standings updates
     const handleStandingsUpdate = (update) => {
       if (update.competitionId === competitionId) {
         setStandings(prev => Array.isArray(update.standings) ? update.standings : prev);
       }
     };
 
-    socket.on('standings_update', handleStandingsUpdate);
-    socket.on('connect_error', (err) => {
+    // Socket.IO event handler for connection errors
+    const handleConnectError = (err) => {
       console.error('Socket connection error:', err);
-      setError('Realtime updates unavailable');
-    });
-
-    return () => {
-      socket.off('standings_update');
-      socket.off('connect_error');
+      setError('Real-time updates are currently unavailable.');
     };
-  }, [competitionId]);
 
+    // Subscribe to socket events
+    socket.on('standings_update', handleStandingsUpdate);
+    socket.on('connect_error', handleConnectError);
+
+    // Cleanup function: unsubscribe from socket events on component unmount
+    return () => {
+      socket.off('standings_update', handleStandingsUpdate);
+      socket.off('connect_error', handleConnectError);
+    };
+  }, [competitionId]); // Re-run effect if competitionId changes
+
+  // Loading state UI
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-yellow-400 text-xl animate-pulse">
-        <div className="flex items-center space-x-2">
-          <svg className="animate-spin h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div className="flex justify-center items-center h-screen bg-black text-yellow-400 text-xl">
+        <div className="flex flex-col items-center space-y-4">
+          <svg className="animate-spin h-10 w-10 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Loading Premium Standings...</span>
+          <span className="font-semibold text-2xl">Loading Premium Standings...</span>
         </div>
       </div>
     );
   }
 
+  // Error state UI
   if (error) {
     return (
-      <div className="p-6 bg-black min-h-screen flex items-center justify-center">
-        <div className="text-red-500 text-xl text-center">
-          ⚠️ {error}
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 bg-yellow-500 text-black px-4 py-2 rounded-md hover:bg-yellow-400 transition-colors block mx-auto"
-          >
-            Try Again
-          </button>
+      <div className="p-6 bg-black min-h-screen flex flex-col items-center justify-center text-center">
+        <div className="text-red-500 text-2xl mb-6">
+          <ExclamationTriangleIcon className="h-10 w-10 mx-auto mb-4 text-red-600" />
+          <p className="font-bold">Oops! Something went wrong.</p>
+          <p className="mt-2 text-lg">{error}</p>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 bg-gradient-to-r from-amber-500 to-amber-600 text-black px-6 py-3 rounded-lg font-bold text-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-lg"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
+  // Main Standings UI
   return (
-    <div className="p-6 bg-black min-h-screen text-amber-500">
+    <div className="p-6 bg-black min-h-screen text-amber-500 font-sans">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8 border-b border-amber-600 pb-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent">
-            LEAGUE STANDINGS
+        {/* Title and Export Button Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 border-b border-amber-700 pb-4">
+          <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 sm:mb-0 bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent drop-shadow-lg text-center sm:text-left">
+            {competitionName.toUpperCase()} STANDINGS
           </h1>
           <button
             onClick={handleDownloadCSV}
-            className="flex items-center space-x-2 bg-amber-600/30 hover:bg-amber-600/50 transition-all duration-300 px-4 py-2 rounded-lg border border-amber-500/50"
+            className="flex items-center space-x-3 bg-amber-800/40 hover:bg-amber-700/60 transition-all duration-300 px-6 py-3 rounded-full border border-amber-600/60 shadow-md text-amber-100 group"
           >
-            <ArrowDownTrayIcon className="h-5 w-5 text-amber-400" />
-            <span className="text-amber-200 font-semibold">Export CSV</span>
+            <ArrowDownTrayIcon className="h-6 w-6 text-amber-300 group-hover:scale-110 transition-transform duration-200" />
+            <span className="text-lg font-semibold">Export to CSV</span>
           </button>
         </div>
 
-        <div className="overflow-x-auto rounded-xl shadow-2xl border border-amber-500/30 bg-gradient-to-br from-black to-zinc-900">
-          <table className="min-w-full text-sm">
-            <thead className="bg-amber-900/40 uppercase">
+        {/* Standings Table Section */}
+        <div className="overflow-x-auto rounded-xl shadow-2xl border border-amber-600/40 bg-gradient-to-br from-zinc-950 to-zinc-800">
+          <table className="min-w-full text-base lg:text-lg">
+            <thead className="bg-amber-900/50 uppercase text-amber-200">
               <tr>
                 {['#', 'Player', 'Played', 'Wins', 'Draws', 'Losses', 'GF', 'GA', 'GD', 'Points'].map((header) => (
                   <th
                     key={header}
-                    className="px-6 py-4 text-left font-bold text-amber-300/90 tracking-wider"
+                    className="px-6 py-5 text-left font-bold tracking-wider border-b border-amber-800"
                   >
                     {header}
                   </th>
@@ -136,28 +177,28 @@ export default function Standings() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-amber-800/50">
+            <tbody className="divide-y divide-amber-900/60">
               {safeStandings.map((standing, index) => {
-                const goalDifference = standing.goalsFor - standing.goalsAgainst;
+                const goalDifference = (standing.goalsFor || 0) - (standing.goalsAgainst || 0);
                 return (
                   <tr
                     key={standing._id || index}
-                    className="hover:bg-amber-900/20 transition-all duration-150 even:bg-zinc-900/30"
+                    className="hover:bg-amber-900/30 transition-all duration-200 even:bg-zinc-900/40 text-amber-100"
                   >
-                    <td className="px-6 py-4 font-medium text-amber-400">{index + 1}</td>
+                    <td className="px-6 py-4 font-medium text-amber-300">{index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {standing.playerName ? (
                         standing.playerName.startsWith('Deleted-') ? (
-                          <span className="text-red-400/90 flex items-center">
-                            <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+                          <span className="text-red-400/90 flex items-center font-semibold">
+                            <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-red-500" />
                             {standing.playerName.replace('Deleted-', '')}
                           </span>
                         ) : (
-                          <span className="text-amber-200">{standing.playerName}</span>
+                          <span className="text-amber-100 font-semibold">{standing.playerName}</span>
                         )
                       ) : (
-                        <span className="text-amber-600 flex items-center">
-                          <QuestionMarkCircleIcon className="h-4 w-4 mr-2" />
+                        <span className="text-amber-500 flex items-center italic">
+                          <QuestionMarkCircleIcon className="h-5 w-5 mr-2" />
                           Unknown Player
                         </span>
                       )}
@@ -165,15 +206,15 @@ export default function Standings() {
                     {['matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst'].map((key) => (
                       <td
                         key={key}
-                        className="px-6 py-4 text-amber-200/80 text-center"
+                        className="px-6 py-4 text-center font-medium"
                       >
                         {standing[key] || 0}
                       </td>
                     ))}
-                    <td className="px-6 py-4 text-center font-semibold text-amber-400">
+                    <td className="px-6 py-4 text-center font-bold text-amber-300">
                       {goalDifference}
                     </td>
-                    <td className="px-6 py-4 text-center font-bold text-amber-300">
+                    <td className="px-6 py-4 text-center font-extrabold text-amber-200 text-xl">
                       {standing.points || 0}
                     </td>
                   </tr>
@@ -182,15 +223,14 @@ export default function Standings() {
             </tbody>
           </table>
 
+          {/* No standings data message */}
           {safeStandings.length === 0 && (
-            <div className="p-8 text-center text-amber-600/80">
-              No standings available yet. Start playing matches to see rankings!
+            <div className="p-10 text-center text-amber-600/80 text-xl font-medium">
+              No standings available yet. Start playing matches to see the rankings!
             </div>
           )}
         </div>
       </div>
     </div>
   );
-
-  // Keep existing loading and error states (styled to match new theme)
 }
