@@ -64,7 +64,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ✅ MongoDB Connection
 
-mongoose.connect("mongodb://127.0.0.1:27017/official90", {
+mongoose.connect(process.env.MONGO_URL, {
 useNewUrlParser: true,
 
 
