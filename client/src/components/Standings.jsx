@@ -151,14 +151,8 @@ export default function Standings() {
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 border-b border-amber-700 pb-4">
           <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 sm:mb-0 bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent drop-shadow-lg text-center sm:text-left">
             {competitionName.toUpperCase()} STANDINGS
-          </h1>
-          <button
-            onClick={handleDownloadCSV}
-            className="flex items-center space-x-3 bg-amber-800/40 hover:bg-amber-700/60 transition-all duration-300 px-6 py-3 rounded-full border border-amber-600/60 shadow-md text-amber-100 group"
-          >
-            <ArrowDownTrayIcon className="h-6 w-6 text-amber-300 group-hover:scale-110 transition-transform duration-200" />
-            <span className="text-lg font-semibold">Export to CSV</span>
-          </button>
+          </h1> 
+          
         </div>
 
         {/* Standings Table Section */}
