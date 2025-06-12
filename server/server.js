@@ -25,7 +25,8 @@ const wallpaperRoutes = require('./routes/wallpaperRoutes');
 // ✅ Allow both localhost and deployed frontend
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://official90.onrender.com'
+  'https://official90.onrender.com',
+  'https://your-frontend.vercel.app'
 ];
 
 // ✅ Updated Middleware for CORS
