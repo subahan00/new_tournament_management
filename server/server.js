@@ -26,7 +26,7 @@ const wallpaperRoutes = require('./routes/wallpaperRoutes');
 const allowedOrigins = [
   'http://localhost:3000',
   'https://official90.onrender.com',
-  'https://your-frontend.vercel.app'
+  'https://official90-wine.vercel.app/'
 ];
 
 // ✅ Updated Middleware for CORS
