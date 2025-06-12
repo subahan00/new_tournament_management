@@ -22,102 +22,90 @@ const Header = () => {
   }, [menuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-[#0d1b2a] via-[#1a237e] to-[#0d1b2a] border-b border-[#ffc107]/20 backdrop-blur-sm shadow-2xl shadow-[#ffc107]/10">
-      {/* Premium top accent line */}
-      <div className="h-1 bg-gradient-to-r from-transparent via-[#ffc107] to-transparent"></div>
-      
+    <header className="fixed top-0 left-0 w-full z-50 bg-[#0d1b2a]/75 backdrop-blur-xl border-b border-[#1a237e]/50 shadow-lg">
       <div className="relative px-6 py-4 flex justify-between items-center max-w-screen-xl mx-auto">
-        {/* Premium Logo */}
+        {/* Site Logo/Title */}
         <Link to="/" className="flex items-center space-x-3 group">
           <div className="relative">
-            <div className="absolute inset-0 bg-[#ffc107]/20 rounded-full blur-md group-hover:blur-lg transition-all duration-300"></div>
-            <Trophy size={32} className="relative text-[#ffc107] group-hover:text-[#ffab00] transition-colors duration-300" />
+            <Trophy size={32} className="text-[#ffc107] group-hover:scale-110 transition-transform duration-300" />
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl font-black tracking-wider text-white group-hover:text-[#ffc107] transition-colors duration-300">
-              Official <span className="text-[#ffc107] group-hover:text-[#ffab00]">90</span>
+            <span className="text-2xl font-bold tracking-wide text-white group-hover:text-[#ffc107] transition-colors duration-300">
+              Official <span className="text-[#ffc107]">90</span>
             </span>
-            <div className="w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-[#ffab00] to-[#ffc107] transition-all duration-500"></div>
           </div>
         </Link>
 
-        {/* Mobile menu button - Premium styling */}
+        {/* Mobile menu button */}
         <button
-          className="md:hidden focus:outline-none text-white hover:text-[#ffc107] p-2 rounded-lg border border-[#ffc107]/20 hover:border-[#ffc107]/60 hover:bg-[#ffc107]/10 transition-all duration-300"
+          className="md:hidden focus:outline-none text-gray-300 hover:text-[#ffc107] p-2 rounded-lg transition-colors duration-300"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
         >
           {menuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
 
-        {/* Desktop nav - Premium styling */}
-        <nav className="hidden md:flex space-x-8 text-sm font-semibold">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
           {[
             { to: "/", label: "Home" },
-            
             { to: "/standings", label: "Standings" },
             { to: "/competitions", label: "Competitions", hasCount: true },
-            
             { to: "/login", label: "Admin", isSpecial: true }
           ].map((item, index) => (
             <Link
               key={index}
               to={item.to}
-              className={`relative group px-4 py-2 rounded-lg transition-all duration-300 ${
+              className={`relative group px-3 py-2 rounded-md transition-all duration-300 ${
                 item.isSpecial 
-                  ? 'text-[#ffc107] border border-[#ffc107]/30 hover:border-[#ffc107] hover:bg-[#ffc107]/10 hover:shadow-lg hover:shadow-[#ffc107]/20' 
-                  : 'hover:text-[#ffc107] hover:bg-white/5'
+                  ? 'text-[#ffc107] border border-[#ffc107]/30 hover:border-[#ffc107] hover:bg-[#ffc107]/10' 
+                  : 'text-gray-300 hover:text-[#ffc107] hover:bg-white/5'
               }`}
             >
-              <span className="relative z-10 flex items-center space-x-2">
+              <span className="flex items-center space-x-2">
                 {item.isSpecial && <Shield size={16} />}
                 <span>{item.label}</span>
                 {item.hasCount && competitions.length > 0 && (
-                  <span className="bg-gradient-to-r from-[#ffab00] to-[#ffc107] text-black rounded-full px-2 py-0.5 text-xs font-bold shadow-lg">
+                  <span className="bg-[#ffc107] text-black rounded-full px-2 py-0.5 text-xs font-bold">
                     {competitions.length}
                   </span>
                 )}
               </span>
-              {!item.isSpecial && (
-                <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#ffab00] to-[#ffc107] group-hover:w-full transition-all duration-300"></div>
-              )}
             </Link>
           ))}
         </nav>
       </div>
 
-      {/* Mobile nav menu - Premium styling */}
+      {/* Mobile Navigation Menu */}
       <div
-        className={`mobile-menu-container md:hidden bg-gradient-to-b from-[#0d1b2a] to-[#1a237e] text-white border-t border-[#ffc107]/20 transition-all duration-300 ease-in-out ${
+        className={`mobile-menu-container md:hidden bg-[#0d1b2a]/90 backdrop-blur-lg border-t border-[#1a237e]/30 transition-all duration-300 ease-in-out ${
           menuOpen ? 'block' : 'hidden'
         }`}
       >
         <div className="px-6 py-4">
-          <nav className="flex flex-col space-y-2">
+          <nav className="flex flex-col space-y-1">
             {[
               { to: "/", label: "Home" },
-    
               { to: "/standings", label: "Standings" },
               { to: "/competitions", label: "Competitions", hasCount: true },
-              
               { to: "/login", label: "Admin Login", isSpecial: true }
             ].map((item, index) => (
               <Link
                 key={index}
                 to={item.to}
                 onClick={() => setMenuOpen(false)}
-                className={`group flex items-center justify-between py-4 px-4 rounded-lg border-b border-white/5 text-lg transition-all duration-300 ${
+                className={`group flex items-center justify-between py-3 px-4 rounded-lg text-base transition-all duration-300 ${
                   item.isSpecial 
                     ? 'text-[#ffc107] border border-[#ffc107]/30 hover:border-[#ffc107] hover:bg-[#ffc107]/10' 
-                    : 'hover:text-[#ffc107] hover:bg-white/5'
+                    : 'text-gray-300 hover:text-[#ffc107] hover:bg-white/5'
                 }`}
               >
                 <span className="flex items-center space-x-3">
-                  {item.isSpecial && <Crown size={20} />}
+                  {item.isSpecial && <Crown size={18} />}
                   <span>{item.label}</span>
                 </span>
                 {item.hasCount && competitions.length > 0 && (
-                  <span className="bg-gradient-to-r from-[#ffab00] to-[#ffc107] text-black rounded-full px-3 py-1 text-sm font-bold shadow-lg">
+                  <span className="bg-[#ffc107] text-black rounded-full px-2 py-1 text-sm font-bold">
                     {competitions.length}
                   </span>
                 )}
@@ -125,9 +113,6 @@ const Header = () => {
             ))}
           </nav>
         </div>
-        
-        {/* Mobile menu bottom accent */}
-        <div className="h-1 bg-gradient-to-r from-transparent via-[#ffc107] to-transparent"></div>
       </div>
     </header>
   );
