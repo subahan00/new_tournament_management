@@ -222,7 +222,7 @@ const handleSubmit = async (e) => {
                         onClick={() => setShowResetPassword(true)}
                         className="font-medium text-yellow-600/80 hover:text-yellow-500 tracking-wide"
                       >
-                        Forgot password?
+                        click here to reset password
                       </button>
                     </div>
                   </div>
