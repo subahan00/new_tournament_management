@@ -90,32 +90,42 @@ const PublicWallpaper = () => {
   };
 
   // Handle download
-  const handleDownload = async () => {
-    if (!selectedWallpaper) return;
+const handleDownload = async () => {
+  if (!selectedWallpaper) return;
+  
+  try {
+    // Track download
+    await downloadWallpaper(selectedWallpaper._id);
+
+    // Fetch image as blob
+    const response = await fetch(selectedWallpaper.imageUrl);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Create download link
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
     
-    try {
-      // Track download
-      await downloadWallpaper(selectedWallpaper._id);
-      
-      // Create download link
-      const link = document.createElement('a');
-      link.href = selectedWallpaper.imageUrl;
-      link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
+    // Cleanup
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl); // Free memory
       document.body.removeChild(link);
-      
-      // Update download count in UI
-      setSelectedWallpaper(prev => ({
-        ...prev,
-        downloads: prev.downloads + 1
-      }));
-      
-      toast.success('Download started!');
-    } catch (error) {
-      toast.error('Download failed: ' + (error.response?.data?.message || error.message));
-    }
-  };
+    }, 100);
+
+    // Update UI
+    setSelectedWallpaper(prev => ({
+      ...prev,
+      downloads: prev.downloads + 1
+    }));
+    
+    toast.success('Download started!');
+  } catch (error) {
+    toast.error('Download failed: ' + (error.response?.data?.message || error.message));
+  }
+};
 
   // Handle like
   const handleLike = async () => {
