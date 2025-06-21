@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import io from 'socket.io-client';
+
 export default function CompetitionResults() {
   const socket = io(`${process.env.REACT_APP_BACKEND_URL}`); 
   const { competitionId } = useParams();
@@ -17,7 +18,8 @@ export default function CompetitionResults() {
   const [pendingSubmission, setPendingSubmission] = useState(null);
   
   const fixturesPerPage = 6; // Number of fixtures per page
-useEffect(() => {
+
+  useEffect(() => {
     const fetchFixtures = async () => {
       try {
         setLoading(true);
@@ -91,6 +93,15 @@ useEffect(() => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditClick = (fixture) => {
+    setEditingFixture(fixture._id);
+    setScores({
+      home: fixture.homeScore || 0,
+      away: fixture.awayScore || 0
+    });
+    setError(null);
   };
 
   const handleSubmitClick = (fixtureId) => {
@@ -171,7 +182,8 @@ useEffect(() => {
     const bNum = parseInt(b.replace(/\D/g, '')) || 0;
     return aNum - bNum;
   });
-const renderPlayerName = (player, playerNameField) => {
+
+  const renderPlayerName = (player, playerNameField) => {
     return playerNameField || player?.name || 'TBD';
   };
 
@@ -403,26 +415,14 @@ const renderPlayerName = (player, playerNameField) => {
                         </div>
                         
                         {/* Match Result Section */}
-                        {fixture.status === 'completed' ? (
-                          // Completed Match
-                          <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
-                            <div className="text-center">
-                              <div className="flex items-center justify-center space-x-4 mb-2">
-                                <span className="text-3xl font-bold text-white">{fixture.homeScore}</span>
-                                <span className="text-xl text-gray-400">-</span>
-                                <span className="text-3xl font-bold text-white">{fixture.awayScore}</span>
-                              </div>
-                              {fixture.result && (
-                                <div className="inline-block bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm font-medium capitalize border border-yellow-500/30">
-                                  {fixture.result}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : editingFixture === fixture._id ? (
-                          // Editing Mode
+                        {editingFixture === fixture._id ? (
+                          // EDITING MODE (for both new and existing results)
                           <div className="bg-blue-500/10 rounded-lg p-6 border border-blue-500/30">
-                            <h4 className="text-blue-400 font-semibold text-center mb-4">Enter Match Result</h4>
+                            <h4 className="text-blue-400 font-semibold text-center mb-4">
+                              {fixture.status === 'completed' 
+                                ? 'Update Match Result' 
+                                : 'Enter Match Result'}
+                            </h4>
                             <div className="flex items-center justify-center space-x-6 mb-6">
                               <div className="text-center">
                                 <label className="block text-gray-300 text-sm font-medium mb-2">Home Score</label>
@@ -457,7 +457,9 @@ const renderPlayerName = (player, playerNameField) => {
                                 className="px-6 py-2 rounded-lg font-medium bg-yellow-500 hover:bg-yellow-600 text-black transition-all"
                                 disabled={submitting}
                               >
-                                Submit Result
+                                {fixture.status === 'completed' 
+                                  ? 'Update Result' 
+                                  : 'Submit Result'}
                               </button>
                               
                               <button
@@ -469,14 +471,37 @@ const renderPlayerName = (player, playerNameField) => {
                               </button>
                             </div>
                           </div>
+                        ) : fixture.status === 'completed' ? (
+                          // COMPLETED MATCH WITH UPDATE OPTION
+                          <div className="space-y-4">
+                            <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
+                              <div className="text-center">
+                                <div className="flex items-center justify-center space-x-4 mb-2">
+                                  <span className="text-3xl font-bold text-white">{fixture.homeScore}</span>
+                                  <span className="text-xl text-gray-400">-</span>
+                                  <span className="text-3xl font-bold text-white">{fixture.awayScore}</span>
+                                </div>
+                                {fixture.result && (
+                                  <div className="inline-block bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm font-medium capitalize border border-yellow-500/30">
+                                    {fixture.result}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleEditClick(fixture)}
+                              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 flex items-center justify-center"
+                            >
+                              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Update Result
+                            </button>
+                          </div>
                         ) : (
-                          // Add Result Button
+                          // ADD RESULT BUTTON FOR PENDING MATCHES
                           <button
-                            onClick={() => {
-                              setEditingFixture(fixture._id);
-                              setScores({ home: 0, away: 0 });
-                              setError(null);
-                            }}
+                            onClick={() => handleEditClick(fixture)}
                             className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition-all duration-300"
                           >
                             Add Result

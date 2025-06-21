@@ -7,7 +7,7 @@ const Standing = require('../models/Standing');
 const competitionController = {
   createCompetition: async (req, res) => {
     try {
-      const { name, type, numberOfPlayers, players, knockoutQualifiedCount } = req.body;
+      const { name, type, numberOfPlayers, players, knockoutQualifiedCount,rounds } = req.body;
 
       // Basic validation
       if (!name || !type) {
@@ -22,7 +22,8 @@ const competitionController = {
         name,
         type,
         numberOfPlayers: numberOfPlayers || 0,
-        players: []
+        players: [],
+        rounds
       };
 
       // Competition type configuration
@@ -54,6 +55,7 @@ const competitionController = {
       } else if (COMPETITION_CONFIG.LEAGUE.types.includes(type)) {
         // League tournament defaults
         competitionData.numberOfPlayers = numberOfPlayers || COMPETITION_CONFIG.LEAGUE.defaultSize;
+        competitionData.rounds=rounds || 3;
       } else if (type === COMPETITION_CONFIG.GNG.type) {
         // GNG validation
         competitionData.numberOfPlayers = COMPETITION_CONFIG.GNG.fixedSize;
@@ -105,7 +107,7 @@ const competitionController = {
 
         competitionData.players = players;
       }
-
+      console.log('Competition data:', competitionData);
       // Create and save competition
       const competition = new Competition(competitionData);
       await competition.save();

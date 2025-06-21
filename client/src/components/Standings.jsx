@@ -27,39 +27,6 @@ export default function Standings() {
 
   // Ensure standings is always an array for safe mapping
   const safeStandings = Array.isArray(standings) ? standings : [];
-
-  // Function to handle CSV download
-  const handleDownloadCSV = () => {
-    // Define CSV headers
-    const headers = ['Position,Player,Played,Wins,Draws,Losses,GF,GA,GD,Points'];
-    
-    // Map standings data to CSV format
-    const csvContent = safeStandings
-      .map((standing, index) => {
-        // Clean player name and calculate goal difference
-        const playerName = standing.playerName?.replace('Deleted-', '') || 'Unknown Player';
-        const gd = (standing.goalsFor || 0) - (standing.goalsAgainst || 0); // Ensure numeric operation
-        
-        // Return CSV row
-        return `${index + 1},"${playerName}",${standing.matchesPlayed || 0},${standing.wins || 0},${standing.draws || 0},${standing.losses || 0},${standing.goalsFor || 0},${standing.goalsAgainst || 0},${gd},${standing.points || 0}`;
-      })
-      .join('\n');
-
-    // Create a Blob for the CSV file
-    const blob = new Blob([headers + '\n' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    
-    // Create a temporary link element to trigger download
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${competitionName.replace(/\s+/g, '_').toLowerCase()}-standings-${competitionId}.csv`); // Dynamic filename
-    link.style.visibility = 'hidden'; // Hide the link
-    document.body.appendChild(link); // Append to body to make it clickable
-    link.click(); // Programmatically click the link to trigger download
-    document.body.removeChild(link); // Clean up the temporary link
-  };
-
   // useEffect hook for data fetching and real-time updates
   useEffect(() => {
     // Function to fetch standings data from the API

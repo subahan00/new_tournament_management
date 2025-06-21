@@ -328,16 +328,16 @@ router.post('/public/:id/like', async (req, res) => {
 // Get featured wallpapers
 router.get('/public/featured', async (req, res) => {
   try {
-    const wallpapers = await Wallpaper.find({ featured: true })
-      .select('-cloudinaryId -uploadedBy')
-      .sort({ createdAt: -1 })
-      .limit(6);
-
+    console.log("Route hit");
+    const wallpapers = await Wallpaper.find({}).limit(1);
+    console.log("Fetched sample:", wallpapers);
     res.json(wallpapers);
   } catch (error) {
+    console.error('Error fetching featured wallpapers:', error);
     res.status(500).json({ message: 'Error fetching featured wallpapers', error: error.message });
   }
 });
+
 
 // Get categories with counts
 router.get('/public/categories', async (req, res) => {

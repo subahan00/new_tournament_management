@@ -7,7 +7,8 @@ const CompetitionManagement = () => {
     name: '',
     type: 'KO_REGULAR',
     numberOfPlayers: 0,
-    players: []
+    players: [],
+    rounds: 3
   });
   const [playerName, setPlayerName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,11 +58,13 @@ const CompetitionManagement = () => {
     fetchCompetitions();
   }, []);
 
-  const handleChange = (e) => {
+ const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'numberOfPlayers' ? Math.max(0, parseInt(value) || 0) : value
+      [name]: name === 'numberOfPlayers' || name === 'rounds' 
+        ? Math.max(1, parseInt(value) || 1) 
+        : value
     }));
   };
 
@@ -105,6 +108,10 @@ const CompetitionManagement = () => {
       setError(`Please add exactly ${formData.numberOfPlayers} players`);
       return false;
     }
+      if (formData.type === 'LEAGUE' && (formData.rounds < 1 || formData.rounds > 10)) {
+      setError('Number of rounds must be between 1 and 10 for league competitions');
+      return false;
+    }
 
     return true;
   };
@@ -122,7 +129,7 @@ const CompetitionManagement = () => {
         ...formData,
         numberOfPlayers: parseInt(formData.numberOfPlayers),
       };
-
+      console.log('Creating competition with payload:', payload);
       const response = await competitionService.createCompetition(payload);
       if (response && response.data) {
         setSuccess('Competition created successfully!');
@@ -131,7 +138,8 @@ const CompetitionManagement = () => {
           name: '',
           type: 'KO_REGULAR',
           numberOfPlayers: 0,
-          players: []
+          players: [],
+          rounds: 3
         });
       } else {
         throw new Error('Unexpected response from server');
@@ -195,7 +203,6 @@ const CompetitionManagement = () => {
               <svg className="w-6 h-6 sm:w-8 sm:h-8 text-gold-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 4.143L18 21l-6-3.857L6 21l2.714-4.857L3 12l6.714-2.143L12 3z" />
               </svg>
-
               <span>{error}</span>
             </div>
           </div>
@@ -238,14 +245,34 @@ const CompetitionManagement = () => {
                 onChange={handleChange}
                 className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white appearance-none"
               >
-                <option value="KO" className="bg-gray-900">KO TYPE</option>
-
-                <option value="LEAGUE" className="bg-gray-900">LEAGUE TYPE</option>
-
-                <option value="GNG" className="bg-gray-900">GNG</option>
-                <option value="NEW_TYPE" className="bg-gray-900">NEW_TYPE</option>
+                <option value="KO_REGULAR">KO Regular</option>
+                <option value="LEAGUE">League</option>
+                <option value="GNG">GNG</option>
+                <option value="NEW_TYPE">New Type</option>
               </select>
             </div>
+
+            {/* Number of Rounds Field - Only for League Competitions */}
+            {formData.type === 'LEAGUE' && (
+              <div>
+                <label className="block text-gold-300 mb-2 font-medium">
+                  Number of Rounds (each player plays others this many times)
+                </label>
+                <input
+                  type="number"
+                  name="rounds"
+                  min="1"
+                  max="10"
+                  value={formData.rounds}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white placeholder-gold-500/70"
+                />
+                <p className="text-sm text-gold-500 mt-1">
+                  Each player will play against every other player {formData.rounds} time(s)
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-gold-300 mb-2 font-medium">Number of Players</label>
@@ -260,7 +287,6 @@ const CompetitionManagement = () => {
                 className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white placeholder-gold-500/70"
               />
             </div>
-
 
             <label className="block text-gold-300 mb-2 font-medium">
               Add Players <span className="text-gold-400">({formData.players.length}/{formData.numberOfPlayers})</span>
@@ -323,8 +349,6 @@ const CompetitionManagement = () => {
                     );
                   })}
                 </ul>
-
-
               </div>
             )}
 
@@ -424,160 +448,151 @@ const CompetitionManagement = () => {
         </div>
       </div>
 
-    {/* Competition Details Modal */}
-{showDetailsModal && selectedCompetition && (
-  <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50">
-    <div className="bg-gray-900 border border-gold-700/50 rounded-lg sm:rounded-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-      <div className="p-4 sm:p-6">
-        {/* Modal Header */}
-        <div className="flex justify-between items-start mb-3 sm:mb-4">
-          <h3 className="text-xl sm:text-2xl font-bold text-gold-300 break-words">
-            {selectedCompetition.name}
-          </h3>
-          <button
-            onClick={closeModal}
-            className="text-gold-500 hover:text-gold-300 ml-2"
-          >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Competition Info - Responsive Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
-            <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Competition Info</h4>
-            <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
-              <div className="flex justify-between">
-                <span className="text-gold-300">Type:</span>
-                <span className="text-gold-200">{selectedCompetition.type}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gold-300">Status:</span>
-                <span className={`font-medium ${selectedCompetition.status === 'completed'
-                  ? 'text-green-400'
-                  : selectedCompetition.status === 'ongoing'
-                    ? 'text-yellow-400'
-                    : 'text-blue-400'
-                  }`}>
-                  {selectedCompetition.status?.toUpperCase() || 'NOT STARTED'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gold-300">Created:</span>
-                <span className="text-gold-200">
-                  {new Date(selectedCompetition.createdAt.$date).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Winner Section - Conditionally Rendered */}
-          {selectedCompetition.status === 'completed' && selectedCompetition.winner && (
-            <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
-              <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Winner</h4>
-              <div className="flex items-center justify-center p-2 sm:p-4 bg-gold-900/20 rounded-lg">
-                <div className="text-center">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-1 sm:mb-2 rounded-full bg-gold-600/20 flex items-center justify-center border-2 border-gold-500">
-                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-gold-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                  </div>
-                  <h5 className="text-lg sm:text-xl font-bold text-gold-300 break-words">
-                    {/* Handle potential winner object */}
-                    {selectedCompetition.winner.name || 'Winner'}
-                  </h5>
-                  <p className="text-xs sm:text-sm text-gold-400">Champion</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Players List - Responsive */}
-       {/* Players List - Responsive */}
-<div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30 mb-4 sm:mb-6">
-  <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">
-    Players ({selectedCompetition.players?.length || 0})
-  </h4>
-  <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
-    {selectedCompetition.players?.map((player, index) => {
-      // Safely get player ID
-      const playerId = player?.$oid || player?._id || '';
-      const shortId = playerId.slice(-4); // Only slice if we have a string
-      
-      // Safely get winner ID
-      const winnerId = selectedCompetition.winner?.$oid || 
-                      selectedCompetition.winner?._id || 
-                      selectedCompetition.winner || '';
-      
-      const isWinner = winnerId === playerId;
-
-      return (
-        <div
-          key={playerId || index}
-          className={`flex items-center p-2 sm:p-3 rounded-lg ${
-            isWinner
-              ? 'bg-gold-900/30 border border-gold-600/50'
-              : 'bg-gray-700/50'
-          }`}
-        >
-          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-600 flex items-center justify-center mr-2 sm:mr-3">
-            <span className="text-xs sm:text-sm text-gold-300 font-medium">{index + 1}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h5 className="text-xs sm:text-sm text-gold-200 font-medium truncate">
-              Player {index + 1} (ID: {shortId})
-            </h5>
-            {isWinner && (
-              <span className="text-xs bg-gold-600/30 text-gold-200 px-1.5 py-0.5 rounded-full">
-                Winner
-              </span>
-            )}
-          </div>
-        </div>
-      );
-    })}
-  
-           
-          </div>
-        </div>
-
-        {/* Progress Section - Conditionally Rendered */}
-        {selectedCompetition.status !== 'completed' && (
-          <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
-            <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Competition Progress</h4>
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <div className="flex justify-between mb-1 text-xs sm:text-sm">
-                  <span className="text-gold-300">Completion</span>
-                  <span className="text-gold-300">
-                    {selectedCompetition.progress || 0}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2 sm:h-2.5">
-                  <div
-                    className="bg-gold-600 h-full rounded-full"
-                    style={{ width: `${selectedCompetition.progress || 0}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div className="text-center">
-                <button className="text-xs sm:text-sm bg-gold-600 hover:bg-gold-500 text-black font-medium py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg">
-                  {selectedCompetition.status === 'ongoing'
-                    ? 'Continue Competition'
-                    : 'Start Competition'}
+      {/* Competition Details Modal */}
+      {showDetailsModal && selectedCompetition && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-gray-900 border border-gold-700/50 rounded-lg sm:rounded-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              {/* Modal Header */}
+              <div className="flex justify-between items-start mb-3 sm:mb-4">
+                <h3 className="text-xl sm:text-2xl font-bold text-gold-300 break-words">
+                  {selectedCompetition.name}
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gold-500 hover:text-gold-300 ml-2"
+                >
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
+
+              {/* Competition Info - Responsive Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
+                  <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Competition Info</h4>
+                  <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gold-300">Type:</span>
+                      <span className="text-gold-200">{selectedCompetition.type}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gold-300">Status:</span>
+                      <span className={`font-medium ${selectedCompetition.status === 'completed'
+                        ? 'text-green-400'
+                        : selectedCompetition.status === 'ongoing'
+                          ? 'text-yellow-400'
+                          : 'text-blue-400'
+                        }`}>
+                        {selectedCompetition.status?.toUpperCase() || 'NOT STARTED'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gold-300">Created:</span>
+                      <span className="text-gold-200">
+                        {new Date(selectedCompetition.createdAt.$date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Winner Section - Conditionally Rendered */}
+                {selectedCompetition.status === 'completed' && selectedCompetition.winner && (
+                  <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
+                    <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Winner</h4>
+                    <div className="flex items-center justify-center p-2 sm:p-4 bg-gold-900/20 rounded-lg">
+                      <div className="text-center">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-1 sm:mb-2 rounded-full bg-gold-600/20 flex items-center justify-center border-2 border-gold-500">
+                          <svg className="w-6 h-6 sm:w-8 sm:h-8 text-gold-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                          </svg>
+                        </div>
+                        <h5 className="text-lg sm:text-xl font-bold text-gold-300 break-words">
+                          {selectedCompetition.winner.name || 'Winner'}
+                        </h5>
+                        <p className="text-xs sm:text-sm text-gold-400">Champion</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Players List - Responsive */}
+              <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30 mb-4 sm:mb-6">
+                <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">
+                  Players ({selectedCompetition.players?.length || 0})
+                </h4>
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
+                  {selectedCompetition.players?.map((player, index) => {
+                    const playerId = player.name||player?.$oid || player?._id || '';
+                    const shortId = playerId.slice();
+                    const winnerId = selectedCompetition.winner?.$oid || 
+                                    selectedCompetition.winner?._id || 
+                                    selectedCompetition.winner || '';
+                    const isWinner = winnerId === playerId;
+
+                    return (
+                      <div
+                        key={playerId || index}
+                        className={`flex items-center p-2 sm:p-3 rounded-lg ${
+                          isWinner
+                            ? 'bg-gold-900/30 border border-gold-600/50'
+                            : 'bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-600 flex items-center justify-center mr-2 sm:mr-3">
+                          <span className="text-xs sm:text-sm text-gold-300 font-medium">{index + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-xs sm:text-sm text-gold-200 font-medium truncate">
+                            Player {index + 1} (ID: {shortId})
+                          </h5>
+                          {isWinner && (
+                            <span className="text-xs bg-gold-600/30 text-gold-200 px-1.5 py-0.5 rounded-full">
+                              Winner
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Progress Section - Conditionally Rendered */}
+              {selectedCompetition.status !== 'completed' && (
+                <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
+                  <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Competition Progress</h4>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-1 text-xs sm:text-sm">
+                        <span className="text-gold-300">Completion</span>
+                        <span className="text-gold-300">
+                          {selectedCompetition.progress || 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2 sm:h-2.5">
+                        <div
+                          className="bg-gold-600 h-full rounded-full"
+                          style={{ width: `${selectedCompetition.progress || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <button className="text-xs sm:text-sm bg-gold-600 hover:bg-gold-500 text-black font-medium py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg">
+                        {selectedCompetition.status === 'ongoing'
+                          ? 'Continue Competition'
+                          : 'Start Competition'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-      
+        </div>
+      )}
     </div>
   );
 };

@@ -20,7 +20,18 @@ const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
 const Applicant=require('./models/Application');
 const wallpaperRoutes = require('./routes/wallpaperRoutes');
+const plainPassword = 'Imaad@6924';
 
+// Hash the passwor
+bcrypt.genSalt(10, (err, salt) => {
+  if (err) throw err;
+
+  bcrypt.hash(plainPassword, salt, (err, hash) => {
+    if (err) throw err;
+
+    console.log('🔐 Encrypted password:', hash);
+  });
+});
 
 // ✅ Allow both localhost and deployed frontend
 const allowedOrigins = [

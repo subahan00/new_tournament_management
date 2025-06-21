@@ -189,7 +189,6 @@ const HallOfFame = () => {
           <div className="col-span-1 text-center">RANK</div>
           <div className="col-span-3">COMPETITION</div>
           <div className="col-span-3">CHAMPION</div>
-          <div className="col-span-2 text-center">PRIZE</div>
           <div className="col-span-2 text-center">DATE</div>
           <div className="col-span-1 text-center">DETAILS</div>
         </div>
@@ -245,15 +244,7 @@ const HallOfFame = () => {
               </div>
             </div>
 
-            {/* Prize */}
-            <div className="col-span-2 text-center">
-              <div className="flex items-center justify-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500/30 to-purple-500/30 border border-amber-500/50 group-hover:from-amber-500/40 group-hover:to-purple-500/40 transition-all duration-500 shadow-lg shadow-amber-500/30">
-                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
-                <span className="font-black text-amber-300 text-base sm:text-xl tracking-wider">
-                  {winner.prize.toLocaleString()}
-                </span>
-              </div>
-            </div>
+           
 
             {/* Date */}
             <div className="col-span-2 text-center">
@@ -317,7 +308,6 @@ const HallOfFame = () => {
         <div className="space-y-4 sm:space-y-5 mb-6 sm:mb-8 relative z-10">
           {[
             { label: 'Season', value: winner.season, icon: Award },
-            { label: 'Prize', value: `$${winner.prize.toLocaleString()}`, icon: DollarSign, special: true },
             { label: 'Date', value: new Date(winner.date).toLocaleDateString(), icon: Calendar },
             ...(winner.runnerUp ? [{ label: 'Defeated', value: winner.runnerUp, icon: User }] : [])
           ].map(({ label, value, icon: Icon, special }) => (

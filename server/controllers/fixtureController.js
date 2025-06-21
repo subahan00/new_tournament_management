@@ -31,7 +31,7 @@ exports.setIOInstance = (io) => {
 };
 
 exports.createFixturesForLeague = async (req, res) => {
-  const { competitionId } = req.params;
+  const { competitionId,rounds } = req.params;
 
   try {
     const competition = await Competition.findById(competitionId)
@@ -70,7 +70,8 @@ exports.createFixturesForLeague = async (req, res) => {
     const playerMap = new Map(validPlayers.map(p => [p.id, p.name]));
     const rawFixtures = generateLeagueFixtures(
       validPlayers.map(p => p.id),
-      playerMap
+      playerMap,
+      rounds ? parseInt(rounds) : competition.rounds || 3
     );
 
     // Add competition metadata
@@ -280,7 +281,7 @@ exports.generateKoFixtures = async (req, res) => {
     }
 
     const numPlayers = competition.players.length;
-    if (![8, 16, 32].includes(numPlayers)) {
+    if (![8, 16, 32,64].includes(numPlayers)) {
       return res.status(400).json({ message: 'Invalid player count (8/16/32 required)' });
     }
 
@@ -709,6 +710,7 @@ exports.getOngoingCompetitions = async (req, res) => {
     });
   }
 };
+
 exports.getUpcomingCompetitions = async (req, res) => {
   try {
     const competitions = await Competition.find({ status: 'upcoming' })

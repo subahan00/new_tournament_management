@@ -16,6 +16,7 @@ const {
   updateCompetitionStatus,
   setCompetitionWinner,
   getFixturesByCompetition,
+
 } = require('../controllers/fixtureController');
 
 const { authenticate } = require('../utils/middlewares');

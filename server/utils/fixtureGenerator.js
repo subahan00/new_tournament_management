@@ -1,17 +1,14 @@
-// utils/fixtureGenerator.js
 const Competition = require('../models/Competition');
 
-// League Type Generation (keep existing implementation)
-function generateLeagueFixtures(players, playerNames = new Map()) {
+function generateLeagueFixtures(players, playerNames = new Map(),roundCount ) {
     const fixtures = [];
     const totalPlayers = players.length;
 
-    // Validate input
     if (!Array.isArray(players) || players.length < 2) {
         throw new Error('Invalid players array');
     }
 
-    for (let round = 0; round < 3; round++) {
+    for (let round = 0; round < roundCount; round++) {
         for (let i = 0; i < totalPlayers; i++) {
             for (let j = i + 1; j < totalPlayers; j++) {
                 const homeId = players[i];
@@ -35,13 +32,13 @@ function generateLeagueFixtures(players, playerNames = new Map()) {
     return fixtures;
 }
 
-// Knockout Type Generation (updated organization)
 const ROUND_NAMES = {
   2: ['Final'],
   4: ['Semi-Final', 'Final'],
   8: ['Quarter-Final', 'Semi-Final', 'Final'],
   16: ['Round of 16', 'Quarter-Final', 'Semi-Final', 'Final'],
-  32: ['Round of 32', 'Round of 16', 'Quarter-Final', 'Semi-Final', 'Final']
+  32: ['Round of 32', 'Round of 16', 'Quarter-Final', 'Semi-Final', 'Final'],
+  64: ['Round of 64', 'Round of 32', 'Round of 16', 'Quarter-Final', 'Semi-Final', 'Final']
 };
 
 const generateKnockoutFixtures = {
@@ -90,6 +87,7 @@ function pairPlayers(players, competitionId, roundName, playerNames) { // Add pl
 
 function calculateRoundDate(roundName) {
   const roundDates = {
+    'Round of 64': -21,
     'Round of 32': 0,
     'Round of 16': 7,
     'Quarter-Final': 14,
@@ -115,6 +113,7 @@ const getRoundName = (totalPlayers, roundIndex) => {
   const remainingRounds = totalRounds - roundIndex;
   
   switch (remainingRounds) {
+    case 6: return 'Round of 64';
     case 5: return 'Round of 32';
     case 4: return 'Round of 16';
     case 3: return 'Quarter Finals';
@@ -193,13 +192,15 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
       return fixture.result === 'home' ? fixture.homePlayer : fixture.awayPlayer;
     });
   
-  if (winners.length % 2 !== 0) {
+
+    if (winners.length % 2 !== 0) {
     throw new Error('Cannot generate next round: odd number of winners');
   }
   
   // Determine next round name
   let nextRound;
   switch (currentRound) {
+    case 'Round of 64': nextRound = 'Round of 32'; break;
     case 'Round of 32': nextRound = 'Round of 16'; break;
     case 'Round of 16': nextRound = 'Quarter Finals'; break;
     case 'Quarter Finals': nextRound = 'Semi Finals'; break;
@@ -207,7 +208,7 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
     default: 
       // For custom round names, calculate based on player count
       const totalRounds = calculateTotalRounds(numberOfPlayers);
-      const currentRoundIndex = ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5'].indexOf(currentRound);
+      const currentRoundIndex = ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5','Round 6'].indexOf(currentRound);
       if (currentRoundIndex >= 0) {
         nextRound = getRoundName(numberOfPlayers, currentRoundIndex + 1);
       } else {
@@ -235,7 +236,6 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
   
   return fixtures;
 };
-// Export all generators and shared constants
 module.exports = {
   generateLeagueFixtures,
   generateKnockoutFixtures,
@@ -245,6 +245,6 @@ module.exports = {
   calculateTotalRounds,
   getRoundName,
   shuffleArray,
-  pairPlayers // Add this if not already exported
+  pairPlayers 
 };
 

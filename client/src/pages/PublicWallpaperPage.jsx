@@ -19,7 +19,6 @@ import { toast } from 'react-toastify';
 import Masonry from 'react-masonry-css';
 
 const PublicWallpaper = () => {
-  // State management
   const [wallpapers, setWallpapers] = useState([]);
   const [featuredWallpapers, setFeaturedWallpapers] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -42,27 +41,23 @@ const PublicWallpaper = () => {
   const [isSaving, setIsSaving] = useState(false);
   const imageRef = useRef(null);
 
-  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
-        // Fetch wallpapers
         const wallpapersRes = await getPublicWallpapers(filters);
         setWallpapers(wallpapersRes.data.wallpapers);
         setTotalPages(wallpapersRes.data.totalPages);
         
-        // Fetch featured wallpapers
         const featuredRes = await getFeaturedWallpapers();
         setFeaturedWallpapers(featuredRes.data);
         
-        // Fetch categories
         const categoriesRes = await getWallpaperCategories();
         setCategories(categoriesRes.data);
         
-        // Fetch tags
         const tagsRes = await getWallpaperTags();
+        console.log(tagsRes);
         setTags(tagsRes.data);
         
       } catch (error) {
@@ -89,26 +84,27 @@ const PublicWallpaper = () => {
     }
   };
 
+
   // Handle download
-const handleDownload = async () => {
+ const handleDownload = async () => {
   if (!selectedWallpaper) return;
   
   try {
-    // Track download
     await downloadWallpaper(selectedWallpaper._id);
 
-    // Fetch image as blob
+
     const response = await fetch(selectedWallpaper.imageUrl);
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
 
-    // Create download link
+
     const link = document.createElement('a');
     link.href = blobUrl;
     link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.jpg`;
     document.body.appendChild(link);
     link.click();
     
+
     // Cleanup
     setTimeout(() => {
       URL.revokeObjectURL(blobUrl); // Free memory
@@ -116,6 +112,12 @@ const handleDownload = async () => {
     }, 100);
 
     // Update UI
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl); 
+      document.body.removeChild(link);
+    }, 100);
+
+
     setSelectedWallpaper(prev => ({
       ...prev,
       downloads: prev.downloads + 1
@@ -127,7 +129,6 @@ const handleDownload = async () => {
   }
 };
 
-  // Handle like
   const handleLike = async () => {
     if (!selectedWallpaper) return;
     
@@ -139,7 +140,6 @@ const handleDownload = async () => {
         liked: true
       }));
       
-      // Update like count in grid view
       setWallpapers(prev => prev.map(wp => 
         wp._id === selectedWallpaper._id 
           ? {...wp, likes: wp.likes + 1, liked: true} 
@@ -152,10 +152,7 @@ const handleDownload = async () => {
     }
   };
 
-  // Handle save to collection
   
-
-  // Handle share
   const handleShare = () => {
     if (!selectedWallpaper) return;
     
@@ -166,13 +163,11 @@ const handleDownload = async () => {
         url: window.location.href
       }).catch(error => console.log('Sharing failed', error));
     } else {
-      // Fallback for browsers without Share API
       navigator.clipboard.writeText(window.location.href);
       toast.info('Link copied to clipboard!');
     }
   };
 
-  // Toggle fullscreen mode
   const toggleFullscreen = () => {
     if (!imageRef.current) return;
     
@@ -197,7 +192,6 @@ const handleDownload = async () => {
     }
   };
 
-  // Handle search and filter changes
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
   };

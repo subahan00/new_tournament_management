@@ -29,7 +29,10 @@ const competitionSchema = new mongoose.Schema({
     type: Number, 
     required: true 
   },
-
+  rounds:{
+    type:Number,
+    default: 3
+  },
   knockoutQualifiedCount: {
     type: Number,
     default: null // Only applicable to 'GNG' (mixed) or other future mixed types
