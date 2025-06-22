@@ -96,49 +96,46 @@ const PublicWallpaper = () => {
 
   // Handle download
   const handleDownload = useCallback(async () => {
-    if (!selectedWallpaper) return;
+  if (!selectedWallpaper) return;
 
-    try {
-      await downloadWallpaper(selectedWallpaper._id);
+  try {
+    // Log download in backend
+    await downloadWallpaper(selectedWallpaper._id);
 
-      const response = await fetch(selectedWallpaper.imageUrl);
-      const blob = await response.blob();
+    // Cloudinary high-quality + mobile-friendly transformation
+    const optimizedImageUrl = selectedWallpaper.imageUrl.replace('/upload/', '/upload/q_auto:best,f_auto/');
 
-      // Create a URL for the blob
-      const blobUrl = URL.createObjectURL(blob);
+    const response = await fetch(optimizedImageUrl);
+    if (!response.ok) throw new Error('Image fetch failed');
 
-      // Create a temporary anchor element
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.jpg`;
-      link.style.display = 'none';
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
 
-      // Append to body
-      document.body.appendChild(link);
+    const link = document.createElement('a');
+    link.href = blobUrl;
 
-      // Trigger download
-      link.click();
+    // Smart extension (WebP, JPEG, etc.)
+    const extension = blob.type.split('/')[1] || 'jpg';
+    link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.${extension}`;
 
-      // Cleanup - use a more reliable method
-      setTimeout(() => {
-        // Remove the element only if it's still in the DOM
-        if (link.parentNode === document.body) {
-          document.body.removeChild(link);
-        }
-        URL.revokeObjectURL(blobUrl);
-      }, 1000); // Increased timeout for safety
+    document.body.appendChild(link);
+    link.click();
 
-      // Update download count
-      setSelectedWallpaper(prev => ({
-        ...prev,
-        downloads: prev.downloads + 1
-      }));
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
 
-      toast.success('Download started!');
-    } catch (error) {
-      toast.error('Download failed: ' + (error.response?.data?.message || error.message));
-    }
-  }, [selectedWallpaper]);
+    setSelectedWallpaper(prev => ({
+      ...prev,
+      downloads: (prev?.downloads || 0) + 1
+    }));
+
+    toast.success('Download started!');
+  } catch (error) {
+    toast.error(`Download failed: ${error?.message}`);
+  }
+}, [selectedWallpaper]);
 
   const handleLike = async () => {
     if (!selectedWallpaper) return;
