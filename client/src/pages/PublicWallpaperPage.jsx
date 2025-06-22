@@ -1,17 +1,17 @@
 // src/pages/PublicWallpaper.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  getPublicWallpapers, 
-  getWallpaperById, 
-  downloadWallpaper, 
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  getPublicWallpapers,
+  getWallpaperById,
+  downloadWallpaper,
   likeWallpaper,
   getWallpaperCategories,
   getWallpaperTags,
   getFeaturedWallpapers,
-  
+
 } from '../services/wallpaperService';
-import { 
-  FaSearch, FaHeart, FaDownload, FaShareAlt, FaTimes, 
+import {
+  FaSearch, FaHeart, FaDownload, FaShareAlt, FaTimes,
   FaChevronLeft, FaChevronRight, FaExpand, FaCompress,
   FaFilter, FaBookmark, FaRegBookmark
 } from 'react-icons/fa';
@@ -42,40 +42,49 @@ const PublicWallpaper = () => {
   const imageRef = useRef(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchWallpapers = async () => {
       try {
         setLoading(true);
-        
+
         const wallpapersRes = await getPublicWallpapers(filters);
         setWallpapers(wallpapersRes.data.wallpapers);
         setTotalPages(wallpapersRes.data.totalPages);
-        
-        const featuredRes = await getFeaturedWallpapers();
-        setFeaturedWallpapers(featuredRes.data);
-        
-        const categoriesRes = await getWallpaperCategories();
-        setCategories(categoriesRes.data);
-        
-        const tagsRes = await getWallpaperTags();
-        console.log(tagsRes);
-        setTags(tagsRes.data);
-        
       } catch (error) {
         toast.error('Failed to load wallpapers: ' + (error.response?.data?.message || error.message));
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchData();
+
+    fetchWallpapers();
   }, [filters]);
+  useEffect(() => {
+    const fetchStaticData = async () => {
+      try {
+        const featuredRes = await getFeaturedWallpapers();
+        setFeaturedWallpapers(featuredRes.data);
+
+        const categoriesRes = await getWallpaperCategories();
+        setCategories(categoriesRes.data);
+
+        const tagsRes = await getWallpaperTags();
+        console.log("🔥 tagsRes.data", tagsRes.data);
+        setTags(tagsRes.data);
+      } catch (error) {
+        toast.error('Failed to load filters: ' + (error.response?.data?.message || error.message));
+      }
+    };
+
+    fetchStaticData();
+  }, []);
+
 
   // Handle wallpaper selection
   const handleSelectWallpaper = async (id) => {
     try {
       const res = await getWallpaperById(id);
       setSelectedWallpaper(res.data);
-      
+
       // Fetch related wallpapers
       const relatedRes = await getRelatedWallpapers(id);
       setRelatedWallpapers(relatedRes.data);
@@ -86,52 +95,54 @@ const PublicWallpaper = () => {
 
 
   // Handle download
- const handleDownload = async () => {
-  if (!selectedWallpaper) return;
-  
-  try {
-    await downloadWallpaper(selectedWallpaper._id);
+  const handleDownload = useCallback(async () => {
+    if (!selectedWallpaper) return;
 
+    try {
+      await downloadWallpaper(selectedWallpaper._id);
 
-    const response = await fetch(selectedWallpaper.imageUrl);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
+      const response = await fetch(selectedWallpaper.imageUrl);
+      const blob = await response.blob();
 
+      // Create a URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
 
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    
+      // Create a temporary anchor element
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `football-wallpaper-${selectedWallpaper.title.replace(/\s+/g, '-').toLowerCase()}.jpg`;
+      link.style.display = 'none';
 
-    // Cleanup
-    setTimeout(() => {
-      URL.revokeObjectURL(blobUrl); // Free memory
-      document.body.removeChild(link);
-    }, 100);
+      // Append to body
+      document.body.appendChild(link);
 
-    // Update UI
-    setTimeout(() => {
-      URL.revokeObjectURL(blobUrl); 
-      document.body.removeChild(link);
-    }, 100);
+      // Trigger download
+      link.click();
 
+      // Cleanup - use a more reliable method
+      setTimeout(() => {
+        // Remove the element only if it's still in the DOM
+        if (link.parentNode === document.body) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(blobUrl);
+      }, 1000); // Increased timeout for safety
 
-    setSelectedWallpaper(prev => ({
-      ...prev,
-      downloads: prev.downloads + 1
-    }));
-    
-    toast.success('Download started!');
-  } catch (error) {
-    toast.error('Download failed: ' + (error.response?.data?.message || error.message));
-  }
-};
+      // Update download count
+      setSelectedWallpaper(prev => ({
+        ...prev,
+        downloads: prev.downloads + 1
+      }));
+
+      toast.success('Download started!');
+    } catch (error) {
+      toast.error('Download failed: ' + (error.response?.data?.message || error.message));
+    }
+  }, [selectedWallpaper]);
 
   const handleLike = async () => {
     if (!selectedWallpaper) return;
-    
+
     try {
       await likeWallpaper(selectedWallpaper._id);
       setSelectedWallpaper(prev => ({
@@ -139,23 +150,23 @@ const PublicWallpaper = () => {
         likes: prev.likes + 1,
         liked: true
       }));
-      
-      setWallpapers(prev => prev.map(wp => 
-        wp._id === selectedWallpaper._id 
-          ? {...wp, likes: wp.likes + 1, liked: true} 
+
+      setWallpapers(prev => prev.map(wp =>
+        wp._id === selectedWallpaper._id
+          ? { ...wp, likes: wp.likes + 1, liked: true }
           : wp
       ));
-      
+
       toast.success('Wallpaper liked!');
     } catch (error) {
       toast.error('Failed to like wallpaper: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  
+
   const handleShare = () => {
     if (!selectedWallpaper) return;
-    
+
     if (navigator.share) {
       navigator.share({
         title: `Football Wallpaper: ${selectedWallpaper.title}`,
@@ -167,30 +178,39 @@ const PublicWallpaper = () => {
       toast.info('Link copied to clipboard!');
     }
   };
+  // 2. Make sure closeDetailView is properly defined
+const closeDetailView = () => {
+  setSelectedWallpaper(null);
+  setIsFullscreen(false);
+  
+  // Exit fullscreen if active
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else if (document.webkitFullscreenElement) {
+    document.webkitExitFullscreen();
+  } else if (document.msFullscreenElement) {
+    document.msExitFullscreen();
+  }
+};
 
-  const toggleFullscreen = () => {
-    if (!imageRef.current) return;
-    
-    if (!isFullscreen) {
-      if (imageRef.current.requestFullscreen) {
-        imageRef.current.requestFullscreen();
-      } else if (imageRef.current.webkitRequestFullscreen) {
-        imageRef.current.webkitRequestFullscreen();
-      } else if (imageRef.current.msRequestFullscreen) {
-        imageRef.current.msRequestFullscreen();
-      }
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      } else if (document.msExitFullscreen) {
-        document.msExitFullscreen();
-      }
-      setIsFullscreen(false);
+// 3. Update the fullscreen exit logic to be more robust
+const toggleFullscreen = () => {
+  if (!imageRef.current) return;
+
+  if (!isFullscreen) {
+    if (imageRef.current.requestFullscreen) {
+      imageRef.current.requestFullscreen();
+    } else if (imageRef.current.webkitRequestFullscreen) {
+      imageRef.current.webkitRequestFullscreen();
+    } else if (imageRef.current.msRequestFullscreen) {
+      imageRef.current.msRequestFullscreen();
     }
-  };
+    setIsFullscreen(true);
+  } else {
+    closeDetailView(); // Reuse our close function
+  }
+};
+  
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -219,17 +239,13 @@ const PublicWallpaper = () => {
     }
   };
 
-  // Close wallpaper detail view
-  const closeDetailView = () => {
-    setSelectedWallpaper(null);
-    setIsFullscreen(false);
-  };
+  
 
   // Format resolution for display
   const formatResolution = (resolution) => {
     if (!resolution) return '1920x1080';
     if (typeof resolution === 'string') return resolution;
-    if (resolution.width && resolution.height) 
+    if (resolution.width && resolution.height)
       return `${resolution.width}x${resolution.height}`;
     return '1920x1080';
   };
@@ -264,7 +280,7 @@ const PublicWallpaper = () => {
           <p className="text-xl max-w-3xl mx-auto mb-8 text-yellow-100">
             Exclusive collection of high-definition wallpapers for true football enthusiasts
           </p>
-          
+
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-4 text-yellow-500">
@@ -278,7 +294,7 @@ const PublicWallpaper = () => {
               onChange={handleSearchChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit()}
             />
-            <button 
+            <button
               className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded-full transition-all duration-300 hover:scale-110"
               onClick={handleSearchSubmit}
             >
@@ -286,7 +302,7 @@ const PublicWallpaper = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
           <div className="absolute top-10 left-10 w-20 h-20 border-4 border-yellow-500/20 rounded-full"></div>
@@ -310,15 +326,15 @@ const PublicWallpaper = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredWallpapers.map(wallpaper => (
-                <div 
-                  key={wallpaper._id} 
+                <div
+                  key={wallpaper._id}
                   className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl cursor-pointer group relative border border-yellow-700/30"
                   onClick={() => handleSelectWallpaper(wallpaper._id)}
                 >
                   <div className="relative overflow-hidden" style={{ paddingBottom: '100%' }}>
-                    <img 
-                      src={wallpaper.thumbnailUrl || wallpaper.imageUrl} 
-                      alt={wallpaper.title} 
+                    <img
+                      src={wallpaper.thumbnailUrl || wallpaper.imageUrl}
+                      alt={wallpaper.title}
                       className="absolute h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                       loading="lazy"
                     />
@@ -349,14 +365,14 @@ const PublicWallpaper = () => {
 
         {/* Filters Section */}
         <div className="flex justify-between items-center mb-8">
-          <button 
+          <button
             className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 py-2 px-4 rounded-lg border border-yellow-700/50 transition-colors"
             onClick={() => setShowFilters(!showFilters)}
           >
-            <FaFilter className="text-yellow-500" /> 
+            <FaFilter className="text-yellow-500" />
             <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
           </button>
-          
+
           <div className="text-yellow-500 text-sm">
             <span className="bg-yellow-900/50 px-3 py-1 rounded-full">
               {wallpapers.length} Wallpapers
@@ -370,7 +386,7 @@ const PublicWallpaper = () => {
               <div>
                 <label className="block text-sm font-medium text-yellow-400 mb-2">Category</label>
                 <div className="relative">
-                  <select 
+                  <select
                     className="w-full bg-gray-700/50 border border-yellow-700/50 text-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 appearance-none"
                     value={filters.category}
                     onChange={(e) => handleFilterChange('category', e.target.value)}
@@ -378,7 +394,7 @@ const PublicWallpaper = () => {
                     <option value="" className="bg-gray-800">All Categories</option>
                     {categories.map(category => (
                       <option key={category._id} value={category._id} className="bg-gray-800">
-                        {category.name} ({category.count})
+                        {category._id} ({category.count})
                       </option>
                     ))}
                   </select>
@@ -389,21 +405,22 @@ const PublicWallpaper = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-yellow-400 mb-2">Tags</label>
                 <div className="relative">
-                  <select 
+                  <select
                     className="w-full bg-gray-700/50 border border-yellow-700/50 text-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 appearance-none"
                     value={filters.tag}
                     onChange={(e) => handleFilterChange('tag', e.target.value)}
                   >
                     <option value="" className="bg-gray-800">All Tags</option>
                     {tags.map(tag => (
-                      <option key={tag._id} value={tag.name} className="bg-gray-800">
-                        {tag.name} ({tag.count})
+                      <option key={tag._id} value={tag._id} className="bg-gray-800">
+                        {tag._id} ({tag.count})
                       </option>
                     ))}
+
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-yellow-500">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -412,11 +429,11 @@ const PublicWallpaper = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-yellow-400 mb-2">Sort By</label>
                 <div className="relative">
-                  <select 
+                  <select
                     className="w-full bg-gray-700/50 border border-yellow-700/50 text-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 appearance-none"
                     value={filters.sort}
                     onChange={(e) => handleFilterChange('sort', e.target.value)}
@@ -434,22 +451,22 @@ const PublicWallpaper = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-6 flex justify-between">
-              <button 
+              <button
                 className="bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
-                onClick={() => setFilters({ 
-                  search: '', 
-                  category: '', 
-                  tag: '', 
-                  sort: 'newest', 
-                  page: 1, 
-                  limit: 12 
+                onClick={() => setFilters({
+                  search: '',
+                  category: '',
+                  tag: '',
+                  sort: 'newest',
+                  page: 1,
+                  limit: 12
                 })}
               >
                 <FaTimes /> Reset Filters
               </button>
-              
+
               <div className="text-yellow-500 text-sm flex items-center gap-2">
                 <span>Football Collection</span>
                 <div className="w-8 h-px bg-yellow-500"></div>
@@ -469,7 +486,7 @@ const PublicWallpaper = () => {
               Page {filters.page} of {totalPages}
             </div>
           </div>
-          
+
           {wallpapers.length === 0 ? (
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-yellow-700/30">
               <p className="text-yellow-500 text-xl">No  wallpapers found. Try different filters.</p>
@@ -482,15 +499,15 @@ const PublicWallpaper = () => {
                 columnClassName="pl-6 bg-clip-padding"
               >
                 {wallpapers.map(wallpaper => (
-                  <div 
-                    key={wallpaper._id} 
+                  <div
+                    key={wallpaper._id}
                     className="mb-6 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-lg overflow-hidden transition-all duration-500 hover:shadow-2xl cursor-pointer group border border-yellow-700/30"
                     onClick={() => handleSelectWallpaper(wallpaper._id)}
                   >
                     <div className="relative overflow-hidden">
-                      <img 
-                        src={wallpaper.thumbnailUrl || wallpaper.imageUrl} 
-                        alt={wallpaper.title} 
+                      <img
+                        src={wallpaper.thumbnailUrl || wallpaper.imageUrl}
+                        alt={wallpaper.title}
                         className="w-full object-cover transition-transform duration-700 group-hover:scale-110"
                         style={{ minHeight: '200px' }}
                         loading="lazy"
@@ -501,16 +518,16 @@ const PublicWallpaper = () => {
                           <div className="flex justify-between mt-2 text-yellow-400">
                             <span className="text-sm">{wallpaper.category?.name || wallpaper.category}</span>
                             <span className="flex items-center gap-1 text-sm">
-                              <FaHeart className={`${wallpaper.liked ? 'text-red-500' : 'text-red-400'}`} /> 
+                              <FaHeart className={`${wallpaper.liked ? 'text-red-500' : 'text-red-400'}`} />
                               {wallpaper.likes}
                             </span>
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Quick Actions */}
                       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <button 
+                        <button
                           className="bg-gray-800/80 hover:bg-yellow-600 text-white p-2 rounded-full transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -519,7 +536,7 @@ const PublicWallpaper = () => {
                         >
                           <FaHeart className={wallpaper.liked ? 'text-red-500' : ''} />
                         </button>
-                        <button 
+                        <button
                           className="bg-gray-800/80 hover:bg-yellow-600 text-white p-2 rounded-full transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -533,19 +550,19 @@ const PublicWallpaper = () => {
                   </div>
                 ))}
               </Masonry>
-              
+
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex justify-center mt-10">
                   <div className="flex items-center gap-2 bg-gray-800/50 rounded-full p-2 border border-yellow-700/30">
-                    <button 
+                    <button
                       className={`p-3 rounded-full ${filters.page === 1 ? 'text-gray-500 cursor-not-allowed' : 'text-yellow-500 hover:bg-yellow-900/50'}`}
                       disabled={filters.page === 1}
                       onClick={() => handlePageChange(filters.page - 1)}
                     >
                       <FaChevronLeft />
                     </button>
-                    
+
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                       let pageNum;
                       if (totalPages <= 5) {
@@ -557,40 +574,38 @@ const PublicWallpaper = () => {
                       } else {
                         pageNum = filters.page - 2 + i;
                       }
-                      
+
                       return (
                         <button
                           key={pageNum}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            pageNum === filters.page 
-                              ? 'bg-yellow-600 text-white' 
-                              : 'hover:bg-gray-700 text-gray-300'
-                          }`}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${pageNum === filters.page
+                            ? 'bg-yellow-600 text-white'
+                            : 'hover:bg-gray-700 text-gray-300'
+                            }`}
                           onClick={() => handlePageChange(pageNum)}
                         >
                           {pageNum}
                         </button>
                       );
                     })}
-                    
+
                     {totalPages > 5 && filters.page < totalPages - 2 && (
                       <span className="px-2 text-gray-500">•••</span>
                     )}
-                    
+
                     {totalPages > 5 && filters.page < totalPages - 2 && (
                       <button
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          totalPages === filters.page 
-                            ? 'bg-yellow-600 text-white' 
-                            : 'hover:bg-gray-700 text-gray-300'
-                        }`}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${totalPages === filters.page
+                          ? 'bg-yellow-600 text-white'
+                          : 'hover:bg-gray-700 text-gray-300'
+                          }`}
                         onClick={() => handlePageChange(totalPages)}
                       >
                         {totalPages}
                       </button>
                     )}
-                    
-                    <button 
+
+                    <button
                       className={`p-3 rounded-full ${filters.page === totalPages ? 'text-gray-500 cursor-not-allowed' : 'text-yellow-500 hover:bg-yellow-900/50'}`}
                       disabled={filters.page === totalPages}
                       onClick={() => handlePageChange(filters.page + 1)}
@@ -613,13 +628,13 @@ const PublicWallpaper = () => {
             <div className="flex justify-between items-center p-4 border-b border-yellow-700/30">
               <h2 className="text-xl font-bold text-yellow-400">{selectedWallpaper.title}</h2>
               <div className="flex items-center gap-3">
-                <button 
+                <button
                   className="text-gray-300 hover:text-yellow-500 transition-colors"
                   onClick={toggleFullscreen}
                 >
                   {isFullscreen ? <FaCompress size={20} /> : <FaExpand size={20} />}
                 </button>
-                <button 
+                <button
                   className="text-gray-300 hover:text-yellow-500 transition-colors"
                   onClick={closeDetailView}
                 >
@@ -627,19 +642,19 @@ const PublicWallpaper = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Content */}
             <div className="flex flex-col lg:flex-row overflow-auto">
               {/* Image */}
               <div className="lg:w-2/3 p-4 flex items-center justify-center bg-black">
-                <img 
+                <img
                   ref={imageRef}
-                  src={selectedWallpaper.imageUrl} 
-                  alt={selectedWallpaper.title} 
+                  src={selectedWallpaper.imageUrl}
+                  alt={selectedWallpaper.title}
                   className="max-h-[70vh] w-auto max-w-full object-contain"
                 />
               </div>
-              
+
               {/* Details */}
               <div className="lg:w-1/3 p-6 border-l border-yellow-700/30 flex flex-col">
                 <div className="mb-8">
@@ -648,7 +663,7 @@ const PublicWallpaper = () => {
                     {selectedWallpaper.description || 'Premium football wallpaper with no description'}
                   </p>
                 </div>
-                
+
                 <div className="mb-8">
                   <h3 className="font-bold text-lg mb-3 text-yellow-400 border-b border-yellow-700/30 pb-2">Details</h3>
                   <div className="grid grid-cols-2 gap-4">
@@ -676,16 +691,19 @@ const PublicWallpaper = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {selectedWallpaper.tags?.length > 0 && (
                   <div className="mb-8">
                     <h3 className="font-bold text-lg mb-3 text-yellow-400 border-b border-yellow-700/30 pb-2">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedWallpaper.tags.map(tag => (
-                        <span 
-                          key={tag} 
+                        <span
+                          key={tag}
                           className="bg-yellow-900/30 text-yellow-500 px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-yellow-800/50 transition-colors"
-                          onClick={() => handleFilterChange('tag', tag)}
+                          onClick={() => {
+                            handleFilterChange('tag', tag);
+                            closeDetailView(); // Add this line to close the detail view
+                          }}
                         >
                           {tag}
                         </span>
@@ -693,21 +711,21 @@ const PublicWallpaper = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Related Wallpapers */}
                 {relatedWallpapers.length > 0 && (
                   <div className="mb-8">
                     <h3 className="font-bold text-lg mb-3 text-yellow-400 border-b border-yellow-700/30 pb-2">Related Wallpapers</h3>
                     <div className="grid grid-cols-3 gap-3">
                       {relatedWallpapers.slice(0, 3).map(wp => (
-                        <div 
+                        <div
                           key={wp._id}
                           className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-yellow-500 transition-all cursor-pointer"
                           onClick={() => handleSelectWallpaper(wp._id)}
                         >
-                          <img 
-                            src={wp.thumbnailUrl} 
-                            alt={wp.title} 
+                          <img
+                            src={wp.thumbnailUrl}
+                            alt={wp.title}
                             className="w-full h-full object-cover"
                           />
                         </div>
@@ -715,26 +733,25 @@ const PublicWallpaper = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Actions */}
                 <div className="mt-auto flex flex-wrap gap-3">
-                  <button 
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
-                      selectedWallpaper.liked 
-                        ? 'bg-red-600/80 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
+                  <button
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${selectedWallpaper.liked
+                      ? 'bg-red-600/80 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
                     onClick={handleLike}
                   >
                     <FaHeart /> {selectedWallpaper.liked ? 'Liked' : 'Like'}
                   </button>
-                  <button 
+                  <button
                     className="flex-1 flex items-center justify-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-gray-900 py-3 px-4 rounded-lg font-medium transition-all"
                     onClick={handleDownload}
                   >
                     <FaDownload /> Download
                   </button>
-                 
+
                 </div>
               </div>
             </div>

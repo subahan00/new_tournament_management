@@ -59,7 +59,6 @@ const wallpaperSchema = new mongoose.Schema({
   },
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true
   },
   createdAt: {
     type: Date,

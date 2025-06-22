@@ -9,7 +9,7 @@ const AdminDashboard = () => {
         <div className="mb-8 border-b border-gold-500/30 pb-4">
           <h2 className="text-xl font-bold text-gold-400">Navigation</h2>
         </div>
-        
+
         <nav className="space-y-2">
           <div>
             <h3 className="text-gold-500 uppercase text-xs font-semibold tracking-wider mb-2">Main</h3>
@@ -84,14 +84,10 @@ const AdminDashboard = () => {
               </li>
               <li>
                 <Link to="/results" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
-                  View Results
-                </Link>
+                  Post  result              
+                    </Link>
               </li>
-              <li>
-                <Link to="/admin/post-result" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
-                  Post Results
-                </Link>
-              </li>
+             
             </ul>
           </div>
 
@@ -162,8 +158,8 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Competitions</h2>
               </div>
               <div className="space-y-3">
-                <Link 
-                  to="/competitions" 
+                <Link
+                  to="/competitions"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,8 +168,8 @@ const AdminDashboard = () => {
                   </svg>
                   View Competitions
                 </Link>
-                <Link 
-                  to="/admin/manage-competitions" 
+                <Link
+                  to="/admin/manage-competitions"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,8 +177,8 @@ const AdminDashboard = () => {
                   </svg>
                   Manage Competitions
                 </Link>
-                <Link 
-                  to="/admin/create-competition" 
+                <Link
+                  to="/admin/create-competition"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,8 +186,8 @@ const AdminDashboard = () => {
                   </svg>
                   Create New Competition
                 </Link>
-                <Link 
-                  to="/admin/update-competition" 
+                <Link
+                  to="/admin/update-competition"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -213,8 +209,8 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Fixtures & Results</h2>
               </div>
               <div className="space-y-3">
-                <Link 
-                  to="/fixtures" 
+                <Link
+                  to="/fixtures"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,8 +219,8 @@ const AdminDashboard = () => {
                   </svg>
                   View Fixtures
                 </Link>
-                <Link 
-                  to="/admin/create-fixture" 
+                <Link
+                  to="/admin/create-fixture"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,8 +228,8 @@ const AdminDashboard = () => {
                   </svg>
                   Create Fixture
                 </Link>
-                <Link 
-                  to="/admin/manage-fixtures" 
+                <Link
+                  to="/admin/manage-fixtures"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,25 +237,16 @@ const AdminDashboard = () => {
                   </svg>
                   Manage Fixtures
                 </Link>
-                <Link 
-                  to="/results" 
+                <Link
+                  to="/results"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
-                  View Results  
-                </Link>
-                <Link 
-                  to="/admin/post-result" 
-                  className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Post Match Result
-                </Link>
+Post League game result                </Link>
+                
               </div>
             </div>
 
@@ -274,8 +261,8 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Players</h2>
               </div>
               <div className="space-y-3">
-                <Link 
-                  to="/admin/manage-players" 
+                <Link
+                  to="/admin/manage-players"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,8 +284,8 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Knockout & Standings</h2>
               </div>
               <div className="space-y-3">
-                <Link 
-                  to="/admin/manage-kos" 
+                <Link
+                  to="/admin/manage-kos"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,8 +293,8 @@ const AdminDashboard = () => {
                   </svg>
                   Manage KO Results
                 </Link>
-                <Link 
-                  to="/public-ko" 
+                <Link
+                  to="/public-ko"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -316,8 +303,8 @@ const AdminDashboard = () => {
                   </svg>
                   Public KO View
                 </Link>
-                <Link 
-                  to="/standings" 
+                <Link
+                  to="/standings"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,8 +326,8 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Archive</h2>
               </div>
               <div className="space-y-3">
-                <Link 
-                  to="/hall-of-fame" 
+                <Link
+                  to="/hall-of-fame"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,8 +349,8 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Quick Access</h2>
               </div>
               <div className="space-y-3">
-                <Link 
-                  to="/admin/applicant-list" 
+                <Link
+                  to="/admin/applicant-list"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -371,8 +358,8 @@ const AdminDashboard = () => {
                   </svg>
                   view applications
                 </Link>
-                <Link 
-                  to="/upload-wallpaper" 
+                <Link
+                  to="/upload-wallpaper"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,8 +367,8 @@ const AdminDashboard = () => {
                   </svg>
                   upload wallpaper
                 </Link>
-                <Link 
-                  to="/delete-wallpaper" 
+                <Link
+                  to="/delete-wallpaper"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,16 +376,16 @@ const AdminDashboard = () => {
                   </svg>
                   delete wallpaper
                 </Link>
-                <Link 
-                  to="/post-winner" 
+                <Link
+                  to="/post-winner"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
-    post a winner                </Link>
-                <Link 
-                  to="/" 
+                  post a winner                </Link>
+                <Link
+                  to="/"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,12 +394,12 @@ const AdminDashboard = () => {
                   Go to Home
                 </Link>
 
-                <Link 
-                  to="/login" 
+                <Link
+                  to="/login"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
                   Admin Login
                 </Link>

@@ -210,7 +210,7 @@ router.get('/public', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
-    const { search, category, sort = 'newest' } = req.query;
+    const { search, category, tag, sort = 'newest' } = req.query; // Added tag
 
     // Build query
     let query = {};
@@ -225,6 +225,14 @@ router.get('/public', async (req, res) => {
 
     if (category && category !== 'all') {
       query.category = category;
+    }
+
+    // Add tag filtering - this is the new section
+    if (tag && tag !== 'all') {
+      query.tags = { 
+        $regex: tag, 
+        $options: 'i'  // Case-insensitive matching
+      };
     }
 
     // Build sort
@@ -263,7 +271,65 @@ router.get('/public', async (req, res) => {
     res.status(500).json({ message: 'Error fetching wallpapers', error: error.message });
   }
 });
+// Get featured wallpapers
+router.get('/public/featured', async (req, res) => {
+  try {
+    console.log("🟢 /public/featured route hit");
 
+    const wallpapers = await Wallpaper.find({ featured: true }).limit(1);
+    
+    console.log("✅ Wallpapers fetched:", wallpapers);
+
+    res.json(wallpapers);
+  } catch (error) {
+    console.error('❌ Error in /public/featured:', error);
+    res.status(500).json({ 
+      message: 'Server error occurred while fetching featured wallpapers', 
+      error: error.message 
+    });
+  }
+});
+// Get categories with counts
+router.get('/public/categories', async (req, res) => {
+  try {
+    const categories = await Wallpaper.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ]);
+
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching categories', error: error.message });
+  }
+});
+
+// Get popular tags
+router.get('/public/tags', async (req, res) => {
+  try {
+    const tags = await Wallpaper.aggregate([
+      { $unwind: '$tags' },
+      {
+        $group: {
+          _id: '$tags',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 20 }
+    ]);
+
+    res.json(tags);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching tags', error: error.message });
+  }
+});
 // Get single wallpaper details
 router.get('/public/:id', async (req, res) => {
   try {
@@ -325,60 +391,11 @@ router.post('/public/:id/like', async (req, res) => {
   }
 });
 
-// Get featured wallpapers
-router.get('/public/featured', async (req, res) => {
-  try {
-    console.log("Route hit");
-    const wallpapers = await Wallpaper.find({}).limit(1);
-    console.log("Fetched sample:", wallpapers);
-    res.json(wallpapers);
-  } catch (error) {
-    console.error('Error fetching featured wallpapers:', error);
-    res.status(500).json({ message: 'Error fetching featured wallpapers', error: error.message });
-  }
-});
 
 
-// Get categories with counts
-router.get('/public/categories', async (req, res) => {
-  try {
-    const categories = await Wallpaper.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
 
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching categories', error: error.message });
-  }
-});
 
-// Get popular tags
-router.get('/public/tags', async (req, res) => {
-  try {
-    const tags = await Wallpaper.aggregate([
-      { $unwind: '$tags' },
-      {
-        $group: {
-          _id: '$tags',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } },
-      { $limit: 20 }
-    ]);
 
-    res.json(tags);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching tags', error: error.message });
-  }
-});
+
 
 module.exports = router;
