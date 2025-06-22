@@ -99,6 +99,7 @@ const ResultKo = () => {
   // Organize fixtures by rounds
   const organizeFixturesByRound = (fixturesData, competition) => {
     const roundOrder = {
+      'Round of 64':0,
       'Round of 32': 1,
       'Round of 16': 2,
       'Quarter Finals': 3,
@@ -190,6 +191,7 @@ const ResultKo = () => {
 
     // Check if there are any rounds after the current round in the tournament structure
     const roundOrder = {
+      'Round of 64':0,
       'Round of 32': 1,
       'Round of 16': 2,
       'Quarter Finals': 3,
