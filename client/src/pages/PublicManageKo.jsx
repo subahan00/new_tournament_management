@@ -69,8 +69,7 @@ const PublicManageKo = () => {
       try {
         const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
         if (fixturesData.length > 0) {
-          const compName = fixturesData[0].competitionId?.name || 
-                          fixturesData[0].competitionId || 
+          const compName = fixturesData[0].competitionId?.name ||
                           'Knockout Competition';
           setCompetitionName(compName);
         }
