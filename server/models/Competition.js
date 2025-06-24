@@ -19,6 +19,7 @@ const competitionSchema = new mongoose.Schema({
       'FRIENDLY_LEAGUE',
       'GNG',
       'NEW_TYPE',
+      'GROUP_STAGE',
       'LEAGUE',
       // Example for future types
     ],
