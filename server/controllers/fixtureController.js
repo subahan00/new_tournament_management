@@ -12,6 +12,7 @@ const {
   calculateTotalRounds,
   pairPlayers,
   shuffleArray,
+  generateRoundRobinFixtures
   
 
 } = require('../utils/fixtureGenerator');
@@ -217,6 +218,129 @@ exports.createFixturesForLeague = async (req, res) => {
       });
     }
   };
+  exports.createFixturesForGroupStage=async (req, res) => {
+     try {
+      const { competitionId } = req.params;
+
+      // Find the competition and populate players
+      const competition = await Competition.findById(competitionId).populate('players');
+      
+      if (!competition) {
+        return res.status(404).json({
+          success: false,
+          message: 'Competition not found'
+        });
+      }
+
+      // Check if competition type is GROUP_STAGE
+      if (competition.type !== 'GROUP_STAGE') {
+        return res.status(400).json({
+          success: false,
+          message: 'This endpoint is only for GROUP_STAGE competitions'
+        });
+      }
+
+      // Check if fixtures already exist
+      const existingFixtures = await Fixture.find({ competitionId });
+      if (existingFixtures.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Fixtures already exist for this competition'
+        });
+      }
+
+      const numberOfPlayers = competition.numberOfPlayers;
+      const players = competition.players;
+
+      // Validate player count matches registered players
+      if (players.length !== numberOfPlayers) {
+        return res.status(400).json({
+          success: false,
+          message: `Expected ${numberOfPlayers} players, but found ${players.length}`
+        });
+      }
+
+      // Determine group configuration
+      let groupCount, playersPerGroup;
+      
+      if (numberOfPlayers === 32) {
+        groupCount = 8;
+        playersPerGroup = 4;
+      } else if (numberOfPlayers === 64) {
+        groupCount = 8;
+        playersPerGroup = 8;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'GROUP_STAGE only supports 32 or 64 players'
+        });
+      }
+
+      // Shuffle players for random group assignment
+      const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+
+      // Create groups
+      const groups = [];
+      for (let i = 0; i < groupCount; i++) {
+        const groupPlayers = shuffledPlayers.slice(
+          i * playersPerGroup, 
+          (i + 1) * playersPerGroup
+        );
+        groups.push({
+          name: `Group ${String.fromCharCode(65 + i)}`, // A, B, C, etc.
+          players: groupPlayers
+        });
+      }
+
+      // Generate fixtures for each group
+      const allFixtures = [];
+      
+      for (const group of groups) {
+        const groupFixtures = await generateRoundRobinFixtures(
+          group.players, 
+          competitionId, 
+          group.name
+        );
+        allFixtures.push(...groupFixtures);
+      }
+
+      // Save all fixtures to database
+      const savedFixtures = await Fixture.insertMany(allFixtures);
+
+      // Update competition status
+      await Competition.findByIdAndUpdate(competitionId, {
+        status: 'ongoing',
+        totalRounds: Math.ceil(Math.log2(playersPerGroup)) // Approximate rounds needed
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Group stage fixtures created successfully',
+        data: {
+          totalFixtures: savedFixtures.length,
+          groupCount,
+          playersPerGroup,
+          groups: groups.map(group => ({
+            name: group.name,
+            players: group.players.map(p => ({
+              id: p._id,
+              name: p.name
+            }))
+          }))
+        }
+      });
+
+    } catch (error) {
+      console.error('Error creating group stage fixtures:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+
+
+  }
   exports.getKnockoutCompetitions = async (req, res) => {
     try {
       const competitions = await Competition.find({
@@ -267,7 +391,6 @@ exports.getFixturesByCompetition = async (req, res) => {
   }
 };
 
- 
 // Enhanced knockout fixture generation
 exports.generateKoFixtures = async (req, res) => {
   try {
