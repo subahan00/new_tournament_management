@@ -40,7 +40,11 @@ export default function FixtureManagement() {
         response = await fixtureService.createLeagueFixtures(competition._id);
       } else if (competition.type === "KO_REGULAR") {
         response = await fixtureService.generateFixtures(competition._id);
-      } else {
+      } else if (competition.type==="GROUP_STAGE"){
+response=await fixtureService.createGroupStageFixtures((competition._id);
+
+}
+else {
         setError("Unsupported competition type");
         return;
       }
