@@ -236,6 +236,30 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
   
   return fixtures;
 };
+const generateRoundRobinFixtures=(players, competitionId, groupName)=> {
+    const fixtures = [];
+    
+    // Generate all possible pairings (round-robin)
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        const homePlayer = players[i];
+        const awayPlayer = players[j];
+        
+        fixtures.push({
+          competitionId,
+          round: groupName,
+          homePlayer: homePlayer._id,
+          homePlayerName: homePlayer.name,
+          awayPlayer: awayPlayer._id,
+          awayPlayerName: awayPlayer.name,
+          matchDate: new Date(),
+          status: 'pending'
+        });
+      }
+    }
+    
+    return fixtures;
+  };
 module.exports = {
   generateLeagueFixtures,
   generateKnockoutFixtures,
@@ -245,6 +269,7 @@ module.exports = {
   calculateTotalRounds,
   getRoundName,
   shuffleArray,
-  pairPlayers 
+  pairPlayers ,
+  generateRoundRobinFixtures
 };
 
