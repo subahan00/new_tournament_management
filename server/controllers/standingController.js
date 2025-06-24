@@ -5,7 +5,7 @@ const { calculateStandings } = require('../utils/standingsCalculator');
 
 exports.getOngoingCompetitions = async (req, res) => {
   try {
-    const competitions = await Competition.find({ status: 'ongoing', type: 'LEAGUE' })
+    const competitions = await Competition.find({ status: 'ongoing', type:  { $in: ['LEAGUE', 'GROUP_STAGE'] } })
       .select('name type startDate players')
       .populate('players', 'name _id')
       .lean();
@@ -49,7 +49,6 @@ exports.getStandings = async (req, res) => {
       .select('-__v -_id') // Exclude unnecessary fields
       .sort({ points: -1, goalsFor: -1 })
       .lean();
-
     // 4. Format response using competition-specific names
     const formattedStandings = standings.map(standing => ({
       ...standing,
