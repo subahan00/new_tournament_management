@@ -190,23 +190,29 @@ const ResultKo = () => {
 
   // Get player name based on fixture data
   const getPlayerName = (player, fixture) => {
-    if (!player) return 'Unknown Player';
-    // Handle ObjectID format
-    console.log('fixture',fixture);
-    if (player._id) {
-      if (fixture.homePlayer._id === player._id) {
-        return fixture.homePlayerName || '1 Player';
-      }
-      if (fixture.awayPlayer._id === player._id) {
-        return fixture.awayPlayerName || '2 Player';
-      }
-      return '3 Player';
+  if (!player) return 'Unknown Player';
+
+  // Handle ObjectID format
+  if (player._id) {
+    const homeId = fixture?.homePlayer?._id;
+    const awayId = fixture?.awayPlayer?._id;
+
+    if (homeId && homeId === player._id) {
+      return fixture.homePlayerName || 'Unknown Player';
     }
-    // Handle direct string names
-    if (typeof player === 'string') return player;
-    
+
+    if (awayId && awayId === player._id) {
+      return fixture.awayPlayerName || 'Unknown Player';
+    }
+
     return 'Unknown Player';
-  };
+  }
+
+  // Handle direct string names
+  if (typeof player === 'string') return player;
+
+  return 'Unknown Player';
+};
 
   // Get status badge color based on status
   const getStatusBadgeColor = (status) => {
