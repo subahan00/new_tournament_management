@@ -16,6 +16,7 @@ const {
   updateCompetitionStatus,
   setCompetitionWinner,
   getFixturesByCompetition,
+  createFixturesForGroupStage
 
 } = require('../controllers/fixtureController');
 
@@ -32,6 +33,10 @@ router.post('/create/:competitionId',
  
   createFixturesForLeague
 );
+
+router.post('/create-groupstage/:competitionId', 
+ 
+  createFixturesForGroupStage);
 
 // Results management
 router.put('/:fixtureId/result', 
