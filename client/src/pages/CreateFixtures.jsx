@@ -41,7 +41,7 @@ export default function FixtureManagement() {
       } else if (competition.type === "KO_REGULAR") {
         response = await fixtureService.generateFixtures(competition._id);
       } else if (competition.type==="GROUP_STAGE"){
-response=await fixtureService.createGroupStageFixtures((competition._id);
+response=await fixtureService.createGroupStageFixtures(competition._id);
 
 }
 else {
