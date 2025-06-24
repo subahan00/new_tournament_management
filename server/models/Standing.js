@@ -17,6 +17,10 @@
       type: String,
       required: true
     },
+    group: {
+    type: String,
+    default: null // Will be null for non-group competitions, group name for GROUP_STAGE
+  },
     matchesPlayed: { type: Number, default: 0 },
     wins: { type: Number, default: 0 },
     draws: { type: Number, default: 0 },
