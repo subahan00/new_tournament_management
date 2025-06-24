@@ -247,6 +247,7 @@ const CompetitionManagement = () => {
               >
                 <option value="KO_REGULAR">KO Regular</option>
                 <option value="LEAGUE">League</option>
+                <option value="GROUP_STAGE">GROUP STAGE</option>
                 <option value="GNG">GNG</option>
                 <option value="NEW_TYPE">New Type</option>
               </select>
@@ -273,6 +274,7 @@ const CompetitionManagement = () => {
                 </p>
               </div>
             )}
+            
 
             <div>
               <label className="block text-gold-300 mb-2 font-medium">Number of Players</label>
