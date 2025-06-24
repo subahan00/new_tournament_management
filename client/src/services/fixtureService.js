@@ -28,8 +28,34 @@ export default {
     };
   }
 },
+createGroupStageFixtures: async (competitionId) => {
+  try {
+    const token = localStorage.getItem('token');  // or wherever you store it
+     const response = await axios.post(
+      `${BASE_URL}/fixtures/create-groupstage/${competitionId}`,
+      {}, // empty body if none
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return {
+      success: true,
+      data: response.data,
+      message: response.data.message || 'Group stage fixtures created successfully',
+    };
 
-  
+
+  } catch (error) {
+        return{
+          success: false,
+          error: error.response?.data?.message || error.message,
+          status: error.response?.status || 500,
+        }
+      }}
+      ,
+      
 
  generateFixtures : async (competitionId) => {
   try {
