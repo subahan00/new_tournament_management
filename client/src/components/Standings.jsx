@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
@@ -9,16 +10,33 @@ import {
   UserGroupIcon
 } from '@heroicons/react/24/outline';
 
-// Initialize Socket.IO connection with reconnection logic
-const socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-});
+// Singleton socket connection
+let socket = null;
+const getSocket = () => {
+  if (!socket) {
+    socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+  }
+  return socket;
+};
 
-// Memoized StandingsTable component to prevent unnecessary re-renders
-const StandingsTable = memo(({ standings, title = null, showGroupHeader = false }) => {
+// Optimized StandingsTable component
+const StandingsTable = memo(({ standings, title, showGroupHeader = false }) => {
   const safeStandings = Array.isArray(standings) ? standings : [];
+
+  // Pre-calculate values to avoid recalculation on each render
+  const processedStandings = useMemo(() => {
+    return safeStandings.map((standing, index) => ({
+      ...standing,
+      goalDifference: (standing.goalsFor || 0) - (standing.goalsAgainst || 0),
+      position: standing.position || (index + 1),
+      isTopTwo: (standing.position || (index + 1)) <= 2,
+      isDeleted: standing.playerName?.startsWith('Deleted-')
+    }));
+  }, [safeStandings]);
 
   return (
     <div className="mb-8">
@@ -47,52 +65,47 @@ const StandingsTable = memo(({ standings, title = null, showGroupHeader = false 
           </thead>
 
           <tbody className="divide-y divide-amber-900/60">
-            {safeStandings.map((standing, index) => {
-              const goalDifference = (standing.goalsFor || 0) - (standing.goalsAgainst || 0);
-              const position = standing.position || (index + 1);
-
-              return (
-                <tr
-                  key={standing._id || `${standing.player}-${index}`}
-                  className={`hover:bg-amber-900/30 transition-all duration-200 even:bg-zinc-900/40 text-amber-100 ${
-                    position <= 2 ? 'bg-gradient-to-r from-amber-900/20 to-transparent' : ''
-                  }`}
-                >
-                  <td className="px-6 py-4 font-medium text-amber-300 flex items-center">
-                    {position}
-                    {position === 1 && <TrophyIcon className="h-5 w-5 ml-2 text-amber-400" />}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {standing.playerName ? (
-                      standing.playerName.startsWith('Deleted-') ? (
-                        <span className="text-red-400/90 flex items-center font-semibold">
-                          <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-red-500" />
-                          {standing.playerName.replace('Deleted-', '')}
-                        </span>
-                      ) : (
-                        <span className="text-amber-100 font-semibold">{standing.playerName}</span>
-                      )
-                    ) : (
-                      <span className="text-amber-500 flex items-center italic">
-                        <QuestionMarkCircleIcon className="h-5 w-5 mr-2" />
-                        Unknown Player
+            {processedStandings.map((standing, index) => (
+              <tr
+                key={standing._id || `${standing.player}-${index}`}
+                className={`hover:bg-amber-900/30 transition-all duration-200 even:bg-zinc-900/40 text-amber-100 ${
+                  standing.isTopTwo ? 'bg-gradient-to-r from-amber-900/20 to-transparent' : ''
+                }`}
+              >
+                <td className="px-6 py-4 font-medium text-amber-300 flex items-center">
+                  {standing.position}
+                  {standing.position === 1 && <TrophyIcon className="h-5 w-5 ml-2 text-amber-400" />}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {standing.playerName ? (
+                    standing.isDeleted ? (
+                      <span className="text-red-400/90 flex items-center font-semibold">
+                        <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-red-500" />
+                        {standing.playerName.replace('Deleted-', '')}
                       </span>
-                    )}
+                    ) : (
+                      <span className="text-amber-100 font-semibold">{standing.playerName}</span>
+                    )
+                  ) : (
+                    <span className="text-amber-500 flex items-center italic">
+                      <QuestionMarkCircleIcon className="h-5 w-5 mr-2" />
+                      Unknown Player
+                    </span>
+                  )}
+                </td>
+                {['matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst'].map((key) => (
+                  <td key={key} className="px-6 py-4 text-center font-medium">
+                    {standing[key] || 0}
                   </td>
-                  {['matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst'].map((key) => (
-                    <td key={key} className="px-6 py-4 text-center font-medium">
-                      {standing[key] || 0}
-                    </td>
-                  ))}
-                  <td className={`px-6 py-4 text-center font-bold ${goalDifference >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {goalDifference > 0 ? `+${goalDifference}` : goalDifference}
-                  </td>
-                  <td className="px-6 py-4 text-center font-extrabold text-amber-200 text-xl">
-                    {standing.points || 0}
-                  </td>
-                </tr>
-              );
-            })}
+                ))}
+                <td className={`px-6 py-4 text-center font-bold ${standing.goalDifference >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {standing.goalDifference > 0 ? `+${standing.goalDifference}` : standing.goalDifference}
+                </td>
+                <td className="px-6 py-4 text-center font-extrabold text-amber-200 text-xl">
+                  {standing.points || 0}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
@@ -118,74 +131,29 @@ export default function Standings() {
   const [competitionType, setCompetitionType] = useState('LEAGUE');
   const [activeGroup, setActiveGroup] = useState(null);
 
-  // Memoized data processing functions
-  const processGroupStageData = useCallback((data) => {
-    if (Array.isArray(data) && data.length > 0 && data[0].group) {
-      const groupedData = data.reduce((acc, standing) => {
-        const groupName = standing.group;
-        if (!acc[groupName]) {
-          acc[groupName] = [];
-        }
-        acc[groupName].push(standing);
-        return acc;
-      }, {});
-
-      // Batch sort all groups
-      Object.keys(groupedData).forEach(groupName => {
-        groupedData[groupName].sort((a, b) => {
-          const pointsDiff = (b.points || 0) - (a.points || 0);
-          if (pointsDiff !== 0) return pointsDiff;
-          const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
-          const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
-          return bGD - aGD;
-        });
-      });
-
-      return groupedData;
-    }
-    return null;
-  }, []);
-
-  // Optimized data fetching
+  // Simplified data processing - backend now returns clean data
   const fetchStandings = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const { data } = await standingService.getStandings(competitionId);
 
-      // Simplified data processing logic
-      if (data && data.competitionType === 'GROUP_STAGE') {
+      // Backend now returns consistent structure
+      if (data.type === 'GROUP_STAGE' || data.competitionType === 'GROUP_STAGE') {
         setCompetitionType('GROUP_STAGE');
         setStandingsData(data.standings || data.groups || {});
         setCompetitionName(data.competitionName || 'Group Stage Competition');
+        
         const groupKeys = Object.keys(data.standings || data.groups || {});
-        setActiveGroup(groupKeys.length > 0 ? groupKeys[0] : null);
-      } else if (Array.isArray(data) && data.length > 0 && data[0].group) {
-        setCompetitionType('GROUP_STAGE');
-        const groupedData = processGroupStageData(data);
-        setStandingsData(groupedData);
-        setCompetitionName('Group Stage Competition');
-        const groupKeys = Object.keys(groupedData || {});
-        setActiveGroup(groupKeys.length > 0 ? groupKeys[0] : null);
-      } else if (data && typeof data === 'object' && !Array.isArray(data) && !data.standings) {
-        const hasGroupKeys = Object.keys(data).some(key =>
-          key.startsWith('Group') || key.includes('Group')
-        );
-
-        if (hasGroupKeys) {
-          setCompetitionType('GROUP_STAGE');
-          setStandingsData(data);
-          setCompetitionName('Group Stage Competition');
-          setActiveGroup(Object.keys(data)[0]);
-        } else {
-          setCompetitionType('LEAGUE');
-          setStandingsData(data.standings || []);
-          setCompetitionName(data.competitionName || 'League Competition');
+        if (groupKeys.length > 0 && !activeGroup) {
+          setActiveGroup(groupKeys[0]);
         }
       } else {
         // League format
         setCompetitionType('LEAGUE');
-        setStandingsData(data?.standings || data || []);
-        setCompetitionName(data?.competitionName || 'League Competition');
+        setStandingsData(data.standings || data || []);
+        setCompetitionName(data.competitionName || 'League Competition');
       }
     } catch (err) {
       console.error('Failed to load standings:', err);
@@ -194,7 +162,7 @@ export default function Standings() {
     } finally {
       setLoading(false);
     }
-  }, [competitionId, processGroupStageData]);
+  }, [competitionId, activeGroup]);
 
   // Memoized computations
   const availableGroups = useMemo(() => {
@@ -227,41 +195,30 @@ export default function Standings() {
     });
   }, [competitionType, standingsData, activeGroup, availableGroups]);
 
-  // Socket handlers
+  // Optimized socket handlers
   const handleStandingsUpdate = useCallback((update) => {
     if (update.competitionId === competitionId) {
-      if (update.competitionType === 'GROUP_STAGE' || update.type === 'GROUP_STAGE') {
-        setStandingsData(update.standings || update.groups || update);
-        setActiveGroup(prevActiveGroup => {
-          if (!prevActiveGroup && Object.keys(update.standings || update.groups || update).length > 0) {
-            return Object.keys(update.standings || update.groups || update)[0];
-          }
-          return prevActiveGroup;
-        });
+      // Backend sends clean, pre-processed data
+      if (update.type === 'GROUP_STAGE' || update.competitionType === 'GROUP_STAGE') {
+        setStandingsData(update.standings || update.groups || {});
       } else {
-        setStandingsData(Array.isArray(update.standings) ? update.standings : update);
+        setStandingsData(update.standings || update);
       }
     }
   }, [competitionId]);
 
-  const handleConnectError = useCallback((err) => {
-    console.error('Socket connection error:', err);
-    setError('Real-time updates are currently unavailable.');
-  }, []);
-
   useEffect(() => {
     fetchStandings();
 
-    socket.on('standings_update', handleStandingsUpdate);
-    socket.on('connect_error', handleConnectError);
+    const socketInstance = getSocket();
+    socketInstance.on('standings_update', handleStandingsUpdate);
 
     return () => {
-      socket.off('standings_update', handleStandingsUpdate);
-      socket.off('connect_error', handleConnectError);
+      socketInstance.off('standings_update', handleStandingsUpdate);
     };
-  }, [fetchStandings, handleStandingsUpdate, handleConnectError]);
+  }, [fetchStandings, handleStandingsUpdate]);
 
-  // Loading state with skeleton
+  // Loading state
   if (loading) {
     return (
       <div className="p-6 bg-black min-h-screen text-amber-500">
@@ -295,7 +252,6 @@ export default function Standings() {
       </div>
     );
   }
-
   return (
     <div className="p-6 bg-black min-h-screen text-amber-500 font-sans">
       <div className="max-w-7xl mx-auto">
