@@ -1,4 +1,4 @@
-here are the schema of standings add indexes for fast data retrieving:here is the schema add indexing:  const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
   const standingSchema = new mongoose.Schema({
     competition: {
