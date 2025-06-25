@@ -88,7 +88,6 @@ exports.getStandings = async (req, res) => {
       
       const standings = await Standing.find({ competition: competitionId })
         .select('-__v -_id')
-        .sort({ points: -1, goalsFor: -1 })
         .lean();
 
       result = {
