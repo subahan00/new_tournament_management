@@ -27,16 +27,50 @@ const getSocket = () => {
 const StandingsTable = memo(({ standings, title, showGroupHeader = false }) => {
   const safeStandings = Array.isArray(standings) ? standings : [];
 
-  // Pre-calculate values to avoid recalculation on each render
-  const processedStandings = useMemo(() => {
-    return safeStandings.map((standing, index) => ({
-      ...standing,
-      goalDifference: (standing.goalsFor || 0) - (standing.goalsAgainst || 0),
-      position: standing.position || (index + 1),
-      isTopTwo: (standing.position || (index + 1)) <= 2,
-      isDeleted: standing.playerName?.startsWith('Deleted-')
-    }));
-  }, [safeStandings]);
+ // Replace your existing processedStandings useMemo with this:
+
+const processedStandings = useMemo(() => {
+  if (!Array.isArray(safeStandings) || safeStandings.length === 0) {
+    return [];
+  }
+
+  // First, add calculated fields to each standing
+  const standingsWithCalculatedFields = safeStandings.map((standing) => ({
+    ...standing,
+    goalDifference: (standing.goalsFor || 0) - (standing.goalsAgainst || 0),
+    isDeleted: standing.playerName?.startsWith('Deleted-')
+  }));
+
+  // Then sort by the proper criteria
+  const sortedStandings = standingsWithCalculatedFields.sort((a, b) => {
+    // 1. Sort by Points (descending)
+    if (b.points !== a.points) {
+      return (b.points || 0) - (a.points || 0);
+    }
+    
+    // 2. If points are equal, sort by Goal Difference (descending)
+    if (b.goalDifference !== a.goalDifference) {
+      return b.goalDifference - a.goalDifference;
+    }
+    
+    // 3. If goal difference is equal, sort by Goals For (descending)
+    if ((b.goalsFor || 0) !== (a.goalsFor || 0)) {
+      return (b.goalsFor || 0) - (a.goalsFor || 0);
+    }
+    
+    // 4. If still tied, sort alphabetically by player name
+    const nameA = (a.playerName || 'Unknown').toLowerCase();
+    const nameB = (b.playerName || 'Unknown').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  // Finally, add positions and other display fields based on sorted order
+  return sortedStandings.map((standing, index) => ({
+    ...standing,
+    position: index + 1,
+    isTopTwo: (index + 1) <= 2
+  }));
+}, [safeStandings]);
 
   return (
     <div className="mb-8">
