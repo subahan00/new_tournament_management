@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
@@ -10,67 +9,16 @@ import {
   UserGroupIcon
 } from '@heroicons/react/24/outline';
 
-// Singleton socket connection
-let socket = null;
-const getSocket = () => {
-  if (!socket) {
-    socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-  }
-  return socket;
-};
+// Initialize Socket.IO connection with reconnection logic
+const socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
-// Optimized StandingsTable component
-const StandingsTable = memo(({ standings, title, showGroupHeader = false }) => {
+// Memoized StandingsTable component to prevent unnecessary re-renders
+const StandingsTable = memo(({ standings, title = null, showGroupHeader = false }) => {
   const safeStandings = Array.isArray(standings) ? standings : [];
-
- // Replace your existing processedStandings useMemo with this:
-
-const processedStandings = useMemo(() => {
-  if (!Array.isArray(safeStandings) || safeStandings.length === 0) {
-    return [];
-  }
-
-  // First, add calculated fields to each standing
-  const standingsWithCalculatedFields = safeStandings.map((standing) => ({
-    ...standing,
-    goalDifference: (standing.goalsFor || 0) - (standing.goalsAgainst || 0),
-    isDeleted: standing.playerName?.startsWith('Deleted-')
-  }));
-
-  // Then sort by the proper criteria
-  const sortedStandings = standingsWithCalculatedFields.sort((a, b) => {
-    // 1. Sort by Points (descending)
-    if (b.points !== a.points) {
-      return (b.points || 0) - (a.points || 0);
-    }
-    
-    // 2. If points are equal, sort by Goal Difference (descending)
-    if (b.goalDifference !== a.goalDifference) {
-      return b.goalDifference - a.goalDifference;
-    }
-    
-    // 3. If goal difference is equal, sort by Goals For (descending)
-    if ((b.goalsFor || 0) !== (a.goalsFor || 0)) {
-      return (b.goalsFor || 0) - (a.goalsFor || 0);
-    }
-    
-    // 4. If still tied, sort alphabetically by player name
-    const nameA = (a.playerName || 'Unknown').toLowerCase();
-    const nameB = (b.playerName || 'Unknown').toLowerCase();
-    return nameA.localeCompare(nameB);
-  });
-
-  // Finally, add positions and other display fields based on sorted order
-  return sortedStandings.map((standing, index) => ({
-    ...standing,
-    position: index + 1,
-    isTopTwo: (index + 1) <= 2
-  }));
-}, [safeStandings]);
 
   return (
     <div className="mb-8">
@@ -99,47 +47,52 @@ const processedStandings = useMemo(() => {
           </thead>
 
           <tbody className="divide-y divide-amber-900/60">
-            {processedStandings.map((standing, index) => (
-              <tr
-                key={standing._id || `${standing.player}-${index}`}
-                className={`hover:bg-amber-900/30 transition-all duration-200 even:bg-zinc-900/40 text-amber-100 ${
-                  standing.isTopTwo ? 'bg-gradient-to-r from-amber-900/20 to-transparent' : ''
-                }`}
-              >
-                <td className="px-6 py-4 font-medium text-amber-300 flex items-center">
-                  {standing.position}
-                  {standing.position === 1 && <TrophyIcon className="h-5 w-5 ml-2 text-amber-400" />}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {standing.playerName ? (
-                    standing.isDeleted ? (
-                      <span className="text-red-400/90 flex items-center font-semibold">
-                        <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-red-500" />
-                        {standing.playerName.replace('Deleted-', '')}
-                      </span>
-                    ) : (
-                      <span className="text-amber-100 font-semibold">{standing.playerName}</span>
-                    )
-                  ) : (
-                    <span className="text-amber-500 flex items-center italic">
-                      <QuestionMarkCircleIcon className="h-5 w-5 mr-2" />
-                      Unknown Player
-                    </span>
-                  )}
-                </td>
-                {['matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst'].map((key) => (
-                  <td key={key} className="px-6 py-4 text-center font-medium">
-                    {standing[key] || 0}
+            {safeStandings.map((standing, index) => {
+              const goalDifference = (standing.goalsFor || 0) - (standing.goalsAgainst || 0);
+              const position = standing.position || (index + 1);
+
+              return (
+                <tr
+                  key={standing._id || `${standing.player}-${index}`}
+                  className={`hover:bg-amber-900/30 transition-all duration-200 even:bg-zinc-900/40 text-amber-100 ${
+                    position <= 2 ? 'bg-gradient-to-r from-amber-900/20 to-transparent' : ''
+                  }`}
+                >
+                  <td className="px-6 py-4 font-medium text-amber-300 flex items-center">
+                    {position}
+                    {position === 1 && <TrophyIcon className="h-5 w-5 ml-2 text-amber-400" />}
                   </td>
-                ))}
-                <td className={`px-6 py-4 text-center font-bold ${standing.goalDifference >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {standing.goalDifference > 0 ? `+${standing.goalDifference}` : standing.goalDifference}
-                </td>
-                <td className="px-6 py-4 text-center font-extrabold text-amber-200 text-xl">
-                  {standing.points || 0}
-                </td>
-              </tr>
-            ))}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {standing.playerName ? (
+                      standing.playerName.startsWith('Deleted-') ? (
+                        <span className="text-red-400/90 flex items-center font-semibold">
+                          <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-red-500" />
+                          {standing.playerName.replace('Deleted-', '')}
+                        </span>
+                      ) : (
+                        <span className="text-amber-100 font-semibold">{standing.playerName}</span>
+                      )
+                    ) : (
+                      <span className="text-amber-500 flex items-center italic">
+                        <QuestionMarkCircleIcon className="h-5 w-5 mr-2" />
+                        Unknown Player
+                      </span>
+                    )}
+                  </td>
+                  {['matchesPlayed', 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst'].map((key) => (
+                    <td key={key} className="px-6 py-4 text-center font-medium">
+                      {standing[key] || 0}
+                    </td>
+                  ))}
+                  <td className={`px-6 py-4 text-center font-bold ${goalDifference >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {goalDifference > 0 ? `+${goalDifference}` : goalDifference}
+                  </td>
+                  <td className="px-6 py-4 text-center font-extrabold text-amber-200 text-xl">
+                    {standing.points || 0}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -165,29 +118,74 @@ export default function Standings() {
   const [competitionType, setCompetitionType] = useState('LEAGUE');
   const [activeGroup, setActiveGroup] = useState(null);
 
-  // Simplified data processing - backend now returns clean data
+  // Memoized data processing functions
+  const processGroupStageData = useCallback((data) => {
+    if (Array.isArray(data) && data.length > 0 && data[0].group) {
+      const groupedData = data.reduce((acc, standing) => {
+        const groupName = standing.group;
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(standing);
+        return acc;
+      }, {});
+
+      // Batch sort all groups
+      Object.keys(groupedData).forEach(groupName => {
+        groupedData[groupName].sort((a, b) => {
+          const pointsDiff = (b.points || 0) - (a.points || 0);
+          if (pointsDiff !== 0) return pointsDiff;
+          const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
+          const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
+          return bGD - aGD;
+        });
+      });
+
+      return groupedData;
+    }
+    return null;
+  }, []);
+
+  // Optimized data fetching
   const fetchStandings = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
-      
       const { data } = await standingService.getStandings(competitionId);
 
-      // Backend now returns consistent structure
-      if (data.type === 'GROUP_STAGE' || data.competitionType === 'GROUP_STAGE') {
+      // Simplified data processing logic
+      if (data && data.competitionType === 'GROUP_STAGE') {
         setCompetitionType('GROUP_STAGE');
         setStandingsData(data.standings || data.groups || {});
         setCompetitionName(data.competitionName || 'Group Stage Competition');
-        
         const groupKeys = Object.keys(data.standings || data.groups || {});
-        if (groupKeys.length > 0 && !activeGroup) {
-          setActiveGroup(groupKeys[0]);
+        setActiveGroup(groupKeys.length > 0 ? groupKeys[0] : null);
+      } else if (Array.isArray(data) && data.length > 0 && data[0].group) {
+        setCompetitionType('GROUP_STAGE');
+        const groupedData = processGroupStageData(data);
+        setStandingsData(groupedData);
+        setCompetitionName('Group Stage Competition');
+        const groupKeys = Object.keys(groupedData || {});
+        setActiveGroup(groupKeys.length > 0 ? groupKeys[0] : null);
+      } else if (data && typeof data === 'object' && !Array.isArray(data) && !data.standings) {
+        const hasGroupKeys = Object.keys(data).some(key =>
+          key.startsWith('Group') || key.includes('Group')
+        );
+
+        if (hasGroupKeys) {
+          setCompetitionType('GROUP_STAGE');
+          setStandingsData(data);
+          setCompetitionName('Group Stage Competition');
+          setActiveGroup(Object.keys(data)[0]);
+        } else {
+          setCompetitionType('LEAGUE');
+          setStandingsData(data.standings || []);
+          setCompetitionName(data.competitionName || 'League Competition');
         }
       } else {
         // League format
         setCompetitionType('LEAGUE');
-        setStandingsData(data.standings || data || []);
-        setCompetitionName(data.competitionName || 'League Competition');
+        setStandingsData(data?.standings || data || []);
+        setCompetitionName(data?.competitionName || 'League Competition');
       }
     } catch (err) {
       console.error('Failed to load standings:', err);
@@ -196,7 +194,7 @@ export default function Standings() {
     } finally {
       setLoading(false);
     }
-  }, [competitionId, activeGroup]);
+  }, [competitionId, processGroupStageData]);
 
   // Memoized computations
   const availableGroups = useMemo(() => {
@@ -229,30 +227,41 @@ export default function Standings() {
     });
   }, [competitionType, standingsData, activeGroup, availableGroups]);
 
-  // Optimized socket handlers
+  // Socket handlers
   const handleStandingsUpdate = useCallback((update) => {
     if (update.competitionId === competitionId) {
-      // Backend sends clean, pre-processed data
-      if (update.type === 'GROUP_STAGE' || update.competitionType === 'GROUP_STAGE') {
-        setStandingsData(update.standings || update.groups || {});
+      if (update.competitionType === 'GROUP_STAGE' || update.type === 'GROUP_STAGE') {
+        setStandingsData(update.standings || update.groups || update);
+        setActiveGroup(prevActiveGroup => {
+          if (!prevActiveGroup && Object.keys(update.standings || update.groups || update).length > 0) {
+            return Object.keys(update.standings || update.groups || update)[0];
+          }
+          return prevActiveGroup;
+        });
       } else {
-        setStandingsData(update.standings || update);
+        setStandingsData(Array.isArray(update.standings) ? update.standings : update);
       }
     }
   }, [competitionId]);
 
+  const handleConnectError = useCallback((err) => {
+    console.error('Socket connection error:', err);
+    setError('Real-time updates are currently unavailable.');
+  }, []);
+
   useEffect(() => {
     fetchStandings();
 
-    const socketInstance = getSocket();
-    socketInstance.on('standings_update', handleStandingsUpdate);
+    socket.on('standings_update', handleStandingsUpdate);
+    socket.on('connect_error', handleConnectError);
 
     return () => {
-      socketInstance.off('standings_update', handleStandingsUpdate);
+      socket.off('standings_update', handleStandingsUpdate);
+      socket.off('connect_error', handleConnectError);
     };
-  }, [fetchStandings, handleStandingsUpdate]);
+  }, [fetchStandings, handleStandingsUpdate, handleConnectError]);
 
-  // Loading state
+  // Loading state with skeleton
   if (loading) {
     return (
       <div className="p-6 bg-black min-h-screen text-amber-500">
@@ -286,6 +295,7 @@ export default function Standings() {
       </div>
     );
   }
+
   return (
     <div className="p-6 bg-black min-h-screen text-amber-500 font-sans">
       <div className="max-w-7xl mx-auto">
