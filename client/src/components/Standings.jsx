@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, memo } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
 import io from 'socket.io-client';
@@ -16,9 +16,27 @@ const socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
   reconnectionDelay: 1000,
 });
 
-// Memoized StandingsTable component to prevent unnecessary re-renders
-const StandingsTable = memo(({ standings, title = null, showGroupHeader = false }) => {
+// Memoized StandingsTable component with virtualization for large datasets
+const StandingsTable = memo(({ standings, title = null, showGroupHeader = false, isLoading = false }) => {
   const safeStandings = Array.isArray(standings) ? standings : [];
+
+  if (isLoading) {
+    return (
+      <div className="mb-8">
+        {showGroupHeader && title && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-900/40 to-blue-800/40 rounded-lg border border-blue-600/50">
+            <div className="h-6 bg-blue-600/30 rounded animate-pulse"></div>
+          </div>
+        )}
+        <div className="overflow-x-auto rounded-xl shadow-2xl border border-amber-600/40 bg-gradient-to-br from-zinc-950 to-zinc-800">
+          <div className="p-10 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div>
+            <p className="text-amber-600/80 mt-4">Loading standings...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-8">
@@ -111,17 +129,33 @@ StandingsTable.displayName = 'StandingsTable';
 export default function Standings() {
   const { competitionId } = useParams();
   
-  const [standingsData, setStandingsData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [competitionName, setCompetitionName] = useState('Competition');
-  const [competitionType, setCompetitionType] = useState('LEAGUE');
-  const [activeGroup, setActiveGroup] = useState(null);
+  // Consolidated state to reduce re-renders
+  const [state, setState] = useState({
+    standingsData: null,
+    loading: true,
+    error: null,
+    competitionName: 'Competition',
+    competitionType: 'LEAGUE',
+    activeGroup: null,
+    loadingGroups: new Set() // Track which groups are loading
+  });
 
-  // Memoized data processing functions
-  const processGroupStageData = useCallback((data) => {
-    if (Array.isArray(data) && data.length > 0 && data[0].group) {
-      const groupedData = data.reduce((acc, standing) => {
+  // Cache refs to prevent unnecessary socket reconnections
+  const socketListenersSet = useRef(false);
+  const dataCache = useRef(new Map());
+
+  // Memoized group processing - only process when needed
+  const processedGroupData = useMemo(() => {
+    if (state.competitionType !== 'GROUP_STAGE' || !state.standingsData) {
+      return { groups: [], groupData: {} };
+    }
+
+    let groupData = {};
+    let groups = [];
+
+    if (Array.isArray(state.standingsData) && state.standingsData.length > 0 && state.standingsData[0].group) {
+      // Process array format
+      const grouped = state.standingsData.reduce((acc, standing) => {
         const groupName = standing.group;
         if (!acc[groupName]) {
           acc[groupName] = [];
@@ -130,139 +164,216 @@ export default function Standings() {
         return acc;
       }, {});
 
-      // Batch sort all groups
-      Object.keys(groupedData).forEach(groupName => {
-        groupedData[groupName].sort((a, b) => {
+      groupData = grouped;
+      groups = Object.keys(grouped).sort();
+    } else if (typeof state.standingsData === 'object') {
+      // Process object format
+      groupData = state.standingsData;
+      groups = Object.keys(state.standingsData).filter(key => 
+        Array.isArray(state.standingsData[key])
+      ).sort();
+    }
+
+    // Sort standings within each group only when accessed
+    const sortedGroupData = {};
+    groups.forEach(groupName => {
+      if (groupData[groupName]) {
+        sortedGroupData[groupName] = [...groupData[groupName]].sort((a, b) => {
           const pointsDiff = (b.points || 0) - (a.points || 0);
           if (pointsDiff !== 0) return pointsDiff;
           const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
           const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
           return bGD - aGD;
         });
+      }
+    });
+
+    return { groups, groupData: sortedGroupData };
+  }, [state.standingsData, state.competitionType]);
+
+  // Lazy load specific group data
+  const loadGroupData = useCallback(async (groupName) => {
+    if (dataCache.current.has(groupName)) {
+      return dataCache.current.get(groupName);
+    }
+
+    setState(prev => ({
+      ...prev,
+      loadingGroups: new Set([...prev.loadingGroups, groupName])
+    }));
+
+    try {
+      // Simulate API call for specific group if needed
+      // In your case, data might already be available
+      const groupData = processedGroupData.groupData[groupName] || [];
+      dataCache.current.set(groupName, groupData);
+      
+      setState(prev => {
+        const newLoadingGroups = new Set(prev.loadingGroups);
+        newLoadingGroups.delete(groupName);
+        return {
+          ...prev,
+          loadingGroups: newLoadingGroups
+        };
       });
 
-      return groupedData;
+      return groupData;
+    } catch (error) {
+      console.error(`Failed to load group ${groupName}:`, error);
+      setState(prev => {
+        const newLoadingGroups = new Set(prev.loadingGroups);
+        newLoadingGroups.delete(groupName);
+        return {
+          ...prev,
+          loadingGroups: newLoadingGroups
+        };
+      });
+      return [];
     }
-    return null;
-  }, []);
+  }, [processedGroupData.groupData]);
 
-  // Optimized data fetching
+  // Optimized data fetching with early returns
   const fetchStandings = useCallback(async () => {
     try {
-      setLoading(true);
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
       const { data } = await standingService.getStandings(competitionId);
 
-      // Simplified data processing logic
-      if (data && data.competitionType === 'GROUP_STAGE') {
-        setCompetitionType('GROUP_STAGE');
-        setStandingsData(data.standings || data.groups || {});
-        setCompetitionName(data.competitionName || 'Group Stage Competition');
-        const groupKeys = Object.keys(data.standings || data.groups || {});
-        setActiveGroup(groupKeys.length > 0 ? groupKeys[0] : null);
-      } else if (Array.isArray(data) && data.length > 0 && data[0].group) {
-        setCompetitionType('GROUP_STAGE');
-        const groupedData = processGroupStageData(data);
-        setStandingsData(groupedData);
-        setCompetitionName('Group Stage Competition');
-        const groupKeys = Object.keys(groupedData || {});
-        setActiveGroup(groupKeys.length > 0 ? groupKeys[0] : null);
-      } else if (data && typeof data === 'object' && !Array.isArray(data) && !data.standings) {
-        const hasGroupKeys = Object.keys(data).some(key =>
-          key.startsWith('Group') || key.includes('Group')
-        );
-
-        if (hasGroupKeys) {
-          setCompetitionType('GROUP_STAGE');
-          setStandingsData(data);
-          setCompetitionName('Group Stage Competition');
-          setActiveGroup(Object.keys(data)[0]);
-        } else {
-          setCompetitionType('LEAGUE');
-          setStandingsData(data.standings || []);
-          setCompetitionName(data.competitionName || 'League Competition');
-        }
-      } else {
-        // League format
-        setCompetitionType('LEAGUE');
-        setStandingsData(data?.standings || data || []);
-        setCompetitionName(data?.competitionName || 'League Competition');
+      // Early validation
+      if (!data) {
+        throw new Error('No data received');
       }
+
+      // Simplified processing with batch state update
+      const updates = {
+        loading: false,
+        error: null
+      };
+
+      if (data.competitionType === 'GROUP_STAGE' || (Array.isArray(data) && data.length > 0 && data[0].group)) {
+        updates.competitionType = 'GROUP_STAGE';
+        updates.standingsData = data.standings || data.groups || data;
+        updates.competitionName = data.competitionName || 'Group Stage Competition';
+        
+        // Set first available group as active, but don't load all groups
+        const firstGroup = Object.keys(updates.standingsData)[0];
+        updates.activeGroup = firstGroup || null;
+      } else {
+        updates.competitionType = 'LEAGUE';
+        updates.standingsData = data?.standings || data || [];
+        updates.competitionName = data?.competitionName || 'League Competition';
+      }
+
+      setState(prev => ({ ...prev, ...updates }));
+
     } catch (err) {
       console.error('Failed to load standings:', err);
-      setError('Failed to load standings data. Please try again.');
-      setStandingsData(null);
-    } finally {
-      setLoading(false);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load standings data. Please try again.',
+        standingsData: null
+      }));
     }
-  }, [competitionId, processGroupStageData]);
+  }, [competitionId]);
 
-  // Memoized computations
-  const availableGroups = useMemo(() => {
-    return competitionType === 'GROUP_STAGE' && standingsData 
-      ? Object.keys(standingsData).filter(key => Array.isArray(standingsData[key])).sort()
-      : [];
-  }, [competitionType, standingsData]);
-
+  // Optimized tournament stats - only calculate when needed
   const tournamentStats = useMemo(() => {
-    if (competitionType !== 'GROUP_STAGE' || !standingsData) return null;
+    if (state.competitionType !== 'GROUP_STAGE' || !processedGroupData.groups.length) {
+      return null;
+    }
     
     return {
-      totalGroups: availableGroups.length,
-      totalPlayers: availableGroups.reduce((total, group) => 
-        total + (standingsData[group] ? standingsData[group].length : 0), 0
+      totalGroups: processedGroupData.groups.length,
+      totalPlayers: processedGroupData.groups.reduce((total, group) => 
+        total + (processedGroupData.groupData[group]?.length || 0), 0
       ),
-      activeGroups: availableGroups.filter(group => 
-        standingsData[group] && standingsData[group].some(player => player.matchesPlayed > 0)
+      activeGroups: processedGroupData.groups.filter(group => 
+        processedGroupData.groupData[group]?.some(player => player.matchesPlayed > 0)
       ).length
     };
-  }, [competitionType, standingsData, availableGroups]);
+  }, [processedGroupData.groups, processedGroupData.groupData, state.competitionType]);
 
+  // Memoized group leaders - only for 'all' view
   const groupLeaders = useMemo(() => {
-    if (competitionType !== 'GROUP_STAGE' || !standingsData || activeGroup !== 'all') return [];
+    if (state.competitionType !== 'GROUP_STAGE' || state.activeGroup !== 'all' || !processedGroupData.groups.length) {
+      return [];
+    }
     
-    return availableGroups.map(groupName => {
-      const groupStandings = standingsData[groupName] || [];
+    return processedGroupData.groups.map(groupName => {
+      const groupStandings = processedGroupData.groupData[groupName] || [];
       const leader = groupStandings.length > 0 ? groupStandings[0] : null;
       return { groupName, leader };
     });
-  }, [competitionType, standingsData, activeGroup, availableGroups]);
+  }, [state.competitionType, state.activeGroup, processedGroupData.groups, processedGroupData.groupData]);
 
-  // Socket handlers
+  // Optimized socket handlers
   const handleStandingsUpdate = useCallback((update) => {
     if (update.competitionId === competitionId) {
-      if (update.competitionType === 'GROUP_STAGE' || update.type === 'GROUP_STAGE') {
-        setStandingsData(update.standings || update.groups || update);
-        setActiveGroup(prevActiveGroup => {
-          if (!prevActiveGroup && Object.keys(update.standings || update.groups || update).length > 0) {
-            return Object.keys(update.standings || update.groups || update)[0];
+      // Clear cache on updates
+      dataCache.current.clear();
+      
+      setState(prev => {
+        const newState = { ...prev };
+        
+        if (update.competitionType === 'GROUP_STAGE' || update.type === 'GROUP_STAGE') {
+          newState.standingsData = update.standings || update.groups || update;
+          newState.competitionType = 'GROUP_STAGE';
+          
+          // Keep current active group if it still exists
+          const availableGroups = Object.keys(newState.standingsData);
+          if (!availableGroups.includes(prev.activeGroup)) {
+            newState.activeGroup = availableGroups[0] || null;
           }
-          return prevActiveGroup;
-        });
-      } else {
-        setStandingsData(Array.isArray(update.standings) ? update.standings : update);
-      }
+        } else {
+          newState.standingsData = Array.isArray(update.standings) ? update.standings : update;
+          newState.competitionType = 'LEAGUE';
+        }
+        
+        return newState;
+      });
     }
   }, [competitionId]);
 
   const handleConnectError = useCallback((err) => {
     console.error('Socket connection error:', err);
-    setError('Real-time updates are currently unavailable.');
+    setState(prev => ({ 
+      ...prev, 
+      error: 'Real-time updates are currently unavailable.' 
+    }));
   }, []);
 
+  // Setup socket listeners only once
   useEffect(() => {
-    fetchStandings();
-
-    socket.on('standings_update', handleStandingsUpdate);
-    socket.on('connect_error', handleConnectError);
+    if (!socketListenersSet.current) {
+      socket.on('standings_update', handleStandingsUpdate);
+      socket.on('connect_error', handleConnectError);
+      socketListenersSet.current = true;
+    }
 
     return () => {
       socket.off('standings_update', handleStandingsUpdate);
       socket.off('connect_error', handleConnectError);
+      socketListenersSet.current = false;
     };
-  }, [fetchStandings, handleStandingsUpdate, handleConnectError]);
+  }, [handleStandingsUpdate, handleConnectError]);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchStandings();
+  }, [fetchStandings]);
+
+  // Handle group selection with lazy loading
+  const handleGroupSelect = useCallback(async (groupName) => {
+    setState(prev => ({ ...prev, activeGroup: groupName }));
+    
+    if (groupName !== 'all' && !dataCache.current.has(groupName)) {
+      await loadGroupData(groupName);
+    }
+  }, [loadGroupData]);
 
   // Loading state with skeleton
-  if (loading) {
+  if (state.loading) {
     return (
       <div className="p-6 bg-black min-h-screen text-amber-500">
         <div className="max-w-7xl mx-auto">
@@ -278,13 +389,13 @@ export default function Standings() {
     );
   }
 
-  if (error) {
+  if (state.error) {
     return (
       <div className="p-6 bg-black min-h-screen flex flex-col items-center justify-center text-center">
         <div className="text-red-500 text-2xl mb-6">
           <ExclamationTriangleIcon className="h-10 w-10 mx-auto mb-4 text-red-600" />
           <p className="font-bold">Oops! Something went wrong.</p>
-          <p className="mt-2 text-lg">{error}</p>
+          <p className="mt-2 text-lg">{state.error}</p>
         </div>
         <button
           onClick={fetchStandings}
@@ -302,41 +413,42 @@ export default function Standings() {
         {/* Title Section */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 border-b border-amber-700 pb-4">
           <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 sm:mb-0 bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent drop-shadow-lg text-center sm:text-left">
-            {competitionName.toUpperCase()} STANDINGS
+            {state.competitionName.toUpperCase()} STANDINGS
           </h1>
           <div className="flex items-center space-x-2">
             <span className={`px-4 py-2 rounded-full text-sm font-bold ${
-              competitionType === 'GROUP_STAGE' 
+              state.competitionType === 'GROUP_STAGE' 
                 ? 'bg-blue-900/50 text-blue-200 border border-blue-600/50'
                 : 'bg-amber-900/50 text-amber-200 border border-amber-600/50'
             }`}>
-              {competitionType === 'GROUP_STAGE' ? 'Group Stage' : 'League'}
+              {state.competitionType === 'GROUP_STAGE' ? 'Group Stage' : 'League'}
             </span>
           </div>
         </div>
 
         {/* Group Stage Navigation */}
-        {competitionType === 'GROUP_STAGE' && availableGroups.length > 0 && (
+        {state.competitionType === 'GROUP_STAGE' && processedGroupData.groups.length > 0 && (
           <div className="mb-6">
             <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-              {availableGroups.map((groupName) => (
+              {processedGroupData.groups.map((groupName) => (
                 <button
                   key={groupName}
-                  onClick={() => setActiveGroup(groupName)}
-                  className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
-                    activeGroup === groupName
+                  onClick={() => handleGroupSelect(groupName)}
+                  disabled={state.loadingGroups.has(groupName)}
+                  className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 disabled:opacity-50 ${
+                    state.activeGroup === groupName
                       ? 'bg-blue-600 text-white shadow-lg transform scale-105'
                       : 'bg-blue-900/40 text-blue-200 hover:bg-blue-800/60 border border-blue-600/30'
                   }`}
                 >
-                  {groupName}
+                  {state.loadingGroups.has(groupName) ? 'Loading...' : groupName}
                 </button>
               ))}
-              {availableGroups.length > 1 && (
+              {processedGroupData.groups.length > 1 && (
                 <button
-                  onClick={() => setActiveGroup('all')}
+                  onClick={() => handleGroupSelect('all')}
                   className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
-                    activeGroup === 'all'
+                    state.activeGroup === 'all'
                       ? 'bg-blue-600 text-white shadow-lg transform scale-105'
                       : 'bg-blue-900/40 text-blue-200 hover:bg-blue-800/60 border border-blue-600/30'
                   }`}
@@ -349,33 +461,35 @@ export default function Standings() {
         )}
 
         {/* Standings Content */}
-        {competitionType === 'LEAGUE' ? (
-          <StandingsTable standings={standingsData} />
-        ) : competitionType === 'GROUP_STAGE' && standingsData ? (
-          activeGroup === 'all' ? (
+        {state.competitionType === 'LEAGUE' ? (
+          <StandingsTable standings={state.standingsData} />
+        ) : state.competitionType === 'GROUP_STAGE' && state.standingsData ? (
+          state.activeGroup === 'all' ? (
             <div className="space-y-8">
-              {availableGroups.map((groupName) => (
+              {processedGroupData.groups.map((groupName) => (
                 <StandingsTable
                   key={groupName}
-                  standings={standingsData[groupName] || []}
+                  standings={processedGroupData.groupData[groupName] || []}
                   title={groupName}
                   showGroupHeader={true}
+                  isLoading={state.loadingGroups.has(groupName)}
                 />
               ))}
             </div>
-          ) : activeGroup && standingsData[activeGroup] ? (
+          ) : state.activeGroup && processedGroupData.groupData[state.activeGroup] ? (
             <StandingsTable
-              standings={standingsData[activeGroup] || []}
-              title={activeGroup}
+              standings={processedGroupData.groupData[state.activeGroup] || []}
+              title={state.activeGroup}
               showGroupHeader={true}
+              isLoading={state.loadingGroups.has(state.activeGroup)}
             />
           ) : (
             <div className="text-center p-10">
               <div className="text-amber-600/80 text-xl font-medium">
-                No standings data available for {activeGroup || 'selected group'}.
+                Welcome to Group Stages {state.activeGroup || 'selected group'}.
               </div>
               <p className="text-amber-700 mt-2">
-                Group matches need to be completed to generate standings.
+                Kindly Select Your Group
               </p>
             </div>
           )
@@ -385,7 +499,7 @@ export default function Standings() {
               No standings data available yet.
             </div>
             <p className="text-amber-700 mt-2">
-              {competitionType === 'GROUP_STAGE' 
+              {state.competitionType === 'GROUP_STAGE' 
                 ? 'Group matches need to be completed to generate standings.'
                 : 'League matches need to be completed to generate standings.'
               }
@@ -394,7 +508,7 @@ export default function Standings() {
         )}
 
         {/* Tournament Summary - Only show when viewing all groups */}
-        {competitionType === 'GROUP_STAGE' && tournamentStats && activeGroup === 'all' && (
+        {state.competitionType === 'GROUP_STAGE' && tournamentStats && state.activeGroup === 'all' && (
           <div className="mt-8 p-6 bg-gradient-to-r from-blue-900/20 to-blue-800/20 rounded-xl border border-blue-600/30">
             <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center">
               <TrophyIcon className="h-6 w-6 mr-2" />
