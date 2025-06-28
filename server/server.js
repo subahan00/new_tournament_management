@@ -37,8 +37,7 @@ bcrypt.genSalt(10, (err, salt) => {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://official90.onrender.com',
-  'https://official90-wine.vercel.app',
-  'https://official90.vercel.app'
+  'https://official90-wine.vercel.app'
 ];
 
 // ✅ Updated Middleware for CORS
