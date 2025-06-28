@@ -140,65 +140,93 @@ const calculateLeagueStandings = async (competitionId, competition) => {
 };
 
 const calculateGroupStageStandings = async (competitionId, competition) => {
+  const overallStart = performance.now();
+  let timings = {
+    fetchFixtures: 0,
+    fetchStandings: 0,
+    groupFixtures: 0,
+    allFixtures: 0,
+    playerMapping: 0,
+    initStandings: 0,
+    processFixtures: 0,
+    bulkOps: 0,
+    dbUpdate: 0,
+    sorting: 0
+  };
+
   try {
-    // 1. Get completed fixtures WITHOUT player population
+    // 1. Get completed fixtures - optimized query
+    const fixturesStart = performance.now();
     const fixtures = await Fixture.find({
       competitionId,
       status: 'completed'
-    }).lean();
+    }).select('homePlayer awayPlayer homeScore awayScore result round').lean();
+    timings.fetchFixtures = performance.now() - fixturesStart;
 
     if (fixtures.length === 0) {
       console.log('No completed fixtures found for group stage calculation');
       return [];
     }
 
-    // 2. Get existing standings for competition-specific names
+    // 2. Get existing standings - optimized projection
+    const standingsStart = performance.now();
     const existingStandings = await Standing.find({ competition: competitionId })
-      .select('player playerName group')
+      .select('player playerName group -_id')
       .lean();
+    timings.fetchStandings = performance.now() - standingsStart;
 
-    // 3. Group fixtures by round (group)
-    const fixturesByGroup = fixtures.reduce((acc, fixture) => {
+    // 3. Group fixtures by round - optimized with Map
+    const groupStart = performance.now();
+    const fixturesByGroup = new Map();
+    fixtures.forEach(fixture => {
       const group = fixture.round;
-      if (!acc[group]) {
-        acc[group] = [];
+      if (!fixturesByGroup.has(group)) {
+        fixturesByGroup.set(group, []);
       }
-      acc[group].push(fixture);
-      return acc;
-    }, {});
-
-    // 4. Get all fixtures (including pending) to determine group memberships
-    const allFixtures = await Fixture.find({
-      competitionId
-    }).lean();
-
-    // Create player-group mapping from all fixtures
-    const playerGroupMap = new Map();
-    allFixtures.forEach(fixture => {
-      const group = fixture.round;
-      playerGroupMap.set(fixture.homePlayer.toString(), group);
-      playerGroupMap.set(fixture.awayPlayer.toString(), group);
+      fixturesByGroup.get(group).push(fixture);
     });
+    timings.groupFixtures = performance.now() - groupStart;
 
-    // 5. Initialize standings map for ALL players in competition with 0 values
+    // 4. Player-group mapping optimization
+    const mappingStart = performance.now();
+    const playerGroupMap = new Map();
+    const playerIds = new Set();
+
+    // Efficient player-group mapping from fixtures
+    fixtures.forEach(fixture => {
+      playerGroupMap.set(fixture.homePlayer.toString(), fixture.round);
+      playerGroupMap.set(fixture.awayPlayer.toString(), fixture.round);
+      playerIds.add(fixture.homePlayer.toString());
+      playerIds.add(fixture.awayPlayer.toString());
+    });
+    timings.playerMapping = performance.now() - mappingStart;
+
+    // 5. Initialize standings - optimized player data fetch
+    const initStart = performance.now();
     const standingsMap = new Map();
+    const uniquePlayerIds = Array.from(playerIds).map(id => new mongoose.Types.ObjectId(id));
 
-    // Initialize standings for ALL players in the competition
-    for (const playerId of competition.players) {
-      const playerIdStr = playerId.toString();
-      const group = playerGroupMap.get(playerIdStr);
-      
+    // Batch player name lookup
+    const players = await Player.find(
+      { _id: { $in: uniquePlayerIds } },
+      { name: 1 }
+    ).lean();
+    
+    const playerNameMap = new Map(players.map(p => [p._id.toString(), p.name]));
+
+    // Initialize only relevant players
+    for (const playerId of playerIds) {
+      const group = playerGroupMap.get(playerId);
       if (group) {
         const existing = existingStandings.find(s => 
-          s.player.equals(playerId) && s.group === group
+          s.player.toString() === playerId && s.group === group
         );
-        const globalPlayer = await Player.findById(playerId).select('name').lean();
-
-        const standingKey = `${playerIdStr}_${group}`;
+        
+        const standingKey = `${playerId}_${group}`;
         standingsMap.set(standingKey, {
           competition: new mongoose.Types.ObjectId(competitionId),
-          player: playerId,
-          playerName: existing?.playerName || globalPlayer?.name || 'Unknown Player',
+          player: new mongoose.Types.ObjectId(playerId),
+          playerName: existing?.playerName || playerNameMap.get(playerId) || 'Unknown Player',
           group: group,
           matchesPlayed: 0,
           wins: 0,
@@ -210,9 +238,11 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
         });
       }
     }
+    timings.initStandings = performance.now() - initStart;
 
-    // 6. Process completed fixtures and update standings
-    Object.entries(fixturesByGroup).forEach(([group, groupFixtures]) => {
+    // 6. Process completed fixtures
+    const processStart = performance.now();
+    fixturesByGroup.forEach((groupFixtures, group) => {
       groupFixtures.forEach(fixture => {
         const homeKey = `${fixture.homePlayer.toString()}_${group}`;
         const awayKey = `${fixture.awayPlayer.toString()}_${group}`;
@@ -220,80 +250,84 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
         const homeEntry = standingsMap.get(homeKey);
         const awayEntry = standingsMap.get(awayKey);
 
-        if (!homeEntry || !awayEntry) {
-          console.warn(`Missing standings entry for fixture: ${fixture._id}`);
-          return;
-        }
+        if (!homeEntry || !awayEntry) return;
 
-        // Update match counts
         homeEntry.matchesPlayed++;
         awayEntry.matchesPlayed++;
 
-        // Update goals
         homeEntry.goalsFor += fixture.homeScore;
         homeEntry.goalsAgainst += fixture.awayScore;
         awayEntry.goalsFor += fixture.awayScore;
         awayEntry.goalsAgainst += fixture.homeScore;
 
-        // Update points and results
-        switch (fixture.result) {
-          case 'home':
-            homeEntry.wins++;
-            homeEntry.points += 3;
-            awayEntry.losses++;
-            break;
-          case 'away':
-            awayEntry.wins++;
-            awayEntry.points += 3;
-            homeEntry.losses++;
-            break;
-          case 'draw':
-            homeEntry.draws++;
-            awayEntry.draws++;
-            homeEntry.points++;
-            awayEntry.points++;
-            break;
+        if (fixture.result === 'home') {
+          homeEntry.wins++;
+          homeEntry.points += 3;
+          awayEntry.losses++;
+        } else if (fixture.result === 'away') {
+          awayEntry.wins++;
+          awayEntry.points += 3;
+          homeEntry.losses++;
+        } else {
+          homeEntry.draws++;
+          awayEntry.draws++;
+          homeEntry.points++;
+          awayEntry.points++;
         }
       });
     });
+    timings.processFixtures = performance.now() - processStart;
 
     // 7. Prepare bulk operations
-    const bulkOps = Array.from(standingsMap.values()).map(standing => ({
-      updateOne: {
-        filter: {
-          competition: standing.competition,
-          player: standing.player,
-          group: standing.group
-        },
-        update: {
-          $set: {
-            ...standing,
-            lastUpdated: new Date()
-          }
-        },
-        upsert: true
-      }
-    }));
+    const bulkStart = performance.now();
+    const bulkOps = [];
+    standingsMap.forEach(standing => {
+      bulkOps.push({
+        updateOne: {
+          filter: {
+            competition: standing.competition,
+            player: standing.player,
+            group: standing.group
+          },
+          update: {
+            $set: {
+              matchesPlayed: standing.matchesPlayed,
+              wins: standing.wins,
+              draws: standing.draws,
+              losses: standing.losses,
+              goalsFor: standing.goalsFor,
+              goalsAgainst: standing.goalsAgainst,
+              points: standing.points,
+              lastUpdated: new Date()
+            },
+            $setOnInsert: {
+              playerName: standing.playerName
+            }
+          },
+          upsert: true
+        }
+      });
+    });
+    timings.bulkOps = performance.now() - bulkStart;
 
-    // 8. Update database
+    // 8. Update database - only if needed
+    const dbStart = performance.now();
     if (bulkOps.length > 0) {
       await Standing.bulkWrite(bulkOps, { ordered: false });
     }
+    timings.dbUpdate = performance.now() - dbStart;
 
-    // 9. Return sorted standings grouped by group
+    // 9. Prepare sorted results
+    const sortStart = performance.now();
     const result = {};
-    
-    // Group standings by group and sort each group
-    Array.from(standingsMap.values()).forEach(standing => {
-      if (!result[standing.group]) {
-        result[standing.group] = [];
-      }
-      result[standing.group].push(standing);
+    standingsMap.forEach(standing => {
+      const group = standing.group;
+      if (!result[group]) result[group] = [];
+      result[group].push(standing);
     });
 
-    // Sort each group's standings
-    Object.keys(result).forEach(group => {
-      result[group].sort((a, b) => {
+    Object.values(result).forEach(group => {
+      group.sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
         const bGD = b.goalsFor - b.goalsAgainst;
         const aGD = a.goalsFor - a.goalsAgainst;
@@ -301,21 +335,17 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
         return b.goalsFor - a.goalsFor;
       });
     });
+    timings.sorting = performance.now() - sortStart;
 
-    // Return flat array of all standings or grouped object based on your preference
-    // Option 1: Return grouped object
-    return result;
+    // Performance logging
+    const totalTime = performance.now() - overallStart;
+    console.log('Standings calculation timings:');
+    Object.entries(timings).forEach(([key, val]) => {
+      console.log(`- ${key}: ${val.toFixed(2)}ms`);
+    });
+    console.log(`Total time: ${totalTime.toFixed(2)}ms`);
     
-    // Option 2: Return flat array (uncomment if preferred)
-    // return Array.from(standingsMap.values()).sort((a, b) => {
-    //   // First sort by group, then by standings within group
-    //   if (a.group !== b.group) return a.group.localeCompare(b.group);
-    //   if (b.points !== a.points) return b.points - a.points;
-    //   const bGD = b.goalsFor - b.goalsAgainst;
-    //   const aGD = a.goalsFor - a.goalsAgainst;
-    //   if (bGD !== aGD) return bGD - aGD;
-    //   return b.goalsFor - a.goalsFor;
-    // });
+    return result;
 
   } catch (error) {
     console.error('Group stage standings calculation failed:', error);
