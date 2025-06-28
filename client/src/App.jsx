@@ -8,7 +8,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import CreatePlayerForm from './pages/CreatePlayerForm';
 import FixtureManagement from './pages/CreateFixtures';
 import ResultsEntry from './pages/ResultsEntry';
-import WinnersArchive from './pages/WinnersArchive';
+// import WinnersArchive from './pages/WinnersArchive';
 import Login from './pages/Login';
 import Competitions from './pages/PublicCompetitions';
 import CreateCompetition from './pages/CompetitionManagement';
@@ -31,6 +31,8 @@ import AdminUploadPage from './pages/AdminUploadPage';
 import PublicWallpaperPage from './pages/PublicWallpaperPage';
 import { AuthProvider } from './contexts/AuthContext';
 import DeleteWallpaper from './pages/deleteWallpaper';
+import TrophyCabinet from './pages/TrophyCabinet';
+import TrophyManagement from './pages/TrophyManagement';
 const App = () => {
   return (
     <AuthProvider>
@@ -50,12 +52,21 @@ const App = () => {
           <Route path="/view" element={<ViewPage />} />
           <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
           <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
+          <Route path="/trophy-cabinet" element={<TrophyCabinet />} />
           {/* Admin protected routes */}
           <Route 
             path="/admin/dashboard" 
             element={
               <ProtectedRoute adminOnly>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/trophy-management" 
+            element={
+              <ProtectedRoute adminOnly>
+                <TrophyManagement />
               </ProtectedRoute>
             } 
           />
@@ -81,7 +92,6 @@ const App = () => {
             { path: "/admin/applicant-list", component: <ApplicantList /> },
             { path: "/post-winner", component: <AdminWinnerForm /> },
             { path: "/results", component: <ResultsEntry /> },
-            { path: "/winners", component: <WinnersArchive /> },
             { path: "/admin/update-competition", component: <UpdatePlayerName /> }
           ].map((route, index) => (
             <Route 
