@@ -1,24 +1,34 @@
 const express = require('express');
 const router = express.Router();
-const Winner=require('../models/Winner'); // Adjust path as needed
-router.post('/', async (req, res) => {
-  try {
-    const winner = new Winner(req.body);
-    await winner.save();
-    res.status(201).json(winner);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
+const {
+  getWinners,
+  getWinnerById,
+  createWinner,
+  addTrophy,
+  updateTrophy,
+  deleteTrophy,
+  deleteWinner
+} = require('../controllers/winnerController');
 
-// Get all winners (if needed)
-router.get('/', async (req, res) => {
-  try {
-    const winners = await Winner.find().sort({ date: -1 });
-    res.json(winners);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// GET /api/winners - Get all players
+router.get('/', getWinners);
 
-module.exports = router;    
+// GET /api/winners/:id - Get one player
+router.get('/:id', getWinnerById);
+
+// POST /api/winners - Create a player with trophies
+router.post('/', createWinner);
+
+// POST /api/winners/:id/trophies - Add trophy to a player
+router.post('/:id/trophies', addTrophy);
+
+// PUT /api/winners/:id/trophies - Update trophy count
+router.put('/:id/trophies', updateTrophy);
+
+// DELETE /api/winners/:id/trophies - Remove a specific trophy
+router.delete('/:id/trophies', deleteTrophy);
+
+// DELETE /api/winners/:id - Delete player
+router.delete('/:id', deleteWinner);
+
+module.exports = router;
