@@ -84,10 +84,10 @@ const AdminDashboard = () => {
               </li>
               <li>
                 <Link to="/results" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
-                  Post  result              
-                    </Link>
+                  Post  result
+                </Link>
               </li>
-             
+
             </ul>
           </div>
 
@@ -116,8 +116,8 @@ const AdminDashboard = () => {
             <h3 className="text-gold-500 uppercase text-xs font-semibold tracking-wider mb-2 mt-4">Archive</h3>
             <ul className="space-y-1">
               <li>
-                <Link to="/post-winner" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
-                  Winners Archive
+                <Link to="/admin/trophy-management" className="block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
+                  Trophy Management
                 </Link>
               </li>
             </ul>
@@ -245,8 +245,9 @@ const AdminDashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
-Post League game result                </Link>
-                
+                  Post League game result
+                </Link>
+
               </div>
             </div>
 
@@ -327,13 +328,13 @@ Post League game result                </Link>
               </div>
               <div className="space-y-3">
                 <Link
-                  to="/hall-of-fame"
+                  to="/admin/trophy-management"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                   </svg>
-                  Winners Archive
+                  Trophy Management
                 </Link>
               </div>
             </div>
