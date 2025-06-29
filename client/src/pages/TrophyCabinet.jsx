@@ -28,7 +28,7 @@ const TrophyCabinet = () => {
   const TIERS = [
         {
             name: 'GOAT',
-            minTrophies: 20,
+            minTrophies: 75,
             icon: <Crown className="w-5 h-5 text-yellow-400 fill-yellow-300" />,
             rowClass: 'bg-gradient-to-r from-yellow-900/40 to-amber-900/40 border-l-4 border-yellow-400',
             textClass: 'text-yellow-300',
@@ -36,7 +36,7 @@ const TrophyCabinet = () => {
         },
         {
             name: 'Pro',
-            minTrophies: 15,
+            minTrophies: 50,
             icon: <Gem className="w-4 h-4 text-purple-400" />,
             rowClass: 'bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border-l-4 border-purple-400',
             textClass: 'text-purple-300',
@@ -44,7 +44,7 @@ const TrophyCabinet = () => {
         },
         {
             name: 'Expert',
-            minTrophies: 10,
+            minTrophies: 25,
             icon: <Star className="w-4 h-4 text-emerald-400" />,
             rowClass: 'bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-l-4 border-emerald-400',
             textClass: 'text-emerald-300',
@@ -52,7 +52,7 @@ const TrophyCabinet = () => {
         },
         {
             name: 'Advanced',
-            minTrophies: 5,
+            minTrophies: 15,
             icon: <Award className="w-4 h-4 text-blue-400" />,
             rowClass: 'bg-gradient-to-r from-blue-900/40 to-cyan-900/40 border-l-4 border-blue-400',
             textClass: 'text-blue-300',
@@ -60,7 +60,7 @@ const TrophyCabinet = () => {
         },
         {
             name: 'Rising',
-            minTrophies: 1,
+            minTrophies: 5,
             icon: <Medal className="w-4 h-4 text-orange-400" />,
             rowClass: 'bg-gradient-to-r from-orange-900/40 to-red-900/40 border-l-4 border-orange-400',
             textClass: 'text-orange-300',
