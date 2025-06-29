@@ -9,7 +9,7 @@ const ViewPage = () => {
     { label: "View Tournaments", icon: <Swords className="w-8 h-8 md:w-10 md:h-10" />, path: "/competitions", special: false },
     { label: "Knockout Fixtures", icon: <GitMerge className="w-8 h-8 md:w-10 md:h-10" />, path: "/public-ko", special: false },
     { label: "League Standings", icon: <BarChart3 className="w-8 h-8 md:w-10 md:h-10" />, path: "/standings", special: false },
-    { label: "Hall of Fame", icon: <Award className="w-8 h-8 md:w-10 md:h-10" />, path: "/hall-of-fame", special: false },
+    { label: "Trophy Cabinet", icon: <Award className="w-8 h-8 md:w-10 md:h-10" />, path: "/trophy-cabinet", special: false },
     { label: "Player Directory", icon: <Users className="w-8 h-8 md:w-10 md:h-10" />, path: "#", special: false }, // Improvised option
     { label: "FAQs & Support", icon: <ShieldQuestion className="w-8 h-8 md:w-10 md:h-10" />, path: "", special: false }, // Improvised option
     { label: "JOIN THIS CLASH", icon: <Zap className="w-10 h-10 md:w-12 md:h-12" />, path: "/", special: true },
