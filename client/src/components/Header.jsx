@@ -51,7 +51,8 @@ const Header = () => {
             { to: "/", label: "Home" },
             { to: "/standings", label: "Standings" },
             { to: "/competitions", label: "Competitions", hasCount: true },
-            { to: "/login", label: "Admin", isSpecial: true }
+            { to: "/login", label: "Admin", isSpecial: true },
+            {to :"/trophy-cabinet", label:"Trophy Cabinet"}
           ].map((item, index) => (
             <Link
               key={index}
@@ -88,7 +89,8 @@ const Header = () => {
               { to: "/", label: "Home" },
               { to: "/standings", label: "Standings" },
               { to: "/competitions", label: "Competitions", hasCount: true },
-              { to: "/login", label: "Admin Login", isSpecial: true }
+              { to: "/login", label: "Admin Login", isSpecial: true },
+              {to :"/trophy-cabinet", label:"Trophy Cabinet"}
             ].map((item, index) => (
               <Link
                 key={index}
