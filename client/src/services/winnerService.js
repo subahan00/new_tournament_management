@@ -115,6 +115,8 @@ export const addTrophy = async (winnerId, trophy) => {
 // PUT /api/winners/:id/trophies - Update trophy count
 export const updateTrophy = async (winnerId, trophy) => {
   try {
+    console.log("✅ updateTrophy from winnerService.js is running");
+
     if (!winnerId) {
       throw new Error('Winner ID is required');
     }
@@ -128,7 +130,8 @@ export const updateTrophy = async (winnerId, trophy) => {
     }
     
     const response = await api.put(`/${winnerId}/trophies`, {
-      competition: trophy.competition.trim(),
+      competition: trophy.competition,           // old name
+      newCompetition: trophy.newCompetition,     // new name
       timesWon: parseInt(trophy.timesWon)
     });
     return response.data;
