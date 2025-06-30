@@ -26,6 +26,15 @@ const EmptyRound = () => (
   </div>
 );
 
+// New component for when no fixtures exist at all
+const NoFixturesAvailable = () => (
+    <div className="text-center py-20 text-gray-400 text-lg">
+        <p>Fixtures are not yet available for this competition.</p>
+        <p>Please check back later.</p>
+    </div>
+);
+
+
 const MainHeader = ({ competitionName }) => (
   <header className="sticky top-0 z-30 bg-black/70 backdrop-blur-md border-b border-gold-900">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,7 +47,7 @@ const MainHeader = ({ competitionName }) => (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gold-300 to-gold-500">
+        <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gold-300 to-gold-500 text-center">
           {competitionName}
         </h1>
         <div className="w-6"></div> {/* Spacer */}
@@ -68,9 +77,8 @@ const PublicManageKo = () => {
       setIsLoading(true);
       try {
         const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
-        if (fixturesData.length > 0) {
-          const compName = fixturesData[0].competitionId?.name ||
-                          'Knockout Competition';
+        if (fixturesData.length > 0 && fixturesData[0].competitionId) {
+          const compName = fixturesData[0].competitionId?.name || 'Knockout Competition';
           setCompetitionName(compName);
         }
         setFixtures(fixturesData);
@@ -121,53 +129,54 @@ const PublicManageKo = () => {
     'Final'
   ];
 
-  // Create a mapping of normalized names to display names
+  // Helper to normalize round names for consistent grouping
   const normalizeRoundName = (name) => {
+    if (!name) return '';
     return name
       .toLowerCase()
       .replace(/\s+/g, '')
       .replace(/-/g, '')
-      .replace(/finals?$/, 'final') // Handles "Final" and "Finals"
-      .replace('quarterfinals', 'quarterfinal') // Specific fix for quarter
-      .replace('semifinals', 'semifinal'); // Specific fix for semi
+      .replace(/finals?$/, 'final') 
+      .replace('quarterfinals', 'quarterfinal')
+      .replace('semifinals', 'semifinal');
   };
 
-  // Group fixtures by normalized round names
-  const { groupedFixtures, roundMapping } = useMemo(() => {
+  // Memoize the fixture grouping and identify active rounds
+  const { groupedFixtures, roundMapping, activeRounds } = useMemo(() => {
     const mapping = {};
     const groups = {};
     
+    // Initialize groups for all possible rounds to maintain order
     ROUND_ORDER.forEach(round => {
       const normalized = normalizeRoundName(round);
       groups[normalized] = [];
       mapping[normalized] = round;
     });
     
+    // Populate groups with actual fixtures
     fixtures.forEach(fixture => {
       const normalized = normalizeRoundName(fixture.round);
-      
-      if (!groups[normalized]) {
-        groups[normalized] = [];
+      if (groups[normalized]) {
+        groups[normalized].push(fixture);
       }
-      
-      groups[normalized].push(fixture);
-      
-      // Map normalized name back to display name
+      // Ensure the display name is correct even if fetched round name differs slightly
       if (!mapping[normalized]) {
         mapping[normalized] = fixture.round;
       }
     });
+
+    // **KEY CHANGE**: Determine which rounds actually have fixtures
+    const activeRounds = ROUND_ORDER.filter(round => {
+        const normalized = normalizeRoundName(round);
+        return groups[normalized] && groups[normalized].length > 0;
+    });
     
     return {
       groupedFixtures: groups,
-      roundMapping: mapping
+      roundMapping: mapping,
+      activeRounds, // This is the new array of rounds that will be rendered
     };
   }, [fixtures]);
-
-  // Get display name for a round
-  const getDisplayRoundName = (normalizedRound) => {
-    return roundMapping[normalizedRound] || normalizedRound;
-  };
 
   const getPlayerName = (player, playerName) => {
     if (playerName) return playerName;
@@ -183,52 +192,60 @@ const PublicManageKo = () => {
       <MainHeader competitionName={competitionName} />
 
       <main className="p-4 md:p-6">
-        <div className="flex overflow-x-auto space-x-6 lg:space-x-8 pb-4 custom-scrollbar">
-          {ROUND_ORDER.map((round) => {
-            const normalized = normalizeRoundName(round);
-            const displayRound = getDisplayRoundName(normalized);
-            const roundFixtures = groupedFixtures[normalized] || [];
-            
-            return (
-              <div key={normalized} className="round-column flex-shrink-0 w-72 md:w-80">
-                <div className="round-header p-3 rounded-t-lg bg-gray-900/50 border-b-2 border-gold-700">
-                  <h3 className="text-lg font-semibold text-center text-gold-400 tracking-wide uppercase">
-                    {displayRound}
-                  </h3>
-                </div>
-                <div className="space-y-3 p-3 bg-black/20 rounded-b-lg">
-                  {roundFixtures.length > 0 
-                    ? roundFixtures.map((fixture, index) => (
-                      <div
-                        key={fixture._id}
-                        className={`fixture-item relative p-3 rounded-lg bg-gray-800/50 border border-gray-700/50 hover:border-gold-600/70 transition-all duration-300 shadow-md hover:shadow-gold-900/50 ${index % 2 === 0 ? 'top-fixture' : 'bottom-fixture'}`}
-                      >
-                        <div className="flex justify-between items-center space-x-2">
-                          <span className="truncate text-sm font-medium text-gray-200">
-                            {getPlayerName(fixture.homePlayer, fixture.homePlayerName)}
-                          </span>
-                          <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
-                            {fixture.homeScore ?? '-'}
-                          </span>
+        {activeRounds.length > 0 ? (
+            // **ENHANCEMENT**: Added snap-scrolling for mobile devices
+            <div className="flex overflow-x-auto space-x-4 md:space-x-6 lg:space-x-8 pb-4 custom-scrollbar snap-x snap-mandatory md:snap-none">
+              
+              {/* **KEY CHANGE**: Mapping over `activeRounds` instead of `ROUND_ORDER` */}
+              {activeRounds.map((round) => {
+                const normalized = normalizeRoundName(round);
+                const roundFixtures = groupedFixtures[normalized] || [];
+                
+                // This check is now redundant because activeRounds guarantees fixtures, but kept for safety.
+                if (roundFixtures.length === 0) return null;
+
+                return (
+                  // **ENHANCEMENT**: Added snap alignment and responsive widths
+                  <div key={normalized} className="round-column flex-shrink-0 w-64 sm:w-72 md:w-80 snap-start">
+                    <div className="round-header p-3 rounded-t-lg bg-gray-900/50 border-b-2 border-gold-700">
+                      <h3 className="text-lg font-semibold text-center text-gold-400 tracking-wide uppercase">
+                        {round}
+                      </h3>
+                    </div>
+                    <div className="space-y-3 p-3 bg-black/20 rounded-b-lg">
+                      {roundFixtures.map((fixture, index) => (
+                        <div
+                          key={fixture._id}
+                          className={`fixture-item relative p-3 rounded-lg bg-gray-800/60 border border-gray-700/50 hover:border-gold-600/70 transition-all duration-300 shadow-md hover:shadow-gold-900/50 hover:scale-105 ${index % 2 === 0 ? 'top-fixture' : 'bottom-fixture'}`}
+                        >
+                          <div className="flex justify-between items-center space-x-2">
+                            <span className="truncate text-sm font-medium text-gray-200">
+                              {getPlayerName(fixture.homePlayer, fixture.homePlayerName)}
+                            </span>
+                            <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
+                              {fixture.homeScore ?? '-'}
+                            </span>
+                          </div>
+                          <div className="text-center text-xs text-gray-500 my-1">vs</div>
+                          <div className="flex justify-between items-center space-x-2">
+                            <span className="truncate text-sm font-medium text-gray-200">
+                              {getPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
+                            </span>
+                            <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
+                              {fixture.awayScore ?? '-'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-center text-xs text-gray-500 my-1">vs</div>
-                        <div className="flex justify-between items-center space-x-2">
-                          <span className="truncate text-sm font-medium text-gray-200">
-                            {getPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
-                          </span>
-                          <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
-                            {fixture.awayScore ?? '-'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                    : <EmptyRound />
-                  }
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+        ) : (
+            // **ENHANCEMENT**: Show a message if there are no fixtures at all.
+            <NoFixturesAvailable />
+        )}
       </main>
 
       <style>
@@ -259,43 +276,39 @@ const PublicManageKo = () => {
             .round-column:not(:last-child) .fixture-item::after {
               content: '';
               position: absolute;
-              right: -24px;
+              right: -24px;  /* (space-x-6 / 2) */
               top: 50%;
-              height: 1px;
+              height: 2px;
               width: 24px;
               background: rgba(218, 165, 32, 0.3);
               z-index: -1;
             }
             
-            /* Vertical connector for top fixture */
-            .top-fixture::before {
-              content: '';
-              position: absolute;
-              right: -24px;
-              top: 50%;
-              height: 50%;
-              width: 1px;
-              background: rgba(218, 165, 32, 0.3);
-              transform: translateY(-100%);
-              z-index: -1;
+            /* Vertical connector logic (simplified example) */
+            .top-fixture::before, .bottom-fixture::before {
+                content: '';
+                position: absolute;
+                right: -24px; /* Half of space-x-.. */
+                top: 50%;
+                height: calc(50% + 1.5rem); /* Covers half fixture + space-y */
+                width: 2px;
+                background: rgba(218, 165, 32, 0.3);
+                z-index: -1;
             }
-            
-            /* Vertical connector for bottom fixture */
-            .bottom-fixture::before {
-              content: '';
-              position: absolute;
-              right: -24px;
-              top: 50%;
-              height: 50%;
-              width: 1px;
-              background: rgba(218, 165, 32, 0.3);
-              z-index: -1;
+
+            .top-fixture::before {
+                transform: translateY(-100%);
             }
             
             /* Remove connector for last column */
             .round-column:last-child .fixture-item::after,
             .round-column:last-child .fixture-item::before {
               display: none;
+            }
+            
+            /* Hide vertical connector on the final match */
+            .round-column:nth-last-child(2) .fixture-item:first-child:nth-last-child(1)::before {
+               display: none;
             }
           }
         `}
