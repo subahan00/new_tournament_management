@@ -1,7 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const AdminDashboard = () => {
+  const { user } = useAuth();
+
+  // Get personalized greeting
+  const getGreeting = () => {
+    if (user?.username) {
+      return `Welcome back, ${user.username}!`;
+    }
+    return 'Admin Dashboard';
+  };
+    const showWarning = user?.username && user.username.toLowerCase() !== 'amer';
+
   return (
     <div className="min-h-screen bg-gray-900 text-gold-100 flex">
       {/* Side Dashboard */}
@@ -139,9 +151,17 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
+          {showWarning && (
+            <div className="mb-6 bg-yellow-900/30 border-l-4 border-yellow-500 p-4">
+              <p className="font-bold text-yellow-300">Important Notice:</p>
+              <p className="text-yellow-200">
+                Welcome {user.username}! Please do not delete or modify any content without consulting <span className="font-semibold">amer</span> first.
+              </p>
+            </div>
+          )}
           {/* Header */}
           <div className="mb-8 border-b border-gold-500 pb-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-gold-400 mb-2">Admin Dashboard</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gold-400 mb-2">{getGreeting()}</h1>
             <p className="text-gold-300">Manage all competition activities</p>
           </div>
 
@@ -361,6 +381,15 @@ const AdminDashboard = () => {
                 </Link>
                 <Link
                   to="/upload-wallpaper"
+                  className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  upload wallpaper
+                </Link>
+                <Link
+                  to="/delete-wallpaper"
                   className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
