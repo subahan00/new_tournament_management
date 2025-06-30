@@ -108,8 +108,46 @@ function calculateRoundDate(roundName) {
  * @param {number} roundIndex - The current round index (0-based)
  * @returns {string} - Name of the round (e.g., "Round of 32", "Quarter Finals")
  */
+const getNextPowerOfTwo = (n) => {
+  return Math.pow(2, Math.ceil(Math.log2(n)));
+};
+const calculateByeSystem = (playerCount) => {
+  if (playerCount <= 1) {
+    throw new Error('Need at least 2 players for a tournament');
+  }
+
+  // If already a power of 2, no byes needed
+  if ((playerCount & (playerCount - 1)) === 0) {
+    return {
+      needsByes: false,
+      totalByes: 0,
+      firstRoundMatches: playerCount / 2,
+      playersInFirstRound: playerCount,
+      nextRoundPlayers: playerCount / 2
+    };
+  }
+
+  const nextPowerOf2 = getNextPowerOfTwo(playerCount);
+  const totalByes = nextPowerOf2 - playerCount;
+  const playersInFirstRound = playerCount - totalByes;
+  const firstRoundMatches = playersInFirstRound / 2;
+  const winnersFromFirstRound = firstRoundMatches;
+  const nextRoundPlayers = winnersFromFirstRound + totalByes;
+
+  return {
+    needsByes: true,
+    totalByes,
+    firstRoundMatches,
+    playersInFirstRound,
+    nextRoundPlayers,
+    nextPowerOf2
+  };
+};
+
 const getRoundName = (totalPlayers, roundIndex) => {
-  const totalRounds = Math.log2(totalPlayers);
+ const byeSystem = calculateByeSystem(totalPlayers);
+  const effectivePlayers = byeSystem.needsByes ? byeSystem.nextPowerOf2 : totalPlayers;
+  const totalRounds = Math.log2(effectivePlayers);
   const remainingRounds = totalRounds - roundIndex;
   
   switch (remainingRounds) {
@@ -129,7 +167,9 @@ const getRoundName = (totalPlayers, roundIndex) => {
  * @returns {number} - Total number of rounds
  */
 const calculateTotalRounds = (numberOfPlayers) => {
-  return Math.ceil(Math.log2(numberOfPlayers));
+  const byeSystem = calculateByeSystem(numberOfPlayers);
+  const effectivePlayers = byeSystem.needsByes ? byeSystem.nextPowerOf2 : numberOfPlayers;
+  return Math.ceil(Math.log2(effectivePlayers));
 };
 
 /**
@@ -154,28 +194,71 @@ const shuffleArray = (array) => {
  * @returns {Array} - Array of fixture objects for the first round
  */
 const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers, playerNames) => {
+  const byeSystem = calculateByeSystem(numberOfPlayers);
   const shuffledPlayers = shuffleArray(players);
   const fixtures = [];
-  const numberOfMatches = numberOfPlayers / 2;
   const roundName = getRoundName(numberOfPlayers, 0);
 
-  for (let i = 0; i < numberOfMatches; i++) {
-    fixtures.push({
-      competitionId,
-      round: roundName,
-      homePlayer: shuffledPlayers[i * 2],
-      homePlayerName: playerNames.get(shuffledPlayers[i * 2]),
-      awayPlayer: shuffledPlayers[i * 2 + 1],
-      awayPlayerName: playerNames.get(shuffledPlayers[i * 2 + 1]),
-      status: 'pending',
-      homeScore: null,
-      awayScore: null,
-      result: null
+  if (!byeSystem.needsByes) {
+    // Standard power-of-2 tournament
+    const numberOfMatches = numberOfPlayers / 2;
+    
+    for (let i = 0; i < numberOfMatches; i++) {
+      fixtures.push({
+        competitionId,
+        round: roundName,
+        homePlayer: shuffledPlayers[i * 2],
+        homePlayerName: playerNames.get(shuffledPlayers[i * 2]),
+        awayPlayer: shuffledPlayers[i * 2 + 1],
+        awayPlayerName: playerNames.get(shuffledPlayers[i * 2 + 1]),
+        status: 'pending',
+        homeScore: null,
+        awayScore: null,
+        result: null
+      });
+    }
+  } else {
+    // Tournament with byes
+    const playersWithByes = shuffledPlayers.slice(0, byeSystem.totalByes);
+    const playersInMatches = shuffledPlayers.slice(byeSystem.totalByes);
+    
+    // Create actual matches for players without byes
+    for (let i = 0; i < byeSystem.firstRoundMatches; i++) {
+      fixtures.push({
+        competitionId,
+        round: roundName,
+        homePlayer: playersInMatches[i * 2],
+        homePlayerName: playerNames.get(playersInMatches[i * 2]),
+        awayPlayer: playersInMatches[i * 2 + 1],
+        awayPlayerName: playerNames.get(playersInMatches[i * 2 + 1]),
+        status: 'pending',
+        homeScore: null,
+        awayScore: null,
+        result: null
+      });
+    }
+
+    // Create bye fixtures for players who advance automatically
+    playersWithByes.forEach(playerId => {
+      fixtures.push({
+        competitionId,
+        round: roundName,
+        homePlayer: playerId,
+        homePlayerName: playerNames.get(playerId),
+        awayPlayer: null, // No opponent (bye)
+        awayPlayerName: 'BYE',
+        status: 'completed', // Auto-completed
+        homeScore: 1, // Automatic win
+        awayScore: 0,
+        result: 'home', // Home player (the one with bye) wins
+        completedAt: new Date()
+      });
     });
   }
   
   return fixtures;
 };
+
 
 /**
  * Generate fixtures for the next round based on winners from the current round
@@ -185,15 +268,15 @@ const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers, pla
  * @param {number} numberOfPlayers - Initial number of players in the competition
  * @returns {Array} - Array of fixture objects for the next round
  */
-const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentRound, numberOfPlayers,playerNames) => {
+const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentRound, numberOfPlayers, playerNames) => {
+  // Get all winners (including those who had byes)
   const winners = currentRoundFixtures
     .filter(fixture => fixture.result !== null)
     .map(fixture => {
       return fixture.result === 'home' ? fixture.homePlayer : fixture.awayPlayer;
     });
-  
 
-    if (winners.length % 2 !== 0) {
+  if (winners.length % 2 !== 0) {
     throw new Error('Cannot generate next round: odd number of winners');
   }
   
@@ -208,7 +291,7 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
     default: 
       // For custom round names, calculate based on player count
       const totalRounds = calculateTotalRounds(numberOfPlayers);
-      const currentRoundIndex = ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5','Round 6'].indexOf(currentRound);
+      const currentRoundIndex = ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5', 'Round 6'].indexOf(currentRound);
       if (currentRoundIndex >= 0) {
         nextRound = getRoundName(numberOfPlayers, currentRoundIndex + 1);
       } else {
@@ -218,15 +301,16 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
   
   const fixtures = [];
   const numberOfMatches = winners.length / 2;
+  const shuffledWinners = shuffleArray(winners); // Shuffle winners for fair pairing
   
   for (let i = 0; i < numberOfMatches; i++) {
     fixtures.push({
       competitionId,
       round: nextRound,
-      homePlayer: winners[i * 2],
-      homePlayerName: playerNames.get(winners[i * 2]),
-      awayPlayer: winners[i * 2 + 1],
-      awayPlayerName: playerNames.get(winners[i * 2 + 1]),
+      homePlayer: shuffledWinners[i * 2],
+      homePlayerName: playerNames.get(shuffledWinners[i * 2]),
+      awayPlayer: shuffledWinners[i * 2 + 1],
+      awayPlayerName: playerNames.get(shuffledWinners[i * 2 + 1]),
       status: 'pending',
       homeScore: null,
       awayScore: null,
@@ -236,6 +320,8 @@ const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentR
   
   return fixtures;
 };
+
+
 const generateRoundRobinFixtures=(players, competitionId, groupName)=> {
     const fixtures = [];
     
@@ -270,6 +356,11 @@ module.exports = {
   getRoundName,
   shuffleArray,
   pairPlayers ,
-  generateRoundRobinFixtures
+  generateRoundRobinFixtures,
+  calculateByeSystem,
+  getNextPowerOfTwo,
+  calculateRoundDate,
+
+
 };
 
