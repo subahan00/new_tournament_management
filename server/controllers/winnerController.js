@@ -167,25 +167,22 @@ const addTrophy = async (req, res) => {
 // PUT /winners/:id/trophies - Update trophy count
 const updateTrophy = async (req, res) => {
   try {
+    console.log("🛠️ Backend hit: PUT /api/winners/:id/trophies");
+    console.log("🛠️ Params:", req.params);
+    console.log("🛠️ Body:", req.body);
+
     const { id } = req.params;
-    const { competition, timesWon } = req.body;
+    const { competition, newCompetition, timesWon } = req.body;
 
-    if (!competition || !timesWon) {
+    if (!competition || !newCompetition || !timesWon) {
       return res.status(400).json({
         success: false,
-        error: 'Competition name and times won are required'
-      });
-    }
-
-    if (parseInt(timesWon) < 1) {
-      return res.status(400).json({
-        success: false,
-        error: 'Times won must be at least 1'
+        error: 'Original competition name, new name, and times won are required'
       });
     }
 
     const winner = await Winner.findById(id);
-    
+
     if (!winner) {
       return res.status(404).json({
         success: false,
@@ -194,7 +191,7 @@ const updateTrophy = async (req, res) => {
     }
 
     const trophyIndex = winner.trophies.findIndex(
-      trophy => trophy.competition.toLowerCase() === competition.toLowerCase()
+      trophy => trophy.competition.trim().toLowerCase() === competition.trim().toLowerCase()
     );
 
     if (trophyIndex === -1) {
@@ -204,39 +201,27 @@ const updateTrophy = async (req, res) => {
       });
     }
 
+    // ✅ Update name + timesWon
+    winner.trophies[trophyIndex].competition = newCompetition.trim();
     winner.trophies[trophyIndex].timesWon = parseInt(timesWon);
+
     await winner.save();
 
     res.status(200).json({
       success: true,
       data: winner,
-      message: 'Trophy updated successfully'
+      message: 'Trophy updated (name and count)'
     });
   } catch (error) {
     console.error('Error updating trophy:', error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid winner ID format'
-      });
-    }
-    
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: messages
-      });
-    }
-    
+
     res.status(500).json({
       success: false,
       error: 'Server error while updating trophy'
     });
   }
 };
+
 
 // DELETE /winners/:id/trophies - Remove a specific trophy
 const deleteTrophy = async (req, res) => {
