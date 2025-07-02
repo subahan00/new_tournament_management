@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from '../services/api';
 import { FiCopy, FiSearch, FiTrash } from 'react-icons/fi';
-
+import { ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 const CreatePlayerForm = () => {
   const [name, setName] = useState('');
   const [competitions, setCompetitions] = useState([]);
@@ -100,6 +101,16 @@ const CreatePlayerForm = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 px-4 py-6 sm:px-6 max-w-4xl mx-auto">
+      <div className="mb-6">
+  <Link
+    to="/admin/dashboard"
+    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Dashboard
+  </Link>
+</div>
+
       <form
         onSubmit={handleSubmit}
         className="mb-8 p-5 sm:p-6 bg-gray-800/30 rounded-xl border border-gray-700/30"
