@@ -1,6 +1,8 @@
 import competitionService from '../services/competitionService';
 import { useEffect, useState } from 'react';
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 const CompetitionManagement = () => {
   const [competitions, setCompetitions] = useState([]);
   const [formData, setFormData] = useState({
@@ -189,6 +191,15 @@ const CompetitionManagement = () => {
 
   return (
     <div className="min-h-screen bg-black text-gold-100 p-6">
+      <div className="mb-6">
+              <Link
+                to="/admin/dashboard"
+                className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Link>
+            </div>
       {/* Header Section */}
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 border-b border-gold-500 pb-4">
