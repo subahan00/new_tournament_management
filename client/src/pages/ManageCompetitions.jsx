@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import competitionService from '../services/competitionService';
-import { TrashIcon, CheckCircle } from 'lucide-react';
+import { TrashIcon, CheckCircle , ArrowLeft} from 'lucide-react';
+
 const ManageCompetitions = () => {
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,13 +139,18 @@ const ManageCompetitions = () => {
       </div>
     );
   }
-
-  // Main render
   return (
     <div className="min-h-screen bg-gray-900 text-gold-100 p-4 md:p-6">
-      {/* Header and other components remain the same */}
-      {/* ... rest of your JSX remains unchanged ... */}
-      {/* Header */}
+      <div className="mb-6">
+  <Link
+    to="/admin/dashboard"
+    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Dashboard
+  </Link>
+</div>
+
       <div className="mb-6 border-b border-gold-500 pb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
