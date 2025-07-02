@@ -44,7 +44,7 @@ router.put('/:fixtureId/result',
   updateFixtureResult
 );
 router.get('/ko/competitions', getKnockoutCompetitions);
-router.get('/ko/competition-details/:competitionId', getCompetitionById);
+router.get('/competition-details/:competitionId', getCompetitionById);
 router.get('/ko/competition/:competitionId', getFixturesByCompetition);
 router.post('/ko/generate/:competitionId', generateKoFixtures);
 router.put('/ko/:fixtureId/result', updateKoFixtureResult);
