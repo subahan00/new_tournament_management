@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 const AdminWinnerForm = () => {
   const [formData, setFormData] = useState({
     competitionName: '',
@@ -51,6 +52,15 @@ const AdminWinnerForm = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 p-8">
+      <div className="mb-6">
+              <Link
+                to="/admin/dashboard"
+                className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Link>
+            </div>
       <div className="max-w-2xl mx-auto">
         <div className="bg-gray-800/50 border border-gold-700/30 rounded-xl p-6">
           <h2 className="text-3xl font-bold text-gold-300 mb-6">Add Competition Winner</h2>
