@@ -401,22 +401,25 @@ exports.getFixturesByCompetition = async (req, res) => {
 exports.generateKoFixtures = async (req, res) => {
   try {
     const { competitionId } = req.params;
-    const competition = await Competition.findById(competitionId)
-      .populate('players', 'name _id');
 
-    if (!competition) return res.status(404).json({ message: 'Competition not found' });
+    const competition = await Competition.findById(competitionId)
+      .populate('players', 'name _id'); // Ensure _id and name are populated
+
+    if (!competition) {
+      return res.status(404).json({ message: 'Competition not found' });
+    }
+
     if (!['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'].includes(competition.type)) {
       return res.status(400).json({ message: 'Invalid competition type' });
     }
 
     const numPlayers = competition.players.length;
-    
-    // Remove the power-of-2 restriction - now supports any number >= 2
-    if (numPlayers < 2) {
-      return res.status(400).json({ message: 'Need at least 2 players for knockout tournament' });
+
+    if (![8, 16, 32, 64].includes(numPlayers)) {
+      return res.status(400).json({ message: 'Invalid player count (must be 8, 16, 32, or 64)' });
     }
 
-    // Validate and prepare players
+    // Validate and prepare player data
     const validPlayers = competition.players
       .filter(p => p?._id)
       .map(p => ({
@@ -424,8 +427,10 @@ exports.generateKoFixtures = async (req, res) => {
         name: p.name || `Player ${p._id.toString().slice(-4)}`
       }));
 
-    // Generate fixtures with bye system
+    // Create a map of player IDs to names
     const playerMap = new Map(validPlayers.map(p => [p.id, p.name]));
+
+    // Generate first-round fixtures
     const fixtures = generateFirstRoundFixtures(
       validPlayers.map(p => p.id),
       competitionId,
@@ -433,18 +438,19 @@ exports.generateKoFixtures = async (req, res) => {
       playerMap
     ).map(f => ({
       ...f,
+      status: 'pending',
       createdAt: new Date()
     }));
 
     console.log("Generated fixture objects:", fixtures);
-    
-    // Log bye system info for debugging
-   
 
-    // Remove existing fixtures and create new ones
+    // Remove existing fixtures for the competition
     await Fixture.deleteMany({ competitionId });
+
+    // Insert the new fixtures
     const createdFixtures = await Fixture.insertMany(fixtures);
 
+    // Update competition status and rounds info
     await Competition.findByIdAndUpdate(
       competitionId,
       {
@@ -457,26 +463,23 @@ exports.generateKoFixtures = async (req, res) => {
       }
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: `${fixtures.length} fixtures generated${byeSystem.needsByes ? ` (${byeSystem.totalByes} byes awarded)` : ''}`,
-      fixtures: createdFixtures,
-      byeSystemInfo: byeSystem.needsByes ? {
-        totalByes: byeSystem.totalByes,
-        firstRoundMatches: byeSystem.firstRoundMatches,
-        playersAdvancingAutomatically: byeSystem.totalByes
-      } : null
+      message: `${fixtures.length} fixtures generated successfully.`,
+      fixtures: createdFixtures
     });
 
   } catch (error) {
     console.error('Fixture Generation Error:', error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
-      message: 'Generation failed',
+      message: 'Fixture generation failed.',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
+
   // Update fixture result
 
 // Enhanced fixture result update with name validation
