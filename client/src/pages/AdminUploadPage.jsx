@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, X, Check, AlertCircle, Image, Tag, Type, FileText, Star, Grid3X3, Crown } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, Image, Tag, Type, FileText, Star, Grid3X3, Crown, ArrowLeft } from 'lucide-react';
 import { uploadWallpaper } from '../services/wallpaperService';
+import { Link } from 'react-router-dom';
 
 const AdminUploadPage = () => {
   const [formData, setFormData] = useState({
@@ -41,10 +42,10 @@ const AdminUploadPage = () => {
         setError('File size must be less than 10MB');
         return;
       }
-      
+
       setSelectedFile(file);
       setError('');
-      
+
       const reader = new FileReader();
       reader.onload = (e) => setPreview(e.target.result);
       reader.readAsDataURL(file);
@@ -72,7 +73,7 @@ const AdminUploadPage = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     const file = e.dataTransfer.files[0];
     handleFileSelect(file);
   }, []);
@@ -129,6 +130,16 @@ const AdminUploadPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-4 md:p-8">
+      <div className="mb-6">
+        <Link
+          to="/admin/dashboard"
+          className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      </div>
+
       <div className="max-w-4xl mx-auto">
         <div className="bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-amber-500/20">
           {/* Header */}
@@ -173,15 +184,14 @@ const AdminUploadPage = () => {
                 <Image className="w-5 h-5" />
                 Wallpaper Image
               </label>
-              
+
               <div
-                className={`relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
-                  dragActive
+                className={`relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${dragActive
                     ? 'border-amber-500 bg-amber-900/20'
                     : selectedFile
-                    ? 'border-emerald-500 bg-emerald-900/10'
-                    : 'border-gray-600 hover:border-amber-500/50 bg-gray-700/50'
-                }`}
+                      ? 'border-emerald-500 bg-emerald-900/10'
+                      : 'border-gray-600 hover:border-amber-500/50 bg-gray-700/50'
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -337,11 +347,10 @@ const AdminUploadPage = () => {
                 type="button"
                 onClick={handleSubmit}
                 disabled={uploading || !selectedFile}
-                className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
-                  uploading || !selectedFile
+                className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-3 ${uploading || !selectedFile
                     ? 'bg-gray-600 cursor-not-allowed text-gray-400'
                     : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 transform hover:scale-[1.02] shadow-lg hover:shadow-amber-500/20'
-                }`}
+                  }`}
               >
                 {uploading ? (
                   <>
