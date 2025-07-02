@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
-
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 export default function ManageFixtures() {
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +28,16 @@ setCompetitions(res.data.data);
 
   return (
     <div className="p-6">
+      <div className="mb-6">
+  <Link
+    to="/admin/dashboard"
+    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Dashboard
+  </Link>
+</div>
+
       <h2 className="text-2xl font-bold mb-4">Manage Fixtures</h2>
       
       {competitions.length === 0 ? (
