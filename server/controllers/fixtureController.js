@@ -14,8 +14,7 @@ const {
   pairPlayers,
   shuffleArray,
   generateRoundRobinFixtures,
-  calculateByeSystem,
-  byeSystem
+ 
   
 
 } = require('../utils/fixtureGenerator');
@@ -440,10 +439,7 @@ exports.generateKoFixtures = async (req, res) => {
     console.log("Generated fixture objects:", fixtures);
     
     // Log bye system info for debugging
-    const byeSystem = calculateByeSystem(numPlayers);
-    if (byeSystem.needsByes) {
-      console.log(`Bye system active: ${byeSystem.totalByes} byes, ${byeSystem.firstRoundMatches} matches`);
-    }
+   
 
     // Remove existing fixtures and create new ones
     await Fixture.deleteMany({ competitionId });
