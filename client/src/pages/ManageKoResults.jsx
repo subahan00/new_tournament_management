@@ -10,8 +10,10 @@ import {
   CheckCircle,
   Clock,        // Add missing import
   Calendar,     // Add missing import
-  Activity      // Add missing import
+  Activity  ,
+  ArrowLeft    // Add missing import
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 const typeStyles = {
   LEAGUE: 'bg-blue-900/30 text-gold-400 border border-blue-800',
   KO_REGULAR: 'bg-red-900/30 text-gold-400 border border-red-800'
@@ -93,6 +95,16 @@ const ManageKoResult = () => {
 
   return (
     <div className="manage-ko-result container mx-auto px-4 py-8 bg-black-900 min-h-screen">
+      <div className="mb-6">
+  <Link
+    to="/admin/dashboard"
+    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Dashboard
+  </Link>
+</div>
+
       {/* Premium Header */}
       <div className="bg-black-800 border border-gold-800 rounded-xl mb-8 p-6 
            shadow-gold-lg hover:shadow-gold-lg transition-shadow duration-300">
