@@ -1,320 +1,512 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+// client/src/pages/PublicManageKo.jsx
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
-import io from 'socket.io-client';
-
-// Initialize socket connection
-const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
-
-// --- Helper Components for Cleaner JSX ---
-
-const Loader = () => (
-  <div className="min-h-screen bg-black flex items-center justify-center">
-    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-gold-500"></div>
-  </div>
-);
-
-const ErrorDisplay = ({ message }) => (
-  <div className="min-h-screen bg-black flex items-center justify-center text-xl text-red-500">
-    Error: {message}
-  </div>
-);
-
-const EmptyRound = () => (
-  <div className="text-center py-8 text-gray-500 italic">
-    No fixtures scheduled
-  </div>
-);
-
-// New component for when no fixtures exist at all
-const NoFixturesAvailable = () => (
-    <div className="text-center py-20 text-gray-400 text-lg">
-        <p>Fixtures are not yet available for this competition.</p>
-        <p>Please check back later.</p>
-    </div>
-);
-
-
-const MainHeader = ({ competitionName }) => (
-  <header className="sticky top-0 z-30 bg-black/70 backdrop-blur-md border-b border-gold-900">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between h-16">
-        <Link
-          to="/"
-          className="text-gold-400 hover:text-white transition-colors duration-300"
-        >
-          <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gold-300 to-gold-500 text-center">
-          {competitionName}
-        </h1>
-        <div className="w-6"></div> {/* Spacer */}
-      </div>
-    </div>
-  </header>
-);
-
-// --- Main Component ---
 
 const PublicManageKo = () => {
   const { competitionId } = useParams();
+  const [competition, setCompetition] = useState(null);
   const [fixtures, setFixtures] = useState([]);
-  const [competitionName, setCompetitionName] = useState('Knockout Competition');
-  const [isLoading, setIsLoading] = useState(true);
+  const [groupedFixtures, setGroupedFixtures] = useState([]);
+  const [positions, setPositions] = useState({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Helper to consistently get player ID
-  const getPlayerId = (player) => {
-    return player && typeof player === 'object' 
-      ? player._id 
-      : player;
-  };
-
-  useEffect(() => {
-    const loadFixtures = async () => {
-      setIsLoading(true);
-      try {
-        const fixturesData = await fixtureService.fetchFixturesByCompetition(competitionId);
-        if (fixturesData.length > 0 && fixturesData[0].competitionId) {
-          const compName = fixturesData[0].competitionId?.name || 'Knockout Competition';
-          setCompetitionName(compName);
-        }
-        setFixtures(fixturesData);
-      } catch (err) {
-        setError(err.message || 'Failed to load fixtures');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadFixtures();
-
-    const handleFixtureUpdate = (updatedFixture) => {
-      setFixtures(prev => prev.map(f => (f._id === updatedFixture._id ? updatedFixture : f)));
-    };
-
-    const handlePlayerNameUpdate = ({ playerId, newName }) => {
-      setFixtures(prev =>
-        prev.map(f => {
-          const homeId = getPlayerId(f.homePlayer);
-          const awayId = getPlayerId(f.awayPlayer);
-          
-          return {
-            ...f,
-            homePlayerName: homeId === playerId ? newName : f.homePlayerName,
-            awayPlayerName: awayId === playerId ? newName : f.awayPlayerName,
-          };
-        })
-      );
-    };
-
-    socket.on('fixtureUpdate', handleFixtureUpdate);
-    socket.on('playerNameUpdate', handlePlayerNameUpdate);
-
-    return () => {
-      socket.off('fixtureUpdate', handleFixtureUpdate);
-      socket.off('playerNameUpdate', handlePlayerNameUpdate);
-    };
-  }, [competitionId]);
-
-  // Define the correct round order
-  const ROUND_ORDER = [
+  // Define round order with actual round names from data
+  const roundOrder = [
     'Round of 64',
     'Round of 32',
     'Round of 16',
-    'Quarter-Final',
-    'Semi-Final',
+    'Quarter Finals',
+    'Semi Finals',
     'Final'
   ];
 
-  // Helper to normalize round names for consistent grouping
-  const normalizeRoundName = (name) => {
-    if (!name) return '';
-    return name
-      .toLowerCase()
-      .replace(/\s+/g, '')
-      .replace(/-/g, '')
-      .replace(/finals?$/, 'final') 
-      .replace('quarterfinals', 'quarterfinal')
-      .replace('semifinals', 'semifinal');
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  // Memoize the fixture grouping and identify active rounds
-  const { groupedFixtures, roundMapping, activeRounds } = useMemo(() => {
-    const mapping = {};
-    const groups = {};
-    
-    // Initialize groups for all possible rounds to maintain order
-    ROUND_ORDER.forEach(round => {
-      const normalized = normalizeRoundName(round);
-      groups[normalized] = [];
-      mapping[normalized] = round;
-    });
-    
-    // Populate groups with actual fixtures
-    fixtures.forEach(fixture => {
-      const normalized = normalizeRoundName(fixture.round);
-      if (groups[normalized]) {
-        groups[normalized].push(fixture);
-      }
-      // Ensure the display name is correct even if fetched round name differs slightly
-      if (!mapping[normalized]) {
-        mapping[normalized] = fixture.round;
-      }
-    });
+        // Fetch competition details
+        const compData = await fixtureService.getCompetitionById(competitionId);
+        setCompetition(compData);
 
-    // **KEY CHANGE**: Determine which rounds actually have fixtures
-    const activeRounds = ROUND_ORDER.filter(round => {
-        const normalized = normalizeRoundName(round);
-        return groups[normalized] && groups[normalized].length > 0;
-    });
-    
-    return {
-      groupedFixtures: groups,
-      roundMapping: mapping,
-      activeRounds, // This is the new array of rounds that will be rendered
+        // Fetch fixtures
+        const fixData = await fixtureService.fetchFixturesByCompetition(competitionId);
+        setFixtures(fixData);
+
+        // Group fixtures by round and generate TBD brackets
+        const grouped = groupFixturesByRound(fixData);
+        const groupedWithTBD = generateTBDBrackets(grouped);
+        setGroupedFixtures(groupedWithTBD);
+
+        // Calculate positions
+        const calculatedPositions = calculateMatchPositions(groupedWithTBD);
+        setPositions(calculatedPositions);
+      } catch (err) {
+        console.error('Error fetching tournament data:', err);
+        setError(err.message || 'Failed to load tournament bracket');
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [fixtures]);
 
-  const getPlayerName = (player, playerName) => {
-    if (playerName) return playerName;
-    if (typeof player === 'object' && player !== null) return player.name;
-    return 'TBD';
+    if (competitionId) {
+      fetchData();
+    }
+  }, [competitionId]);
+
+  const groupFixturesByRound = (fixtures) => {
+    const groups = {};
+
+    // Group fixtures by round name
+    fixtures.forEach(fixture => {
+      if (!groups[fixture.round]) groups[fixture.round] = [];
+      groups[fixture.round].push(fixture);
+    });
+
+    // Sort rounds according to predefined order
+    return roundOrder
+      .filter(round => groups[round])
+      .map(round => ({
+        name: round,
+        matches: groups[round].sort((a, b) => a.matchNumber - b.matchNumber || 0)
+      }));
   };
 
-  if (isLoading) return <Loader />;
-  if (error) return <ErrorDisplay message={error} />;
+  const generateTBDBrackets = (groupedFixtures) => {
+    if (groupedFixtures.length === 0) return [];
+
+    const result = [...groupedFixtures];
+
+    // Generate TBD brackets for missing rounds
+    for (let i = 1; i < roundOrder.length; i++) {
+      const currentRoundName = roundOrder[i];
+      const prevRoundName = roundOrder[i - 1];
+
+      // Find if current round exists
+      const currentRoundExists = result.find(round => round.name === currentRoundName);
+      const prevRoundExists = result.find(round => round.name === prevRoundName);
+
+      if (!currentRoundExists && prevRoundExists) {
+        const prevRound = prevRoundExists;
+        const expectedMatches = Math.ceil(prevRound.matches.length / 2);
+
+        if (expectedMatches > 0) {
+          const tbdMatches = [];
+          for (let j = 0; j < expectedMatches; j++) {
+            tbdMatches.push({
+              _id: `tbd-${currentRoundName}-${j}`,
+              round: currentRoundName,
+              matchNumber: j + 1,
+              homePlayerName: 'TBD',
+              awayPlayerName: 'TBD',
+              homeScore: null,
+              awayScore: null,
+              status: 'pending',
+              result: null,
+              isTBD: true
+            });
+          }
+
+          result.push({
+            name: currentRoundName,
+            matches: tbdMatches
+          });
+        }
+      }
+    }
+
+    // Sort result by round order
+    return result.sort((a, b) => {
+      const aIndex = roundOrder.indexOf(a.name);
+      const bIndex = roundOrder.indexOf(b.name);
+      return aIndex - bIndex;
+    });
+  };
+
+  const calculateMatchPositions = (rounds) => {
+    const positions = {};
+    const matchBoxWidth = 200;
+    const matchBoxHeight = 70;
+    const horizontalSpacing = 260;
+    const verticalSpacing = 90;
+    const startX = 50;
+    const startY = 100;
+
+    // Process each round
+    rounds.forEach((round, roundIndex) => {
+      round.matches.forEach((match, matchIndex) => {
+        if (roundIndex === 0) {
+          // First round positions
+          positions[match._id] = {
+            x: startX,
+            y: startY + matchIndex * verticalSpacing
+          };
+        } else {
+          // Subsequent rounds - position between parent matches
+          const prevRound = rounds[roundIndex - 1];
+          const parentMatch1 = prevRound.matches[2 * matchIndex];
+          const parentMatch2 = prevRound.matches[2 * matchIndex + 1];
+
+          let yPos;
+          if (parentMatch1 && parentMatch2) {
+            // Position between two parent matches
+            yPos = (positions[parentMatch1._id].y + positions[parentMatch2._id].y) / 2;
+          } else if (parentMatch1) {
+            // Only one parent match (bye)
+            yPos = positions[parentMatch1._id].y;
+          } else {
+            // Fallback position
+            yPos = startY + matchIndex * verticalSpacing;
+          }
+
+          positions[match._id] = {
+            x: startX + roundIndex * horizontalSpacing,
+            y: yPos
+          };
+        }
+      });
+    });
+
+    return positions;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading Tournament Bracket...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-lg shadow-lg border border-red-200">
+          <div className="text-red-500 text-2xl mb-4">⚠️</div>
+          <h2 className="text-red-600 text-xl font-semibold mb-2">Error Loading Tournament</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-gray-300 font-sans">
-      <MainHeader competitionName={competitionName} />
-
-      <main className="p-4 md:p-6">
-        {activeRounds.length > 0 ? (
-            // **ENHANCEMENT**: Added snap-scrolling for mobile devices
-            <div className="flex overflow-x-auto space-x-4 md:space-x-6 lg:space-x-8 pb-4 custom-scrollbar snap-x snap-mandatory md:snap-none">
-              
-              {/* **KEY CHANGE**: Mapping over `activeRounds` instead of `ROUND_ORDER` */}
-              {activeRounds.map((round) => {
-                const normalized = normalizeRoundName(round);
-                const roundFixtures = groupedFixtures[normalized] || [];
-                
-                // This check is now redundant because activeRounds guarantees fixtures, but kept for safety.
-                if (roundFixtures.length === 0) return null;
-
-                return (
-                  // **ENHANCEMENT**: Added snap alignment and responsive widths
-                  <div key={normalized} className="round-column flex-shrink-0 w-64 sm:w-72 md:w-80 snap-start">
-                    <div className="round-header p-3 rounded-t-lg bg-gray-900/50 border-b-2 border-gold-700">
-                      <h3 className="text-lg font-semibold text-center text-gold-400 tracking-wide uppercase">
-                        {round}
-                      </h3>
-                    </div>
-                    <div className="space-y-3 p-3 bg-black/20 rounded-b-lg">
-                      {roundFixtures.map((fixture, index) => (
-                        <div
-                          key={fixture._id}
-                          className={`fixture-item relative p-3 rounded-lg bg-gray-800/60 border border-gray-700/50 hover:border-gold-600/70 transition-all duration-300 shadow-md hover:shadow-gold-900/50 hover:scale-105 ${index % 2 === 0 ? 'top-fixture' : 'bottom-fixture'}`}
-                        >
-                          <div className="flex justify-between items-center space-x-2">
-                            <span className="truncate text-sm font-medium text-gray-200">
-                              {getPlayerName(fixture.homePlayer, fixture.homePlayerName)}
-                            </span>
-                            <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
-                              {fixture.homeScore ?? '-'}
-                            </span>
-                          </div>
-                          <div className="text-center text-xs text-gray-500 my-1">vs</div>
-                          <div className="flex justify-between items-center space-x-2">
-                            <span className="truncate text-sm font-medium text-gray-200">
-                              {getPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
-                            </span>
-                            <span className="flex-shrink-0 text-base font-bold w-8 h-8 flex items-center justify-center rounded-md bg-black/50 text-gold-300 border border-gray-600">
-                              {fixture.awayScore ?? '-'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+    <div className="min-h-screen bg-gray-900 text-white p-4"> {/* Fixed background color */}
+      {/* Header */}
+      <header className="bg-gray-900 shadow-sm border-b border-gray-800">
+        <div className="px-6 py-8 text-center">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl font-bold text-white mb-2">
+              {competition?.name || 'Knockout Tournament'}
+            </h1>
+            <div className="h-1 w-24 bg-gray-700 mx-auto mb-4"></div>
+            <p className="text-gray-300 text-lg">Single Elimination Championship</p>
+            <div className="mt-4 inline-flex items-center space-x-6 text-sm text-gray-400">
+              <span className="flex items-center">
+                <div className="w-2 h-2 bg-gray-500 rounded-full mr-2"></div>
+                {groupedFixtures.length} Rounds
+              </span>
+              <span className="flex items-center">
+                <div className="w-2 h-2 bg-gray-500 rounded-full mr-2"></div>
+                {fixtures.length} Matches
+              </span>
             </div>
-        ) : (
-            // **ENHANCEMENT**: Show a message if there are no fixtures at all.
-            <NoFixturesAvailable />
-        )}
-      </main>
+          </div>
+        </div>
+      </header>
 
-      <style>
-        {`
-          /* Custom scrollbar for better aesthetics */
-          .custom-scrollbar::-webkit-scrollbar {
-            height: 8px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: #111;
-            border-radius: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #b8860b; /* Darker gold */
-            border-radius: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #daa520; /* Lighter gold */
-          }
-
-          /* Bracket Connectors - Desktop Only */
-          @media (min-width: 768px) {
-            .round-column {
-              position: relative;
-            }
-            
-            /* Horizontal connector between rounds */
-            .round-column:not(:last-child) .fixture-item::after {
-              content: '';
-              position: absolute;
-              right: -24px;  /* (space-x-6 / 2) */
-              top: 50%;
-              height: 2px;
-              width: 24px;
-              background: rgba(218, 165, 32, 0.3);
-              z-index: -1;
-            }
-            
-            /* Vertical connector logic (simplified example) */
-            .top-fixture::before, .bottom-fixture::before {
-                content: '';
-                position: absolute;
-                right: -24px; /* Half of space-x-.. */
-                top: 50%;
-                height: calc(50% + 1.5rem); /* Covers half fixture + space-y */
-                width: 2px;
-                background: rgba(218, 165, 32, 0.3);
-                z-index: -1;
-            }
-
-            .top-fixture::before {
-                transform: translateY(-100%);
-            }
-            
-            /* Remove connector for last column */
-            .round-column:last-child .fixture-item::after,
-            .round-column:last-child .fixture-item::before {
-              display: none;
-            }
-            
-            /* Hide vertical connector on the final match */
-            .round-column:nth-last-child(2) .fixture-item:first-child:nth-last-child(1)::before {
-               display: none;
-            }
-          }
-        `}
-      </style>
+      {/* Tournament Bracket */}
+<div className="px-6 py-8 bg-gradient-to-br from-[#0a0f1c] via-[#0f172a] to-[#1e293b]">
+        <TournamentBracket
+          groupedFixtures={groupedFixtures}
+          positions={positions}
+        />
+      </div>
     </div>
   );
 };
+
+const TournamentBracket = ({ groupedFixtures, positions }) => {
+  // Calculate SVG dimensions
+  const matchBoxWidth = 200;
+  const matchBoxHeight = 70;
+  const horizontalSpacing = 260;
+  const verticalSpacing = 90;
+  const startX = 50;
+
+  // Calculate total dimensions
+  const totalRounds = groupedFixtures.length;
+  const maxMatches = Math.max(...groupedFixtures.map(round => round.matches.length));
+
+  const totalWidth = startX + (totalRounds - 1) * horizontalSpacing + matchBoxWidth + 80;
+  const totalHeight = 120 + maxMatches * verticalSpacing;
+
+  return (
+    <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6 overflow-auto">
+      <svg
+        width={totalWidth}
+        height={totalHeight}
+        viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+        className="bracket-svg"
+      >
+        {/* Background Pattern */}
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
+          </pattern>
+          <linearGradient id="roundGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#4B5563" />
+            <stop offset="100%" stopColor="#1F2937" />
+          </linearGradient>
+          <linearGradient id="matchGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#374151" />
+            <stop offset="100%" stopColor="#1F2937" />
+          </linearGradient>
+          <linearGradient id="tbdGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4B5563" />
+            <stop offset="100%" stopColor="#374151" />
+          </linearGradient>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        {/* Render connecting lines first */}
+        {groupedFixtures.map((round, roundIndex) => {
+          if (roundIndex === 0) return null; // Skip first round
+
+          return round.matches.map((match, matchIndex) => {
+            const parentMatches = groupedFixtures[roundIndex - 1].matches;
+            const parent1 = parentMatches[2 * matchIndex];
+            const parent2 = parentMatches[2 * matchIndex + 1];
+
+            const paths = [];
+
+            if (parent1 && positions[parent1._id] && positions[match._id]) {
+              paths.push(
+                <BracketConnector
+                  key={`${parent1._id}-to-${match._id}`}
+                  start={positions[parent1._id]}
+                  end={positions[match._id]}
+                  matchBoxWidth={matchBoxWidth}
+                  matchBoxHeight={matchBoxHeight}
+                />
+              );
+            }
+
+            if (parent2 && positions[parent2._id] && positions[match._id]) {
+              paths.push(
+                <BracketConnector
+                  key={`${parent2._id}-to-${match._id}`}
+                  start={positions[parent2._id]}
+                  end={positions[match._id]}
+                  matchBoxWidth={matchBoxWidth}
+                  matchBoxHeight={matchBoxHeight}
+                />
+              );
+            }
+
+            return paths;
+          });
+        })}
+
+        {/* Render match boxes */}
+        {groupedFixtures.map(round => (
+          <g key={round.name}>
+            {/* Round Title */}
+            <RoundTitle
+              title={round.name}
+              x={positions[round.matches[0]?._id]?.x || 0}
+              y={60}
+            />
+
+            {round.matches.map(match => (
+              <MatchCard
+                key={match._id}
+                match={match}
+                position={positions[match._id]}
+                width={matchBoxWidth}
+                height={matchBoxHeight}
+              />
+            ))}
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+};
+
+const RoundTitle = ({ title, x, y }) => (
+  <g>
+    <rect
+      x={x - 10}
+      y={y - 20}
+      width={220}
+      height={30}
+      rx="15"
+      fill="url(#roundGradient)"
+      opacity="0.9"
+    />
+    <text 
+      x={x + 100} 
+      y={y - 2}
+      fill="#E5E7EB"
+      fontSize="13"
+      fontWeight="600"
+      textAnchor="middle"
+      className="select-none"
+    >
+      {title}
+    </text>
+  </g>
+);
+
+const BracketConnector = ({ start, end, matchBoxWidth, matchBoxHeight }) => {
+  if (!start || !end) return null;
+
+  // Calculate connection points
+  const startX = start.x + matchBoxWidth;
+  const startY = start.y + matchBoxHeight / 2;
+  const endX = end.x;
+  const endY = end.y + matchBoxHeight / 2;
+
+  // Calculate intermediate points for the connector path
+  const midX1 = startX + 40;
+  const midX2 = endX - 40;
+
+  return (
+    <path
+      d={`M ${startX} ${startY} 
+         C ${midX1} ${startY}, ${midX2} ${endY}, ${endX} ${endY}`}
+      stroke="#9CA3AF"
+      strokeWidth="2"
+      fill="none"
+      className="connector-path"
+      opacity="0.5"
+    />
+  );
+};
+
+const MatchCard = ({ match, position, width, height }) => {
+  if (!position) return null;
+
+  // Determine winner styling
+  const homeWinner = match.result === "home";
+  const awayWinner = match.result === "away";
+  const isCompleted = match.status === "completed";
+  const isTBD = match.isTBD;
+return (
+    <g transform={`translate(${position.x}, ${position.y})`}>
+      <rect
+        width={width}
+        height={height}
+        rx="6"
+        fill={isTBD ? "url(#tbdGradient)" : "url(#matchGradient)"}
+        stroke={isTBD ? "#4B5563" : (isCompleted ? "#10B981" : "#4B5563")}
+        strokeWidth="2"
+        className="match-box"
+      />
+      
+      {/* Home Player */}
+      <PlayerRow
+        x={12}
+        y={25}
+        name={match.homePlayerName || "TBD"}
+        score={match.homeScore}
+        isWinner={homeWinner}
+        isTBD={isTBD}
+        width={width}
+      />
+      
+      {/* Divider */}
+      <line 
+        x1={8} 
+        y1={height / 2} 
+        x2={width - 8} 
+        y2={height / 2} 
+        stroke="#4B5563" 
+        strokeWidth="1"
+      />
+
+      {/* Away Player */}
+      <PlayerRow
+        x={12}
+        y={50}
+        name={match.awayPlayerName || "TBD"}
+        score={match.awayScore}
+        isWinner={awayWinner}
+        isTBD={isTBD}
+        width={width}
+      />
+
+      {/* Match status indicator */}
+      {isCompleted && !isTBD && (
+        <circle
+          cx={width - 12}
+          cy={12}
+          r={4}
+          fill="#10B981"
+        />
+      )}
+
+      {/* TBD indicator */}
+      {isTBD && (
+        <circle
+          cx={width - 12}
+          cy={12}
+          r={4}
+          fill="#9CA3AF"
+        />
+      )}
+
+      {/* Match number */}
+      {match.matchNumber && (
+        <text
+          x={8}
+          y={12}
+          fill="#9CA3AF"
+          fontSize="9"
+          fontWeight="500"
+        >
+          #{match.matchNumber}
+        </text>
+      )}
+    </g>
+  );
+};
+
+const PlayerRow = ({ x, y, name, score, isWinner, isTBD, width }) => (
+  <g>
+    <text 
+      x={x} 
+      y={y} 
+      fill={isTBD ? "#9CA3AF" : (isWinner ? "#10B981" : "#E5E7EB")} 
+      fontSize="12" 
+      fontWeight={isWinner && !isTBD ? "600" : "500"}
+      className="select-none"
+      textAnchor="start"
+    >
+      {name}
+    </text>
+    {score !== null && !isTBD && (
+      <text 
+        x={width - 15} 
+        y={y} 
+        fill={isWinner ? "#10B981" : "#E5E7EB"} 
+        fontSize="12"
+        fontWeight="600"
+        textAnchor="end"
+        className="select-none"
+      >
+        {score}
+      </text>
+    )}
+  </g>
+);
 
 export default PublicManageKo;
