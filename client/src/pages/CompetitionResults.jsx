@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import io from 'socket.io-client';
-
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 export default function CompetitionResults() {
-  const socket = io(`${process.env.REACT_APP_BACKEND_URL}`); 
+  const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
   const { competitionId } = useParams();
   const [fixtures, setFixtures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ export default function CompetitionResults() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
-  
+
   const fixturesPerPage = 6; // Number of fixtures per page
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export default function CompetitionResults() {
     });
 
     socket.on('fixtureUpdate', (updatedFixture) => {
-      setFixtures(prev => prev.map(f => 
+      setFixtures(prev => prev.map(f =>
         f._id === updatedFixture._id ? updatedFixture : f
       ));
     });
@@ -69,7 +70,7 @@ export default function CompetitionResults() {
       // Validate scores
       const homeScore = Number(scores.home);
       const awayScore = Number(scores.away);
-      
+
       if (isNaN(homeScore)) throw new Error('Home score must be a number');
       if (isNaN(awayScore)) throw new Error('Away score must be a number');
 
@@ -108,7 +109,7 @@ export default function CompetitionResults() {
     // Validate scores first
     const homeScore = Number(scores.home);
     const awayScore = Number(scores.away);
-    
+
     if (isNaN(homeScore) || isNaN(awayScore)) {
       setError('Please enter valid scores');
       return;
@@ -165,7 +166,7 @@ export default function CompetitionResults() {
   const totalPages = Math.ceil(totalFixtures / fixturesPerPage);
   const startIndex = (currentPage - 1) * fixturesPerPage;
   const endIndex = startIndex + fixturesPerPage;
-  
+
   // Get current page fixtures
   const currentFixtures = filteredFixtures.slice(startIndex, endIndex);
   const currentGroupedFixtures = currentFixtures.reduce((groups, fixture) => {
@@ -195,23 +196,33 @@ export default function CompetitionResults() {
   const getPaginationRange = () => {
     const range = [];
     const showRange = 5; // Show 5 page numbers at a time
-    
+
     let start = Math.max(1, currentPage - Math.floor(showRange / 2));
     let end = Math.min(totalPages, start + showRange - 1);
-    
+
     if (end - start < showRange - 1) {
       start = Math.max(1, end - showRange + 1);
     }
-    
+
     for (let i = start; i <= end; i++) {
       range.push(i);
     }
-    
+
     return range;
   };
 
   return (
     <div className="min-h-screen bg-black">
+      <div className="mb-6">
+        <Link
+          to="/admin/dashboard"
+          className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      </div>
+
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -236,16 +247,15 @@ export default function CompetitionResults() {
                   <p className="text-gray-400 text-sm mt-2">This action cannot be undone</p>
                 </div>
               </div>
-              
+
               <div className="flex space-x-3">
                 <button
                   onClick={confirmSubmission}
                   disabled={submitting}
-                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                    submitting 
-                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${submitting
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                       : 'bg-yellow-500 hover:bg-yellow-600 text-black'
-                  }`}
+                    }`}
                 >
                   {submitting ? (
                     <span className="flex items-center justify-center">
@@ -369,18 +379,17 @@ export default function CompetitionResults() {
                 <div className="grid gap-4">
                   {currentGroupedFixtures[matchday].map((fixture) => (
                     <div key={fixture._id} className="bg-gray-900 rounded-lg border border-gray-700 hover:border-yellow-500/50 transition-all duration-300 overflow-hidden">
-                      
+
                       {/* Match Info Header */}
                       <div className="bg-gray-800 px-6 py-3 border-b border-gray-700">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-yellow-500 font-medium">
                             {fixture.matchDate ? new Date(fixture.matchDate).toLocaleDateString() : 'Date TBD'}
                           </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            fixture.status === 'completed' 
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${fixture.status === 'completed'
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                               : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                          }`}>
+                            }`}>
                             {fixture.status === 'completed' ? 'COMPLETED' : 'PENDING'}
                           </span>
                         </div>
@@ -392,35 +401,35 @@ export default function CompetitionResults() {
                           <div className="text-center flex-1">
                             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                               <h3 className="text-white font-semibold text-lg mb-1">
-                                   {renderPlayerName(fixture.homePlayer, fixture.homePlayerName)}
+                                {renderPlayerName(fixture.homePlayer, fixture.homePlayerName)}
                               </h3>
                               <p className="text-yellow-500 text-sm font-medium">HOME</p>
                             </div>
                           </div>
-                          
+
                           <div className="mx-6 text-center">
                             <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
                               <span className="text-black font-bold">VS</span>
                             </div>
                           </div>
-                          
+
                           <div className="text-center flex-1">
                             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                               <h3 className="text-white font-semibold text-lg mb-1">
-                                 {renderPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
+                                {renderPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
                               </h3>
                               <p className="text-yellow-500 text-sm font-medium">AWAY</p>
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Match Result Section */}
                         {editingFixture === fixture._id ? (
                           // EDITING MODE (for both new and existing results)
                           <div className="bg-blue-500/10 rounded-lg p-6 border border-blue-500/30">
                             <h4 className="text-blue-400 font-semibold text-center mb-4">
-                              {fixture.status === 'completed' 
-                                ? 'Update Match Result' 
+                              {fixture.status === 'completed'
+                                ? 'Update Match Result'
                                 : 'Enter Match Result'}
                             </h4>
                             <div className="flex items-center justify-center space-x-6 mb-6">
@@ -430,38 +439,38 @@ export default function CompetitionResults() {
                                   type="number"
                                   min="0"
                                   value={scores.home}
-                                  onChange={(e) => setScores({...scores, home: e.target.value})}
+                                  onChange={(e) => setScores({ ...scores, home: e.target.value })}
                                   className="w-16 h-12 text-center text-xl font-bold bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
                                   disabled={submitting}
                                 />
                               </div>
-                              
+
                               <span className="text-2xl text-gray-400 font-bold">:</span>
-                              
+
                               <div className="text-center">
                                 <label className="block text-gray-300 text-sm font-medium mb-2">Away Score</label>
                                 <input
                                   type="number"
                                   min="0"
                                   value={scores.away}
-                                  onChange={(e) => setScores({...scores, away: e.target.value})}
+                                  onChange={(e) => setScores({ ...scores, away: e.target.value })}
                                   className="w-16 h-12 text-center text-xl font-bold bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
                                   disabled={submitting}
                                 />
                               </div>
                             </div>
-                            
+
                             <div className="flex justify-center space-x-3">
                               <button
                                 onClick={() => handleSubmitClick(fixture._id)}
                                 className="px-6 py-2 rounded-lg font-medium bg-yellow-500 hover:bg-yellow-600 text-black transition-all"
                                 disabled={submitting}
                               >
-                                {fixture.status === 'completed' 
-                                  ? 'Update Result' 
+                                {fixture.status === 'completed'
+                                  ? 'Update Result'
                                   : 'Submit Result'}
                               </button>
-                              
+
                               <button
                                 onClick={handleCancelEdit}
                                 className="px-6 py-2 rounded-lg font-medium text-gray-300 border border-gray-600 hover:bg-gray-800 transition-all"
@@ -524,11 +533,10 @@ export default function CompetitionResults() {
               <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  currentPage === 1
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${currentPage === 1
                     ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                     : 'bg-gray-800 text-yellow-500 hover:bg-gray-700 border border-yellow-500/30'
-                }`}
+                  }`}
               >
                 Previous
               </button>
@@ -538,11 +546,10 @@ export default function CompetitionResults() {
                 <button
                   key={page}
                   onClick={() => goToPage(page)}
-                  className={`w-10 h-10 rounded-lg font-medium transition-all ${
-                    currentPage === page
+                  className={`w-10 h-10 rounded-lg font-medium transition-all ${currentPage === page
                       ? 'bg-yellow-500 text-black'
                       : 'bg-gray-800 text-yellow-500 hover:bg-gray-700 border border-yellow-500/30'
-                  }`}
+                    }`}
                 >
                   {page}
                 </button>
@@ -552,11 +559,10 @@ export default function CompetitionResults() {
               <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  currentPage === totalPages
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${currentPage === totalPages
                     ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                     : 'bg-gray-800 text-yellow-500 hover:bg-gray-700 border border-yellow-500/30'
-                }`}
+                  }`}
               >
                 Next
               </button>
