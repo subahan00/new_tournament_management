@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAllWallpapersAdmin, deleteWallpaper } from '../services/wallpaperService.js'; // Ensure path is correct
-
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 const DeleteWallpaper = () => {
   const [wallpapers, setWallpapers] = useState([]);
   const [selectedWallpapers, setSelectedWallpapers] = useState(new Set());
@@ -86,6 +87,16 @@ const DeleteWallpaper = () => {
 
   return (
     <div className="p-4 md:p-8 font-sans bg-gray-50 min-h-screen">
+      <div className="mb-6">
+  <Link
+    to="/admin/dashboard"
+    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Dashboard
+  </Link>
+</div>
+
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-4">
           Manage Wallpapers
