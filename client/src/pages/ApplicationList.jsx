@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FaTrash, FaCrown, FaRegUser, FaWhatsapp, FaMapMarkerAlt, FaCalendarAlt, FaTrophy } from 'react-icons/fa';
-
+import { Link}
+  from 'react-router-dom';
+  import { ArrowLeft } from 'lucide-react';
 const ApplicantList = () => {
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,15 @@ const ApplicantList = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black py-12 px-4 sm:px-6">
+      <div className="mb-6">
+              <Link
+                to="/admin/dashboard"
+                className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Link>
+            </div>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-amber-500 to-amber-700 mb-4">
