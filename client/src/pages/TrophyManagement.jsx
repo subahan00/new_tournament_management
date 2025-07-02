@@ -32,8 +32,10 @@ import {
   ChevronDown,
   BarChart3,
   Download,
-  Upload
+  Upload,
+  ArrowLeft
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const TrophyManagement = () => {
   const [winners, setWinners] = useState([]);
@@ -278,6 +280,16 @@ const TrophyManagement = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+      <div className="mb-6">
+  <Link
+    to="/admin/dashboard"
+    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+  >
+    <ArrowLeft className="w-4 h-4" />
+    Back to Dashboard
+  </Link>
+</div>
+
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl transition-all duration-500 transform ${toast.type === 'error'
