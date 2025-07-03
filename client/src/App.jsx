@@ -33,7 +33,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import DeleteWallpaper from './pages/deleteWallpaper';
 import TrophyCabinet from './pages/TrophyCabinet';
 import TrophyManagement from './pages/TrophyManagement';
-import Maintenance from './pages/Maintenance'; // Import the new page
+import Maintenance from './pages/maintenance'; // Import the new page
 
 const App = () => {
   const isMaintenance = process.env.REACT_APP_MAINTENANCE_MODE === 'true';
