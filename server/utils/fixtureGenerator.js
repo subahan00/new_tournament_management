@@ -170,7 +170,10 @@ const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers, pla
       status: 'pending',
       homeScore: null,
       awayScore: null,
-      result: null
+      result: null,
+      // Add bracket metadata
+      bracketPosition: i,  // Each match gets a unique position
+      previousMatches: []  // No previous matches
     });
   }
   
@@ -185,56 +188,91 @@ const generateFirstRoundFixtures = (players, competitionId, numberOfPlayers, pla
  * @param {number} numberOfPlayers - Initial number of players in the competition
  * @returns {Array} - Array of fixture objects for the next round
  */
-const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentRound, numberOfPlayers,playerNames) => {
-  const winners = currentRoundFixtures
-    .filter(fixture => fixture.result !== null)
-    .map(fixture => {
-      return fixture.result === 'home' ? fixture.homePlayer : fixture.awayPlayer;
-    });
-  
+const generateNextRoundFixtures = (currentRoundFixtures, competitionId, currentRound, numberOfPlayers, playerNames) => {
+  // Sort by bracket position to maintain order
+  const sortedFixtures = [...currentRoundFixtures].sort(
+    (a, b) => a.bracketPosition - b.bracketPosition
+  );
 
-    if (winners.length % 2 !== 0) {
-    throw new Error('Cannot generate next round: odd number of winners');
+  // Track winners with their bracket metadata
+  const winners = [];
+  for (const fixture of sortedFixtures) {
+    if (fixture.result === 'home') {
+      winners.push({
+        playerId: fixture.homePlayer,
+        bracketPosition: fixture.bracketPosition,
+        sourceFixture: fixture._id
+      });
+    } else if (fixture.result === 'away') {
+      winners.push({
+        playerId: fixture.awayPlayer,
+        bracketPosition: fixture.bracketPosition,
+        sourceFixture: fixture._id
+      });
+    }
   }
-  
+
+  // Error if odd number of winners
+  if (winners.length % 2 !== 0) {
+    throw new Error(`Odd number of winners (${winners.length}) in ${currentRound}`);
+  }
+
   // Determine next round name
-  let nextRound;
-  switch (currentRound) {
-    case 'Round of 64': nextRound = 'Round of 32'; break;
-    case 'Round of 32': nextRound = 'Round of 16'; break;
-    case 'Round of 16': nextRound = 'Quarter Finals'; break;
-    case 'Quarter Finals': nextRound = 'Semi Finals'; break;
-    case 'Semi Finals': nextRound = 'Final'; break;
-    default: 
-      // For custom round names, calculate based on player count
-      const totalRounds = calculateTotalRounds(numberOfPlayers);
-      const currentRoundIndex = ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5','Round 6'].indexOf(currentRound);
-      if (currentRoundIndex >= 0) {
-        nextRound = getRoundName(numberOfPlayers, currentRoundIndex + 1);
-      } else {
-        nextRound = 'Next Round';
+  const roundProgression = {
+    'Round of 64': 'Round of 32',
+    'Round of 32': 'Round of 16',
+    'Round of 16': 'Quarter Finals',
+    'Quarter Finals': 'Semi Finals',
+    'Semi Finals': 'Final'
+  };
+  
+  let nextRound = roundProgression[currentRound] || 'Next Round';
+
+  // Group winners by bracket section
+  const bracketGroups = new Map();
+  winners.forEach(winner => {
+    const groupKey = Math.floor(winner.bracketPosition / 2);
+    if (!bracketGroups.has(groupKey)) {
+      bracketGroups.set(groupKey, []);
+    }
+    bracketGroups.get(groupKey).push(winner);
+  });
+
+  // Generate next round fixtures
+  const nextFixtures = [];
+  let nextPosition = 0;
+  
+  // Process groups in order
+  const sortedGroups = [...bracketGroups.keys()].sort((a, b) => a - b);
+  for (const groupKey of sortedGroups) {
+    const groupWinners = bracketGroups.get(groupKey);
+    
+    // Sort by original bracket position
+    groupWinners.sort((a, b) => a.bracketPosition - b.bracketPosition);
+    
+    // Create matches within group
+    for (let i = 0; i < groupWinners.length; i += 2) {
+      if (i + 1 < groupWinners.length) {
+        const p1 = groupWinners[i];
+        const p2 = groupWinners[i + 1];
+        
+        nextFixtures.push({
+          competitionId,
+          round: nextRound,
+          homePlayer: p1.playerId,
+          homePlayerName: playerNames.get(p1.playerId),
+          awayPlayer: p2.playerId,
+          awayPlayerName: playerNames.get(p2.playerId),
+          status: 'pending',
+          result: null,
+          bracketPosition: nextPosition++,
+          previousMatches: [p1.sourceFixture, p2.sourceFixture]
+        });
       }
+    }
   }
-  
-  const fixtures = [];
-  const numberOfMatches = winners.length / 2;
-  
-  for (let i = 0; i < numberOfMatches; i++) {
-    fixtures.push({
-      competitionId,
-      round: nextRound,
-      homePlayer: winners[i * 2],
-      homePlayerName: playerNames.get(winners[i * 2]),
-      awayPlayer: winners[i * 2 + 1],
-      awayPlayerName: playerNames.get(winners[i * 2 + 1]),
-      status: 'pending',
-      homeScore: null,
-      awayScore: null,
-      result: null
-    });
-  }
-  
-  return fixtures;
+
+  return nextFixtures;
 };
 const generateRoundRobinFixtures=(players, competitionId, groupName)=> {
     const fixtures = [];
