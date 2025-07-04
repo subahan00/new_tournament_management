@@ -520,19 +520,6 @@ exports.updateKoFixtureResult = async (req, res) => {
       { new: true }
     );
 
-    // Update competition names if changed
-    await updateCompetitionPlayerNames(
-      fixture.competitionId,
-      fixture.homePlayer,
-      fixture.homePlayerName
-    );
-    
-    await updateCompetitionPlayerNames(
-      fixture.competitionId,
-      fixture.awayPlayer,
-      fixture.awayPlayerName
-    );
-
     res.status(200).json({
       message: 'Result updated',
       fixture: updatedFixture
