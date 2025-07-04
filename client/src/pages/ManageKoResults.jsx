@@ -1,37 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
-// Update the import line to include missing icons
 import {
   Trophy,
   Award,
   Users,
   AlertTriangle,
   CheckCircle,
-  Clock,        // Add missing import
-  Calendar,     // Add missing import
-  Activity  ,
-  ArrowLeft    // Add missing import
+  Clock,
+  Calendar,
+  Activity,
+  ArrowLeft
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-const typeStyles = {
-  LEAGUE: 'bg-blue-900/30 text-gold-400 border border-blue-800',
-  KO_REGULAR: 'bg-red-900/30 text-gold-400 border border-red-800'
-};
-const ManageKoResult = () => {
 
+const ManageKoResult = () => {
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Load all knock-out competitions
+  // Load all competitions
   useEffect(() => {
     const loadCompetitions = async () => {
       try {
         setLoading(true);
         const data = await fixtureService.fetchCompetitions();
-        console.log('API Response:', data); // Debug log
         setCompetitions(data);
         setLoading(false);
       } catch (err) {
@@ -57,142 +51,140 @@ const ManageKoResult = () => {
   // Get status badge color based on status
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-emerald-900/30 text-gold-400 border border-emerald-800';
-      case 'pending': return 'bg-amber-900/30 text-gold-400 border border-amber-800';
-      case 'upcoming': return 'bg-sky-900/30 text-gold-400 border border-sky-800';
-      default: return 'bg-black-800 text-gold-400 border border-gold-800';
+      case 'completed': return 'bg-gradient-to-r from-emerald-900/40 to-emerald-800/30 text-emerald-300 border border-emerald-700';
+      case 'pending': return 'bg-gradient-to-r from-amber-900/40 to-amber-800/30 text-amber-300 border border-amber-700';
+      case 'upcoming': return 'bg-gradient-to-r from-sky-900/40 to-sky-800/30 text-sky-300 border border-sky-700';
+      default: return 'bg-gradient-to-r from-gray-900/40 to-gray-800/30 text-gray-300 border border-gray-700';
     }
   };
+
   const getStatusIcon = (status) => {
     const iconProps = {
       size: 16,
-      className: "text-gold-500"
+      className: "mr-2"
     };
 
     switch (status) {
-      case 'completed': return <CheckCircle {...iconProps} />;
-      case 'pending': return <Clock {...iconProps} />;
-      case 'upcoming': return <Calendar {...iconProps} />;
-      default: return <Activity {...iconProps} />;
+      case 'completed': return <CheckCircle {...iconProps} className="text-emerald-400" />;
+      case 'pending': return <Clock {...iconProps} className="text-amber-400" />;
+      case 'upcoming': return <Calendar {...iconProps} className="text-sky-400" />;
+      default: return <Activity {...iconProps} className="text-gray-400" />;
     }
   };
-  // Get status icon based on status
-  // const getStatusIcon = (status) => {
-  //   switch(status) {
-  //     case 'completed': return <CheckCircle size={16} className="me-1" />;
-  //     case 'pending': return <Clock size={16} className="me-1" />;
-  //     case 'upcoming': return <Calendar size={16} className="me-1" />;
-  //     default: return <Activity size={16} className="me-1" />;
-  //   }
-  // };
 
   // Render loading spinner
   const renderLoadingSpinner = () => (
-    <div className="fixed inset-0 bg-black-900/95 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="animate-pulse-slow rounded-full h-16 w-16 border-4 border-gold-500 border-t-transparent"></div>
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex justify-center items-center z-50">
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-500 border-t-transparent"></div>
     </div>
   );
 
   return (
-    <div className="manage-ko-result container mx-auto px-4 py-8 bg-black-900 min-h-screen">
-      <div className="mb-6">
-  <Link
-    to="/admin/dashboard"
-    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-  >
-    <ArrowLeft className="w-4 h-4" />
-    Back to Dashboard
-  </Link>
-</div>
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Back button */}
+        <div className="mb-6 mt-4">
+          <Link
+            to="/admin/dashboard"
+            className="inline-flex items-center gap-2 text-yellow-400 hover:text-yellow-300 bg-gradient-to-r from-yellow-500/10 to-yellow-400/10 border border-yellow-500/30 px-4 py-2 rounded-lg transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-yellow-500/10"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
+        </div>
 
-      {/* Premium Header */}
-      <div className="bg-black-800 border border-gold-800 rounded-xl mb-8 p-6 
-           shadow-gold-lg hover:shadow-gold-lg transition-shadow duration-300">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-gold-500/10 rounded-lg border border-gold-800">
-            <Trophy size={32} className="text-gold-500" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gold-500 mb-1">Tournament Management</h1>
-            <p className="text-gold-400/80 font-light">Manage knockout stage fixtures and results</p>
+        {/* Premium Header */}
+        <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-yellow-500/20 rounded-xl mb-8 p-6 shadow-[0_0_25px_rgba(202,138,4,0.15)] hover:shadow-[0_0_30px_rgba(202,138,4,0.25)] transition-all duration-300">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-br from-yellow-500/10 to-yellow-400/10 rounded-lg border border-yellow-500/20 shadow-lg shadow-yellow-500/10">
+              <Trophy size={32} className="text-yellow-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-yellow-400 mb-1">Tournament Management</h1>
+              <p className="text-yellow-400/80 font-light">Manage knockout stage fixtures and results</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="mb-8 p-4 bg-red-900/20 border border-red-800/50 rounded-lg 
-             flex items-center text-gold-400 shadow-gold-sm">
-          <AlertTriangle size={20} className="mr-3 text-red-400" />
-          <span className="font-medium">{error}</span>
-        </div>
-      )}
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 p-4 bg-gradient-to-r from-red-900/40 to-red-800/30 border border-red-700/50 rounded-lg flex items-center text-red-300 shadow-lg shadow-red-500/10">
+            <AlertTriangle size={20} className="mr-3 text-red-400" />
+            <span className="font-medium">{error}</span>
+          </div>
+        )}
 
-      {/* Tournament List */}
-      {loading ? renderLoadingSpinner() : (
-        <div className="bg-black-800 border border-gold-800 rounded-xl shadow-gold-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gold-800 bg-black-900">
-            <h3 className="text-xl font-semibold text-gold-500">Active Tournaments</h3>
+        {/* Tournament List */}
+        <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-yellow-500/20 rounded-xl shadow-[0_0_25px_rgba(202,138,4,0.15)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-yellow-500/20 bg-gradient-to-r from-gray-900 to-gray-800">
+            <h3 className="text-xl font-semibold text-yellow-400 flex items-center">
+              <Trophy size={20} className="mr-2 text-yellow-400" />
+              Active Tournaments
+            </h3>
           </div>
 
-          {competitions.length > 0 ? (
-            <div className="divide-y divide-gold-800/20">
-              {competitions.map(competition => (
-                <div
-                  key={competition._id}
-                  className="group p-6 hover:bg-gold-500/5 transition-colors cursor-pointer
-                       relative hover:border-l-4 border-gold-500"
-                  onClick={() => handleCompetitionClick(competition)}
-                >
-                  <div className="flex items-start space-x-4">
-                    <div className="p-3 bg-gold-500/10 rounded-lg border border-gold-800 mt-1">
-                      <Trophy size={24} className="text-gold-500" />
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-lg font-semibold text-gold-400 group-hover:text-gold-300">
-                          {competition.name}
-                        </h4>
-                        <span className={`${getStatusBadgeColor(competition.status)} 
-                             px-3 py-1.5 rounded-full text-sm flex items-center space-x-2`}>
-                          {getStatusIcon(competition.status)}
-                          <span>{competition.status}</span>
-                        </span>
+          {loading ? renderLoadingSpinner() : (
+            competitions.length > 0 ? (
+              <div className="divide-y divide-yellow-500/10">
+                {competitions.map(competition => (
+                  <div
+                    key={competition._id}
+                    className="group p-6 hover:bg-gradient-to-r from-yellow-500/5 to-yellow-400/5 transition-all duration-300 cursor-pointer relative overflow-hidden"
+                    onClick={() => handleCompetitionClick(competition)}
+                  >
+                    {/* Glow effect on hover */}
+                    <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                    
+                    <div className="flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-6 relative z-10">
+                      <div className="p-3 bg-gradient-to-br from-yellow-500/10 to-yellow-400/10 rounded-lg border border-yellow-500/20 shadow-lg shadow-yellow-500/10">
+                        <Trophy size={24} className="text-yellow-400" />
                       </div>
 
-                      <div className="flex items-center text-gold-500/80">
-                        <Award size={16} className="mr-2 text-gold-500" />
-                        <span className={`text-sm px-2 py-1 rounded ${typeStyles[competition.type]}`}>
-                          {competition.type.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gold-500/80">
-                        <Users size={16} className="mr-2 text-gold-500" />
-                        <span className="text-sm">{competition.numberOfPlayers} Players</span>
+                      <div className="flex-1 w-full">
+                        <div className="flex flex-col md:flex-row justify-between items-start mb-3 gap-3">
+                          <h4 className="text-lg font-semibold text-yellow-400 group-hover:text-yellow-300 transition-colors">
+                            {competition.name}
+                          </h4>
+                          <span className={`${getStatusBadgeColor(competition.status)} 
+                              px-3 py-1.5 rounded-full text-sm flex items-center`}>
+                            {getStatusIcon(competition.status)}
+                            <span className="capitalize">{competition.status}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <div className="flex items-center text-yellow-400/90 bg-gradient-to-r from-gray-800/50 to-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-700/50">
+                            <Award size={16} className="mr-2 text-yellow-400" />
+                            <span className="text-sm capitalize">
+                              {competition.type.replace('_', ' ')}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center text-yellow-400/90 bg-gradient-to-r from-gray-800/50 to-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-700/50">
+                            <Users size={16} className="mr-2 text-yellow-400" />
+                            <span className="text-sm">
+                              {competition.numberOfPlayers} Players
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <div className="inline-block p-4 bg-gradient-to-br from-yellow-500/10 to-yellow-400/10 rounded-full mb-4 border border-yellow-500/20 shadow-lg shadow-yellow-500/10">
+                  <AlertTriangle size={40} className="text-yellow-400/80" />
                 </div>
-                
-          ))}
-        </div>
-      ) : (
-      <div className="p-8 text-center">
-        <div className="inline-block p-4 bg-gold-500/10 rounded-full mb-4 border border-gold-800">
-          <AlertTriangle size={40} className="text-gold-500/80" />
-        </div>
-        <p className="text-gold-400/70">No active knockout tournaments available</p>
-      </div>
+                <p className="text-yellow-400/70">No active tournaments available</p>
+              </div>
+            )
           )}
+        </div>
+      </div>
     </div>
-  )
-}
-    </div >
   );
-
-  // Status icons with updated gold styling
-
 };
 
 export default ManageKoResult;
