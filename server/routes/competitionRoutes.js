@@ -79,8 +79,8 @@ router.put('/:id/status', async (req, res) => {
 router.delete('/delete/:id',
   competitionController.deleteCompetition
 );
-
+router.patch('/:id/replace-player', competitionController.replacePlayerInCompetition);
 // Error handler
 router.use(errorHandler);
 
-module.exports = router;
+module.exports = router;    
