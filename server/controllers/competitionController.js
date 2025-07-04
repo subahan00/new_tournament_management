@@ -234,7 +234,16 @@ replacePlayerInCompetition: async (req, res) => {
         { awayPlayer: newPlayerId, awayPlayerName: newPlayer.name }
       )
     ]);
-
+  await Standing.updateMany(
+      { 
+        competition: id, 
+        player: oldPlayerId 
+      },
+      {
+        player: newPlayerId,
+        playerName: newPlayer.name
+      }
+    );
     // Optional: update standings if you have them
     // await Standing.updateMany(
     //   { competition: id, player: oldPlayerId },
