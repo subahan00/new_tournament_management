@@ -377,16 +377,20 @@ exports.createFixturesForLeague = async (req, res) => {
 exports.getFixturesByCompetition = async (req, res) => {
   try {
     const fixtures = await Fixture.find({ competitionId: req.params.competitionId })
-      // populate the competition’s name field
-      .populate('competitionId', 'name')
-      // your existing populates
-      .populate('homePlayer', 'name')
-      .populate('awayPlayer', 'name')
-      .select('-__v')
-      .sort('matchDate round')
-      .lean();
+      .populate('competitionId', 'name') // Competition name
+      .populate('homePlayer', 'name')    // Populate home player name
+      .populate('awayPlayer', 'name')    // Populate away player name
+      .select('-__v')                    // Exclude __v field
+      .sort({ round: 1, bracketPosition: 1 }) // Properly sort for bracket visualization
+      .lean(); // Lean for performance
 
-    res.status(200).json(fixtures);
+    // Optionally map previousMatches to readable format (e.g. string ids)
+    const formattedFixtures = fixtures.map(fixture => ({
+      ...fixture,
+      previousMatches: fixture.previousMatches?.map(match => match.toString())
+    }));
+
+    res.status(200).json(formattedFixtures);
   } catch (error) {
     console.error('Fixture Fetch Error:', error);
     res.status(500).json({ 
@@ -395,6 +399,7 @@ exports.getFixturesByCompetition = async (req, res) => {
     });
   }
 };
+
 
 
 // Enhanced knockout fixture generation
