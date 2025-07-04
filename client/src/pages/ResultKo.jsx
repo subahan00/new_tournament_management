@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
-import { Trophy, ChevronLeft, Clock, Award, Calendar, Users, AlertTriangle, CheckCircle, Activity } from 'lucide-react';
+import { Trophy, ChevronLeft, Clock, Award, Calendar, Users, AlertTriangle, CheckCircle, Activity, X, Edit3 } from 'lucide-react';
 import io from 'socket.io-client';
 
 const ResultKo = () => {
@@ -17,6 +17,9 @@ const ResultKo = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [activeModal, setActiveModal] = useState(null);
+  const [scoreInputs, setScoreInputs] = useState({ homeScore: 0, awayScore: 0 });
+  const [editMode, setEditMode] = useState(false);
 
   // Load competition data if not passed through state
   useEffect(() => {
@@ -115,11 +118,11 @@ const ResultKo = () => {
     setCurrentRound(firstIncomplete);
   };
 
-  // Handle fixture result update
+  // Handle fixture result update using the new API endpoint
   const handleUpdateResult = async (fixtureId, homeScore, awayScore) => {
     try {
       setLoading(true);
-      await fixtureService.updateKoFixtureResult(fixtureId, parseInt(homeScore), parseInt(awayScore));
+      await fixtureService.updateFixtureResult(fixtureId, { homeScore, awayScore });
 
       // Refresh data
       const updatedFixtures = await fixtureService.fetchFixturesByCompetition(selectedCompetition._id);
@@ -127,9 +130,13 @@ const ResultKo = () => {
       organizeFixturesByRound(updatedFixtures, selectedCompetition);
 
       setSuccessMessage('Result updated successfully!');
+      setActiveModal(null);
+            setEditMode(false); // Exit edit mode after update
+
+      setTimeout(() => setSuccessMessage(''), 3000);
       setLoading(false);
     } catch (err) {
-      setError('Failed to update result');
+      setError(err.message || 'Failed to update result');
       setLoading(false);
     }
   };
@@ -190,54 +197,54 @@ const ResultKo = () => {
 
   // Get player name based on fixture data
   const getPlayerName = (player, fixture) => {
-  if (!player) return 'Unknown Player';
+    if (!player) return 'Unknown Player';
 
-  // Handle ObjectID format
-  if (player._id) {
-    const homeId = fixture?.homePlayer?._id;
-    const awayId = fixture?.awayPlayer?._id;
+    // Handle ObjectID format
+    if (player._id) {
+      const homeId = fixture?.homePlayer?._id;
+      const awayId = fixture?.awayPlayer?._id;
 
-    if (homeId && homeId === player._id) {
-      return fixture.homePlayerName || 'Unknown Player';
+      if (homeId && homeId === player._id) {
+        return fixture.homePlayerName || 'Unknown Player';
+      }
+
+      if (awayId && awayId === player._id) {
+        return fixture.awayPlayerName || 'Unknown Player';
+      }
+
+      return 'Unknown Player';
     }
 
-    if (awayId && awayId === player._id) {
-      return fixture.awayPlayerName || 'Unknown Player';
-    }
+    // Handle direct string names
+    if (typeof player === 'string') return player;
 
     return 'Unknown Player';
-  }
-
-  // Handle direct string names
-  if (typeof player === 'string') return player;
-
-  return 'Unknown Player';
-};
+  };
 
   // Get status badge color based on status
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-emerald-900/30 text-gold-500 border border-emerald-800';
-      case 'pending': return 'bg-amber-900/30 text-gold-500 border border-amber-800';
-      case 'upcoming': return 'bg-sky-900/30 text-gold-500 border border-sky-800';
-      default: return 'bg-black-800 text-gold-500 border border-gold-800';
+      case 'completed': return 'bg-green-600/20 text-green-400 border border-green-600/30';
+      case 'pending': return 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30';
+      case 'upcoming': return 'bg-blue-600/20 text-blue-400 border border-blue-600/30';
+      default: return 'bg-gray-600/20 text-gray-400 border border-gray-600/30';
     }
   };
 
   // Get status icon based on status
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'completed': return <CheckCircle size={16} className="me-1" />;
-      case 'pending': return <Clock size={16} className="me-1" />;
-      case 'upcoming': return <Calendar size={16} className="me-1" />;
-      default: return <Activity size={16} className="me-1" />;
+      case 'completed': return <CheckCircle size={16} className="mr-1" />;
+      case 'pending': return <Clock size={16} className="mr-1" />;
+      case 'upcoming': return <Calendar size={16} className="mr-1" />;
+      default: return <Activity size={16} className="mr-1" />;
     }
   };
 
   // Render loading spinner
   const renderLoadingSpinner = () => (
-    <div className="fixed inset-0 bg-black-900/95 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="animate-pulse-slow rounded-full h-16 w-16 border-4 border-gold-500 border-t-transparent"></div>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50">
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent"></div>
     </div>
   );
 
@@ -251,127 +258,129 @@ const ResultKo = () => {
       .slice(0, 2) || '?';
   };
 
+  // Open modal for updating results
+ const openModal = (fixture, isEdit = false) => {
+    setActiveModal(fixture._id);
+    setEditMode(isEdit);
+    setScoreInputs({
+      homeScore: fixture.homeScore || 0,
+      awayScore: fixture.awayScore || 0
+    });
+  };
+
+  // Close modal
+  const closeModal = () => {
+    setActiveModal(null);
+    setScoreInputs({ homeScore: 0, awayScore: 0 });
+  };
+
+  // Handle score input changes
+  const handleScoreChange = (field, value) => {
+    setScoreInputs(prev => ({
+      ...prev,
+      [field]: parseInt(value) || 0
+    }));
+  };
+
+  // Submit score update
+  const handleSubmitScore = (fixtureId) => {
+    handleUpdateResult(fixtureId, scoreInputs.homeScore, scoreInputs.awayScore);
+  };
+
   // Render alert messages
   const renderAlerts = () => (
-    <>
+    <div className="space-y-4">
       {error && (
-        <div className="alert alert-danger d-flex align-items-center fade show shadow-sm" role="alert">
-          <AlertTriangle size={18} className="me-2" />
-          <div>{error}</div>
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg flex items-center">
+          <AlertTriangle size={18} className="mr-2 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
         </div>
       )}
       {successMessage && (
-        <div className="alert alert-success d-flex align-items-center fade show shadow-sm" role="alert">
-          <CheckCircle size={18} className="me-2" />
-          <div>{successMessage}</div>
+        <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-lg flex items-center">
+          <CheckCircle size={18} className="mr-2 flex-shrink-0" />
+          <span className="text-sm">{successMessage}</span>
         </div>
       )}
-    </>
+    </div>
   );
 
   if (!selectedCompetition) {
     return (
-      <div className="container mt-4">
-        <div className="alert alert-warning">Competition not found</div>
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 p-4 rounded-lg">
+          Competition not found
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="result-ko container mx-auto px-4 py-8 bg-black-900 min-h-screen">
-      {/* Header Section */}
-      <div className="bg-black-800 border border-gold-800 rounded-xl mb-8 p-6 shadow-gold-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-gold-500/10 rounded-lg border border-gold-800">
-              <Trophy size={32} className="text-gold-500" />
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold text-gold-500 mb-1">Tournament Fixtures & Results</h2>
-              <p className="text-gold-400/80 font-light">Manage fixtures, update results, and advance players through the tournament</p>
-            </div>
-          </div>
-          <button
-            className="btn bg-black-800 border border-gold-800 text-gold-500 hover:bg-gold-500/10 transition-colors flex items-center"
-            onClick={() => navigate('/admin/manage-kos')}
-          >
-            <ChevronLeft size={18} className="mr-1" /> Back
-          </button>
-        </div>
-      </div>
-
-      {renderAlerts()}
-
-      {loading ? renderLoadingSpinner() : (
-        <div className="selected-competition space-y-6">
-          {/* Competition Info Card */}
-          <div className="bg-black-800 border border-gold-800 rounded-xl p-6 shadow-gold-lg">
-            <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-yellow-500/20 rounded-xl mb-6 p-4 lg:p-6 shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 lg:p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                <Trophy size={28} className="text-yellow-400" />
+              </div>
               <div>
-                <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-2xl font-bold text-gold-500">{selectedCompetition.name}</h3>
-                  <span className={`${getStatusBadgeColor(selectedCompetition.status)} px-3 py-1 rounded-full`}>
-                    {selectedCompetition.status}
-                  </span>
-                </div>
-                <div className="flex space-x-3">
-                  <span className="badge bg-gold-500/10 text-gold-500 border border-gold-800 px-3 py-1 rounded-full">
-                    <Award size={14} className="mr-1" /> {selectedCompetition.type.replace('KO_', '')}
-                  </span>
-                  <span className="badge bg-gold-500/10 text-gold-500 border border-gold-800 px-3 py-1 rounded-full">
-                    <Users size={14} className="mr-1" /> {selectedCompetition.numberOfPlayers} players
-                  </span>
+                <h1 className="text-xl lg:text-2xl font-bold text-yellow-400 mb-1">Tournament Results</h1>
+                <p className="text-sm text-gray-400">Manage fixtures and update results</p>
+              </div>
+            </div>
+            <button
+              className="flex items-center px-4 py-2 bg-gray-800/50 border border-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/10 transition-all duration-200"
+              onClick={() => navigate('/admin/manage-kos')}
+            >
+              <ChevronLeft size={18} className="mr-1" />
+              <span className="text-sm">Back</span>
+            </button>
+          </div>
+        </div>
+
+        {renderAlerts()}
+
+        {loading ? renderLoadingSpinner() : (
+          <div className="space-y-6">
+            {/* Competition Info Card */}
+            <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-yellow-500/20 rounded-xl p-4 lg:p-6 shadow-2xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                    <h2 className="text-lg lg:text-xl font-bold text-yellow-400">{selectedCompetition.name}</h2>
+                    <span className={`${getStatusBadgeColor(selectedCompetition.status)} px-3 py-1 rounded-full text-xs font-medium w-fit`}>
+                      {selectedCompetition.status}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-3 py-1 rounded-full text-xs flex items-center">
+                      <Award size={12} className="mr-1" /> {selectedCompetition.type.replace('KO_', '')}
+                    </span>
+                    <span className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-3 py-1 rounded-full text-xs flex items-center">
+                      <Users size={12} className="mr-1" /> {selectedCompetition.numberOfPlayers} players
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Tournament Progress Section */}
-          {rounds.length > 0 && (
-            <div className="bg-black-800 border border-gold-800 rounded-xl p-6 shadow-gold-lg">
-              <h5 className="text-xl font-semibold text-gold-500 mb-4">Tournament Progress</h5>
-              <div className="space-y-4">
-                {/* Desktop Progress */}
-                <div className="hidden md:block relative h-2 bg-gold-800/20 rounded-full mb-8">
-                  <div
-                    className="absolute h-2 bg-gold-500 rounded-full transition-all duration-500"
-                    style={{ width: `${(rounds.indexOf(currentRound) / (rounds.length - 1)) * 100}%` }}
-                  ></div>
-                  {rounds.map((round, index) => (
-                    <div
-                      key={round}
-                      className="absolute top-1/2 -translate-y-1/2"
-                      style={{ left: `${(index / (rounds.length - 1)) * 100}%` }}
-                    >
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all ${currentRound === round
-                          ? 'bg-gold-500 border-2 border-gold-500 scale-125'
-                          : 'bg-black-900 border-2 border-gold-500 hover:scale-110'
-                          }`}
-                        onClick={() => setCurrentRound(round)}
-                      >
-                        <span className={`text-sm font-bold ${currentRound === round ? 'text-black-900' : 'text-gold-500'}`}>
-                          {index + 1}
-                        </span>
-                      </div>
-                      <div className="mt-4 text-center w-24 -ml-8">
-                        <span className={`text-sm ${currentRound === round ? 'text-gold-500 font-medium' : 'text-gold-500/70'}`}>
-                          {round}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
+            {/* Tournament Progress Section */}
+            {rounds.length > 0 && (
+              <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-yellow-500/20 rounded-xl p-4 lg:p-6 shadow-2xl">
+                <h3 className="text-lg font-semibold text-yellow-400 mb-4">Tournament Progress</h3>
+                
                 {/* Mobile Progress */}
-                <div className="md:hidden grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
                   {rounds.map(round => (
                     <button
                       key={round}
-                      className={`text-sm py-2 rounded-lg transition-colors ${currentRound === round
-                        ? 'bg-gold-500 text-black-900 font-medium'
-                        : 'bg-gold-500/10 text-gold-500 border border-gold-800 hover:bg-gold-500/20'
-                        }`}
+                      className={`text-xs p-3 rounded-lg transition-all duration-200 font-medium ${
+                        currentRound === round
+                          ? 'bg-gradient-to-r from-yellow-500 to-yellow-400 text-black shadow-lg'
+                          : 'bg-gray-800/50 text-gray-400 border border-gray-700/50 hover:bg-yellow-500/10 hover:text-yellow-400'
+                      }`}
                       onClick={() => setCurrentRound(round)}
                     >
                       {round}
@@ -382,217 +391,235 @@ const ResultKo = () => {
                 {/* Advance Button */}
                 {currentRound !== 'Final' && (
                   <button
-                    className={`w-full md:w-auto py-3 px-6 rounded-lg flex items-center justify-center space-x-2 transition-all ${isRoundCompleted() && hasNextRound()
-                      ? 'bg-gold-500 text-black-900 hover:bg-gold-600'
-                      : 'bg-gold-500/20 text-gold-500/50 cursor-not-allowed'
-                      }`}
+                    className={`w-full sm:w-auto py-3 px-6 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200 font-medium ${
+                      isRoundCompleted() && hasNextRound()
+                        ? 'bg-gradient-to-r from-yellow-500 to-yellow-400 text-black hover:from-yellow-400 hover:to-yellow-300 shadow-lg'
+                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                    }`}
                     disabled={!isRoundCompleted() || !hasNextRound()}
                     onClick={handleAdvanceToNextRound}
                   >
                     <Trophy size={20} />
-                    <span className="font-medium">Advance Winners</span>
+                    <span>Advance Winners</span>
                   </button>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Fixtures Section */}
-          <div className="bg-black-800 border border-gold-800 rounded-xl overflow-hidden shadow-gold-lg">
-            <div className="px-6 py-4 border-b border-gold-800 bg-black-900 flex items-center justify-between">
-              <h5 className="text-xl font-semibold text-gold-500 flex items-center">
-                <Trophy size={20} className="mr-2" />
-                {currentRound} Fixtures
-              </h5>
-              {isRoundCompleted() && (
-                <span className="badge bg-emerald-900/30 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full flex items-center">
-                  <CheckCircle size={16} className="mr-1" />
-                  All matches completed
-                </span>
-              )}
-            </div>
+            {/* Fixtures Section */}
+            <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-yellow-500/20 rounded-xl overflow-hidden shadow-2xl">
+              <div className="px-4 lg:px-6 py-4 border-b border-yellow-500/20 bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-yellow-400 flex items-center">
+                  <Trophy size={18} className="mr-2" />
+                  {currentRound} Fixtures
+                </h3>
+                {isRoundCompleted() && (
+                  <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-full flex items-center text-xs">
+                    <CheckCircle size={14} className="mr-1" />
+                    Completed
+                  </span>
+                )}
+              </div>
 
-            <div className="p-6">
+              <div className="p-4 lg:p-6">
               {Array.isArray(fixtures) && fixtures.filter(fixture => fixture.round === currentRound).length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-black-900">
-                      <tr>
-                        {['Home Player', 'Score', 'Away Player', 'Status', 'Actions'].map((header, idx) => (
-                          <th
-                            key={header}
-                            className={`px-4 py-3 text-left text-gold-500 font-medium ${idx === 0 ? 'rounded-l-lg' : idx === 4 ? 'rounded-r-lg' : ''
-                              }`}
-                          >
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gold-800/20">
-                      {fixtures
-                        .filter(fixture => fixture.round === currentRound)
-                        .map(fixture => (
-                          <tr key={fixture._id} className="hover:bg-gold-500/5 transition-colors">
-                            <td className="px-4 py-3 text-gold-400 font-medium">
-                              {getPlayerName(fixture.homePlayer, fixture)}
-                            </td>
-                            <td className="py-3 text-center">
-                              {fixture.status === 'completed' ? (
-                                <div className="px-3 py-1 bg-gold-500/10 rounded-full inline-flex items-center justify-center">
-                                  <span className={`font-bold ${fixture.homeScore > fixture.awayScore ? 'text-emerald-400' : 'text-gold-400'
-                                    }`}>
-                                    {fixture.homeScore}
+                <div className="space-y-4">
+                  {fixtures
+                    .filter(fixture => fixture.round === currentRound)
+                    .map(fixture => (
+                      <div
+                        key={fixture._id}
+                        className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-700/50 rounded-lg p-4 hover:border-yellow-500/30 transition-all duration-200"
+                      >
+                          {/* Desktop View */}
+                          <div className="hidden lg:flex items-center justify-between">
+                            <div className="flex items-center space-x-6 flex-1">
+                              <div className="text-gray-300 font-medium w-48">
+                                {getPlayerName(fixture.homePlayer, fixture)}
+                              </div>
+                              <div className="text-center">
+                                {fixture.status === 'completed' ? (
+                                  <div className="px-4 py-2 bg-yellow-500/10 rounded-full inline-flex items-center border border-yellow-500/20">
+                                    <span className={`font-bold ${fixture.homeScore > fixture.awayScore ? 'text-green-400' : 'text-gray-400'}`}>
+                                      {fixture.homeScore}
+                                    </span>
+                                    <span className="mx-2 text-yellow-400">-</span>
+                                    <span className={`font-bold ${fixture.awayScore > fixture.homeScore ? 'text-green-400' : 'text-gray-400'}`}>
+                                      {fixture.awayScore}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="bg-gray-700/50 text-gray-400 border border-gray-600/50 px-3 py-1 rounded-full text-sm">
+                                    Not played
                                   </span>
-                                  <span className="mx-2 text-gold-500">-</span>
-                                  <span className={`font-bold ${fixture.awayScore > fixture.homeScore ? 'text-emerald-400' : 'text-gold-400'
-                                    }`}>
-                                    {fixture.awayScore}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="badge bg-gold-500/10 text-gold-500 border border-gold-800">
-                                  Not played
-                                </span>
-                              )}
-                            </td>
-                            <td className="text-gold-400 font-medium">
-                              {getPlayerName(fixture.awayPlayer, fixture)}
-                            </td>
-                            <td className="py-3">
-                              <span className={`badge flex items-center ${getStatusBadgeColor(fixture.status)}`}>
+                                )}
+                              </div>
+                              <div className="text-gray-300 font-medium w-48">
+                                {getPlayerName(fixture.awayPlayer, fixture)}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <span className={`flex items-center px-3 py-1 rounded-full text-xs ${getStatusBadgeColor(fixture.status)}`}>
                                 {getStatusIcon(fixture.status)}
                                 {fixture.status}
                               </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {fixture.status === 'pending' ? (
-                                <button
-                                  className="btn bg-gold-500/10 text-gold-500 border border-gold-800 hover:bg-gold-500/20 flex items-center transition-colors"
-                                  data-bs-toggle="modal"
-                                  data-bs-target={`#resultModal-${fixture._id}`}
-                                >
-                                  <Activity size={16} className="mr-2" />
-                                  Update Result
-                                </button>
-                              ) : (
-                                <span className="text-emerald-400 flex items-center">
-                                  <CheckCircle size={16} className="mr-2" />
-                                  Completed
-                                </span>
-                              )}
-
-                              {/* Modal */}
-                              <div
-                                className="modal fade"
-                                id={`resultModal-${fixture._id}`}
-                                tabIndex="-1"
-                                aria-labelledby={`resultModalLabel-${fixture._id}`}
-                                aria-hidden="true"
+                              {(fixture.status === 'pending' || fixture.status === 'completed') && (
+                              <button
+                                className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-4 py-2 rounded-lg hover:bg-yellow-500/20 flex items-center transition-all duration-200"
+                                onClick={() => openModal(fixture, fixture.status === 'completed')}
                               >
-                                <div className="modal-dialog modal-dialog-centered">
-                                  <div className="modal-content bg-black-800 border border-gold-800 rounded-xl">
-                                    <div className="modal-header border-b border-gold-800 p-4">
-                                      <h5 className="modal-title text-gold-500 flex items-center">
-                                        <Trophy size={20} className="mr-2" />
-                                        Update Match Result
-                                      </h5>
-                                      <button
-                                        type="button"
-                                        className="btn-close text-gold-500"
-                                        data-bs-dismiss="modal"
-                                        aria-label="Close"
-                                      ></button>
-                                    </div>
-                                    <div className="modal-body p-4">
-                                      <form onSubmit={(e) => {
-                                        e.preventDefault();
-                                        const homeScore = e.target.homeScore.value;
-                                        const awayScore = e.target.awayScore.value;
-                                        handleUpdateResult(fixture._id, homeScore, awayScore);
-                                        document.querySelector(`#resultModal-${fixture._id} .btn-close`).click();
-                                      }}>
-                                        <div className="p-4 border border-gold-800 rounded-lg bg-black-900 mb-4">
-                                          <div className="flex items-center justify-between">
-                                            {/* Home Player */}
-                                            <div className="text-center">
-                                              <div className="mb-2 mx-auto rounded-full bg-gold-500/10 p-3">
-                                                <span className="text-gold-500 font-bold text-xl">
-                                                  {renderPlayerInitials(fixture.homePlayer, fixture)}
-                                                </span>
-                                              </div>
-                                              <h6 className="text-gold-400 font-medium">
-                                                {getPlayerName(fixture.homePlayer, fixture)}
-                                              </h6>
-                                            </div>
+                                <Edit3 size={16} className="mr-2" />
+                                {fixture.status === 'pending' ? 'Add Result' : 'Edit Result'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
 
-                                            {/* VS & Inputs */}
-                                            <div className="flex flex-col items-center mx-4">
-                                              <span className="text-gold-500 font-bold mb-2">VS</span>
-                                              <div className="flex items-center gap-2">
-                                                <input
-                                                  type="number"
-                                                  className="w-12 text-center bg-black-800 border border-gold-800 rounded-lg text-gold-400 py-2"
-                                                  name="homeScore"
-                                                  min="0"
-                                                  required
-                                                  defaultValue={fixture.homeScore || 0}
-                                                />
-                                                <span className="text-gold-500">-</span>
-                                                <input
-                                                  type="number"
-                                                  className="w-12 text-center bg-black-800 border border-gold-800 rounded-lg text-gold-400 py-2"
-                                                  name="awayScore"
-                                                  min="0"
-                                                  required
-                                                  defaultValue={fixture.awayScore || 0}
-                                                />
-                                              </div>
-                                            </div>
-
-                                            {/* Away Player */}
-                                            <div className="text-center">
-                                              <div className="mb-2 mx-auto rounded-full bg-gold-500/10 p-3">
-                                                <span className="text-gold-500 font-bold text-xl">
-                                                  {renderPlayerInitials(fixture.awayPlayer, fixture)}
-                                                </span>
-                                              </div>
-                                              <h6 className="text-gold-400 font-medium">
-                                                {getPlayerName(fixture.awayPlayer, fixture)}
-                                              </h6>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <button
-                                          type="submit"
-                                          className="w-full py-2 bg-gold-500 text-black-900 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center"
-                                        >
-                                          <CheckCircle size={18} className="mr-2" />
-                                          Save Result
-                                        </button>
-                                      </form>
-                                    </div>
-                                  </div>
-                                </div>
+                          {/* Mobile View */}
+                          <div className="lg:hidden space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className={`flex items-center px-2 py-1 rounded-full text-xs ${getStatusBadgeColor(fixture.status)}`}>
+                                {getStatusIcon(fixture.status)}
+                                {fixture.status}
+                              </span>
+                              {(fixture.status === 'pending' || fixture.status === 'completed') && (
+                              <button
+                                className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-3 py-1.5 rounded-lg hover:bg-yellow-500/20 flex items-center transition-all duration-200 text-xs"
+                                onClick={() => openModal(fixture, fixture.status === 'completed')}
+                              >
+                                <Edit3 size={14} className="mr-1" />
+                                {fixture.status === 'pending' ? 'Add' : 'Edit'}
+                              </button>
+                            )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm text-gray-300 font-medium">
+                                {getPlayerName(fixture.homePlayer, fixture)}
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-8 text-center">
-                  <div className="inline-block p-4 bg-gold-500/10 rounded-full mb-4 border border-gold-800">
-                    <AlertTriangle size={40} className="text-gold-500/80" />
+                              <div className="text-center">
+                                {fixture.status === 'completed' ? (
+                                  <div className="px-3 py-1 bg-yellow-500/10 rounded-full inline-flex items-center border border-yellow-500/20">
+                                    <span className={`font-bold text-sm ${fixture.homeScore > fixture.awayScore ? 'text-green-400' : 'text-gray-400'}`}>
+                                      {fixture.homeScore}
+                                    </span>
+                                    <span className="mx-2 text-yellow-400">-</span>
+                                    <span className={`font-bold text-sm ${fixture.awayScore > fixture.homeScore ? 'text-green-400' : 'text-gray-400'}`}>
+                                      {fixture.awayScore}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="bg-gray-700/50 text-gray-400 border border-gray-600/50 px-2 py-1 rounded-full text-xs">
+                                    vs
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-300 font-medium">
+                                {getPlayerName(fixture.awayPlayer, fixture)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                   </div>
-                  <p className="text-gold-400/70">No fixtures available for this round</p>
-                </div>
-              )}
+                ) : (
+                  <div className="py-12 text-center">
+                    <div className="inline-block p-4 bg-yellow-500/10 rounded-full mb-4 border border-yellow-500/20">
+                      <AlertTriangle size={32} className="text-yellow-400/80" />
+                    </div>
+                    <p className="text-gray-400">No fixtures available for this round</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Modal for updating results */}
+        {activeModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+          <div className="bg-gradient-to-r from-gray-900 to-gray-800 border border-yellow-500/20 rounded-xl max-w-md w-full shadow-2xl">
+            <div className="p-4 border-b border-yellow-500/20 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-yellow-400 flex items-center">
+                <Trophy size={18} className="mr-2" />
+                {/* UPDATE: Dynamic title based on edit mode */}
+                {editMode ? 'Edit Match Result' : 'Add Match Result'}
+              </h3>
+              <button
+                className="text-gray-400 hover:text-white transition-colors"
+                onClick={closeModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              {fixtures
+                .filter(fixture => fixture._id === activeModal)
+                .map(fixture => (
+                  <div key={fixture._id} className="space-y-4">
+                      <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-700/50 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          {/* Home Player */}
+                          <div className="text-center">
+                            <div className="mb-2 mx-auto w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20">
+                              <span className="text-yellow-400 font-bold">
+                                {renderPlayerInitials(fixture.homePlayer, fixture)}
+                              </span>
+                            </div>
+                            <h6 className="text-sm text-gray-300 font-medium">
+                              {getPlayerName(fixture.homePlayer, fixture)}
+                            </h6>
+                          </div>
+
+                          {/* VS & Inputs */}
+                          <div className="flex flex-col items-center mx-4">
+                            <span className="text-yellow-400 font-bold mb-2 text-sm">VS</span>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                className="w-12 h-10 text-center bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-300 focus:border-yellow-500/50 focus:outline-none transition-colors"
+                                value={scoreInputs.homeScore}
+                                onChange={(e) => handleScoreChange('homeScore', e.target.value)}
+                                min="0"
+                              />
+                              <span className="text-yellow-400">-</span>
+                              <input
+                                type="number"
+                                className="w-12 h-10 text-center bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-300 focus:border-yellow-500/50 focus:outline-none transition-colors"
+                                value={scoreInputs.awayScore}
+                                onChange={(e) => handleScoreChange('awayScore', e.target.value)}
+                                min="0"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Away Player */}
+                          <div className="text-center">
+                            <div className="mb-2 mx-auto w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20">
+                              <span className="text-yellow-400 font-bold">
+                                {renderPlayerInitials(fixture.awayPlayer, fixture)}
+                              </span>
+                            </div>
+                            <h6 className="text-sm text-gray-300 font-medium">
+                              {getPlayerName(fixture.awayPlayer, fixture)}
+                            </h6>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                      className="w-full py-3 bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-lg hover:from-yellow-400 hover:to-yellow-300 transition-all duration-200 flex items-center justify-center font-medium"
+                      onClick={() => handleSubmitScore(fixture._id)}
+                    >
+                      <CheckCircle size={18} className="mr-2" />
+                      {/* UPDATE: Dynamic button text */}
+                      {editMode ? 'Update Result' : 'Save Result'}
+                    </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
