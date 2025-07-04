@@ -7,24 +7,26 @@ const fixtureSchema = new mongoose.Schema({
     required: true
   },
   round: String,
-homePlayer: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'Player',
-  required: true
-},
-homePlayerName: {
-  type: String,
-  required: true
-},
-awayPlayer: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'Player',
-  required: true
-},
-awayPlayerName: {
-  type: String,
-  required: true
-},
+  homePlayer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Player',
+    required: true
+  },
+  homePlayerName: {
+    type: String,
+    required: true
+  },
+  awayPlayer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Player',
+    required: false,
+    default: null
+  },
+  awayPlayerName: {
+    type: String,
+    required: false,
+    default: 'BYE'
+  },
   matchDate: {
     type: Date,
     default: Date.now
@@ -48,50 +50,67 @@ awayPlayerName: {
     type: String,
     enum: ['home', 'away', 'draw', null],
     default: null
-  }
+  },
+  bracketPosition: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  previousMatches: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Fixture',
+    default: []
+  }]
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Validation for player-competition relationship
+// --- Pre-Save Validation ---
 fixtureSchema.pre('save', async function (next) {
   const Competition = mongoose.model('Competition');
+  const Fixture = mongoose.model('Fixture');
 
-  // Check if both players belong to the competition
-  const competition = await Competition.findOne({
-    _id: this.competitionId,
-    players: { $all: [this.homePlayer, this.awayPlayer] }
-  });
+  const isBye = this.awayPlayer === null && this.awayPlayerName === 'BYE';
 
-  if (!competition) {
-    throw new Error('One or both players do not belong to this competition');
-  }
+  if (!isBye) {
+    const competition = await Competition.findOne({
+      _id: this.competitionId,
+      players: { $all: [this.homePlayer, this.awayPlayer] }
+    });
 
-  // Score validation
-  if (this.status === 'completed' && (this.homeScore === null || this.awayScore === null)) {
-    throw new Error('Completed matches must have scores');
-  }
+    if (!competition) {
+      throw new Error('One or both players do not belong to this competition');
+    }
 
-  // Prevent duplicate fixtures
-  const existingFixture = await mongoose.model('Fixture').findOne({
-    competitionId: this.competitionId,
-    $or: [
-      { homePlayer: this.homePlayer, awayPlayer: this.awayPlayer },
-      { homePlayer: this.awayPlayer, awayPlayer: this.homePlayer }
-    ]
-  });
+    if (this.status === 'completed' && (this.homeScore === null || this.awayScore === null)) {
+      throw new Error('Completed matches must have scores');
+    }
 
-  if (existingFixture && !existingFixture._id.equals(this._id)) {
-    throw new Error('Fixture between these players already exists in this competition');
+    const existingFixture = await Fixture.findOne({
+      competitionId: this.competitionId,
+      $or: [
+        { homePlayer: this.homePlayer, awayPlayer: this.awayPlayer },
+        { homePlayer: this.awayPlayer, awayPlayer: this.homePlayer }
+      ]
+    });
+
+    if (existingFixture && !existingFixture._id.equals(this._id)) {
+      throw new Error('Fixture between these players already exists in this competition');
+    }
   }
 
   next();
 });
 
-// Indexes for faster querying
+// --- Indexes for Optimized Queries ---
+fixtureSchema.index({ competitionId: 1 });
 fixtureSchema.index({ competitionId: 1, status: 1 });
-fixtureSchema.index({ homePlayer: 1, awayPlayer: 1 });
+fixtureSchema.index({ competitionId: 1, round: 1 });
+fixtureSchema.index({ competitionId: 1, matchDate: 1 });
+fixtureSchema.index({ homePlayer: 1, status: 1 });
+fixtureSchema.index({ awayPlayer: 1, status: 1 });
+fixtureSchema.index({ matchDate: -1 });
 
 module.exports = mongoose.model('Fixture', fixtureSchema);
