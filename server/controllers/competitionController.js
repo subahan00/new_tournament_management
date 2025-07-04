@@ -30,7 +30,6 @@ const competitionController = {
       const COMPETITION_CONFIG = {
         KO: {
           types: ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'],
-          allowedSizes: [8, 16, 32, 64],
           defaultSize: null
         },
         LEAGUE: {
@@ -46,12 +45,7 @@ const competitionController = {
       // Handle competition type-specific logic
       if (COMPETITION_CONFIG.KO.types.includes(type)) {
         // Knockout tournament validation
-        if (!COMPETITION_CONFIG.KO.allowedSizes.includes(competitionData.numberOfPlayers)) {
-          return res.status(400).json({
-            success: false,
-            message: `KO tournaments require ${COMPETITION_CONFIG.KO.allowedSizes.join(', ')} players`
-          });
-        }
+        
       } else if (COMPETITION_CONFIG.LEAGUE.types.includes(type)) {
         // League tournament defaults
         competitionData.numberOfPlayers = numberOfPlayers || COMPETITION_CONFIG.LEAGUE.defaultSize;
@@ -181,6 +175,87 @@ updatePlayerNameInCompetition : async (req, res) => {
     });
   }
 },
+replacePlayerInCompetition: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { oldPlayerId, newPlayerId } = req.body;
+
+    if (!oldPlayerId || !newPlayerId) {
+      return res.status(400).json({ message: 'Both old and new player IDs are required' });
+    }
+
+    if (oldPlayerId === newPlayerId) {
+      return res.status(400).json({ message: 'Old and new player cannot be the same' });
+    }
+
+    const competition = await Competition.findById(id);
+    if (!competition) {
+      return res.status(404).json({ message: 'Competition not found' });
+    }
+
+    const oldPlayerExists = competition.players.some(
+      playerId => playerId.toString() === oldPlayerId
+    );
+    if (!oldPlayerExists) {
+      return res.status(400).json({ message: 'Old player not found in this competition' });
+    }
+
+    const newPlayer = await Player.findById(newPlayerId);
+    if (!newPlayer) {
+      return res.status(404).json({ message: 'New player not found' });
+    }
+
+    const newPlayerExists = competition.players.some(
+      playerId => playerId.toString() === newPlayerId
+    );
+    if (newPlayerExists) {
+      return res.status(400).json({ message: 'New player is already in this competition' });
+    }
+
+    const oldPlayer = await Player.findById(oldPlayerId);
+    if (!oldPlayer) {
+      return res.status(404).json({ message: 'Old player not found' });
+    }
+
+    // Replace old player with new player in competition
+    competition.players = competition.players.map(playerId =>
+      playerId.toString() === oldPlayerId ? newPlayerId : playerId
+    );
+    await competition.save();
+
+    // Update fixtures
+    await Promise.all([
+      Fixture.updateMany(
+        { competitionId: id, homePlayer: oldPlayerId },
+        { homePlayer: newPlayerId, homePlayerName: newPlayer.name }
+      ),
+      Fixture.updateMany(
+        { competitionId: id, awayPlayer: oldPlayerId },
+        { awayPlayer: newPlayerId, awayPlayerName: newPlayer.name }
+      )
+    ]);
+
+    // Optional: update standings if you have them
+    // await Standing.updateMany(
+    //   { competition: id, player: oldPlayerId },
+    //   { player: newPlayerId, playerName: newPlayer.name }
+    // );
+
+    res.json({
+      message: `Player ${oldPlayer.name} successfully replaced with ${newPlayer.name}`,
+      oldPlayer: { id: oldPlayer._id, name: oldPlayer.name },
+      newPlayer: { id: newPlayer._id, name: newPlayer.name }
+    });
+
+  } catch (error) {
+    console.error('Error replacing player in competition:', error);
+    res.status(500).json({
+      message: 'Error replacing player in competition',
+      error: error.message
+    });
+  }
+}
+,
  getAllPlayers :async (req, res) => {
   try {
     const { competitionId } = req.params;
