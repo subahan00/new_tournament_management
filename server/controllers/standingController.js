@@ -6,7 +6,7 @@ const { calculateStandings } = require('../utils/standingsCalculator');
 exports.getOngoingCompetitions = async (req, res) => {
   try {
     const competitions = await Competition.find({
-      status: 'ongoing',
+      
       type: { $in: ['LEAGUE', 'GROUP_STAGE'] }
     }).select('name type startDate players').populate('players', 'name _id').lean();
 
