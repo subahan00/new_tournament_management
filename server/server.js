@@ -91,6 +91,9 @@ app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes);
 app.use('/api/winners', resultRoutes);
 app.use('/api/wallpaper', wallpaperRoutes);
+app.get('/api/ping', (req, res) => {
+  res.status(200).send('pong');
+});
 
 
 // ✅ Password Reset Route
