@@ -620,10 +620,13 @@ currentRoundFixtures.forEach(fixture => {
         
 
       );
-
+          const nextRoundName = nextRoundFixtures[0].round;
+           await Fixture.deleteMany({
+      competitionId,
+      round: nextRoundName
+    });
       // Save new fixtures and update competition
       const createdFixtures = await Fixture.insertMany(nextRoundFixtures);
-      const nextRoundName = createdFixtures[0].round;
 
       await Competition.findByIdAndUpdate(competitionId, {
         currentRound: { 
