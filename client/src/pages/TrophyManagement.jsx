@@ -281,14 +281,14 @@ const TrophyManagement = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
       <div className="mb-6">
-  <Link
-    to="/admin/dashboard"
-    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-  >
-    <ArrowLeft className="w-4 h-4" />
-    Back to Dashboard
-  </Link>
-</div>
+        <Link
+          to="/admin/dashboard"
+          className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      </div>
 
       {/* Toast Notification */}
       {toast && (
@@ -560,6 +560,16 @@ const TrophyManagement = () => {
                       </div>
                     </div>
                   )}
+                  {/* Add Trophy Button */}
+                  <div className="p-4 border-b border-gray-700/30">
+                    <button
+                      onClick={() => setShowNewTrophyForm(true)}
+                      className="bg-gradient-to-r from-yellow-500 to-amber-600 text-black px-4 py-2 rounded-xl hover:from-yellow-400 hover:to-amber-500 transition-all duration-300 flex items-center font-semibold shadow-lg hover:shadow-yellow-500/25 transform hover:scale-105"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Trophy
+                    </button>
+                  </div>
 
                   {/* Add New Trophy Form */}
                   {showNewTrophyForm && (
