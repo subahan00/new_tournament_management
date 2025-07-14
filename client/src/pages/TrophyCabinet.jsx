@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getWinners, handleApiError } from '../services/winnerService';
-import { Trophy, User, ChevronRight, ArrowLeft, AlertCircle, Loader2, Crown, Gem, Castle, Sword, ScrollText,Star,Award,Medal,Shield } from 'lucide-react';
+import { Trophy, User, ChevronRight, ArrowLeft, AlertCircle, Loader2, Crown, Gem, Star, Award, Medal, Shield, Search, ChevronDown, BarChart2, Calendar, Filter } from 'lucide-react';
 
 const TrophyCabinet = () => {
     const [winners, setWinners] = useState([]);
@@ -8,7 +8,10 @@ const TrophyCabinet = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    
+    const [sortBy, setSortBy] = useState('trophies'); // 'trophies' or 'name'
+    const [activeTier, setActiveTier] = useState('all');
+    const [stats, setStats] = useState(null);
+
     const fetchWinners = async () => {
         setLoading(true);
         setError(null);
@@ -16,16 +19,56 @@ const TrophyCabinet = () => {
         try {
             const response = await getWinners();
             setWinners(response.data || []);
+            calculateStats(response.data || []);
         } catch (err) {
             setError(handleApiError(err));
         } finally {
             setLoading(false);
         }
     };
-     useEffect(() => {
+
+    const calculateStats = (winners) => {
+        if (!winners || winners.length === 0) return;
+
+        const stats = {
+            totalTrophies: winners.reduce((sum, winner) => sum + winner.totalTrophies, 0),
+            totalPlayers: winners.length,
+            topCompetition: {},
+            tierDistribution: {}
+        };
+
+        // Find most popular competition
+        winners.forEach(winner => {
+            winner.trophies.forEach(trophy => {
+                stats.topCompetition[trophy.competition] = (stats.topCompetition[trophy.competition] || 0) + trophy.timesWon;
+            });
+        });
+
+        // Calculate tier distribution
+        winners.forEach(winner => {
+            const tier = getTierForWinner(winner.totalTrophies).name;
+            stats.tierDistribution[tier] = (stats.tierDistribution[tier] || 0) + 1;
+        });
+
+        // Find actual top competition
+        let maxWins = 0;
+        let topComp = '';
+        for (const comp in stats.topCompetition) {
+            if (stats.topCompetition[comp] > maxWins) {
+                maxWins = stats.topCompetition[comp];
+                topComp = comp;
+            }
+        }
+
+        stats.topCompetition = { name: topComp, wins: maxWins };
+        setStats(stats);
+    };
+
+    useEffect(() => {
         fetchWinners();
     }, []);
-  const TIERS = [
+
+    const TIERS = [
         {
             name: 'GOAT',
             minTrophies: 75,
@@ -45,7 +88,7 @@ const TrophyCabinet = () => {
         {
             name: 'Expert',
             minTrophies: 25,
-            icon: <Star className="w-4 h-4 text-emerald-400" />,
+            icon: <Star className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />,
             rowClass: 'bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-l-4 border-emerald-400',
             textClass: 'text-emerald-300',
             bgGlow: 'shadow-emerald-400/20 shadow-lg'
@@ -81,8 +124,19 @@ const TrophyCabinet = () => {
     };
 
     const sortedWinners = [...winners]
-        .filter(winner => winner.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        .sort((a, b) => b.totalTrophies - a.totalTrophies || a.name.localeCompare(b.name));
+        .filter(winner => {
+            const nameMatch = winner.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const tierMatch = activeTier === 'all' ||
+                getTierForWinner(winner.totalTrophies).name === activeTier;
+            return nameMatch && tierMatch;
+        })
+        .sort((a, b) => {
+            if (sortBy === 'name') {
+                return a.name.localeCompare(b.name);
+            }
+            // Default sort by trophies (descending)
+            return b.totalTrophies - a.totalTrophies;
+        });
 
     const handleWinnerClick = (winner) => {
         setSelectedWinner(winner);
@@ -97,6 +151,10 @@ const TrophyCabinet = () => {
         if (timesWon >= 5) return <Gem className="w-4 h-4 text-purple-400" />;
         if (timesWon >= 3) return <Star className="w-4 h-4 text-emerald-400" />;
         return <Trophy className="w-4 h-4 text-orange-400" />;
+    };
+
+    const capitalizePlayer = (str) => {
+        return str.replace(/\bplayer\b/gi, 'Player');
     };
 
     if (loading) {
@@ -136,7 +194,7 @@ const TrophyCabinet = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=&quot;100&quot; height=&quot;100&quot; viewBox=&quot;0 0 100 100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cpath d=&quot;M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z&quot; fill=&quot;%239C92AC&quot; fill-opacity=&quot;0.05&quot; fill-rule=&quot;evenodd&quot;/%3E%3C/svg%3E')] opacity-20"></div>
-            
+
             <div className="container mx-auto px-4 py-8 relative z-10 max-w-6xl">
                 {!selectedWinner ? (
                     <>
@@ -147,7 +205,7 @@ const TrophyCabinet = () => {
                                 <Crown className="w-16 h-16 text-yellow-400 relative z-10 mx-auto" />
                             </div>
                             <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 mb-3">
-                               Welcome to Official90 Trophy Cabinet
+                                {capitalizePlayer("Welcome to Official90 Trophy Cabinet")}
                             </h1>
                             <p className="text-gray-300 text-base md:text-lg max-w-2xl mx-auto">
                                 Hall of Champions and Winners
@@ -155,12 +213,47 @@ const TrophyCabinet = () => {
                             <div className="w-40 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto rounded-full my-5"></div>
                         </div>
 
-                        {/* Search */}
-                        <div className="max-w-xl mx-auto mb-8">
-                            <div className="relative group">
+                        {/* Stats Overview */}
+                        {stats && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                                <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl p-4 border border-white/10">
+                                    <div className="flex items-center">
+                                        <Trophy className="w-8 h-8 text-yellow-400 mr-3" />
+                                        <div>
+                                            <p className="text-gray-400 text-sm">Total Trophies</p>
+                                            <p className="text-2xl font-bold text-white">{stats.totalTrophies}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl p-4 border border-white/10">
+                                    <div className="flex items-center">
+                                        <User className="w-8 h-8 text-purple-400 mr-3" />
+                                        <div>
+                                            <p className="text-gray-400 text-sm">Total Players</p>
+                                            <p className="text-2xl font-bold text-white">{stats.totalPlayers}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl p-4 border border-white/10">
+                                    <div className="flex items-center">
+                                        <Award className="w-8 h-8 text-emerald-400 mr-3" />
+                                        <div>
+                                            <p className="text-gray-400 text-sm">Top Competition</p>
+                                            <p className="text-xl font-bold text-white truncate">{stats.topCompetition.name}</p>
+                                            <p className="text-sm text-gray-300">{stats.topCompetition.wins} wins</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Filters */}
+                        <div className="flex flex-col md:flex-row gap-4 mb-8">
+                            {/* Search */}
+                            <div className="flex-1 relative group">
                                 <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
                                 <div className="relative bg-white/10 backdrop-blur-lg rounded-xl border border-white/20">
-                                    <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-300 w-5 h-5" />
+                                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-300 w-5 h-5" />
                                     <input
                                         type="text"
                                         placeholder="Search champions..."
@@ -169,6 +262,41 @@ const TrophyCabinet = () => {
                                         className="w-full pl-12 pr-4 py-3 bg-transparent text-white placeholder-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Tier Filter */}
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-teal-500 rounded-xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                                <div className="relative bg-white/10 backdrop-blur-lg rounded-xl border border-white/20">
+                                    <div className="flex items-center px-4 py-3">
+                                        <Filter className="w-5 h-5 text-gray-300 mr-2" />
+                                        <select
+                                            value={activeTier}
+                                            onChange={(e) => setActiveTier(e.target.value)}
+                                            className="bg-transparent text-white focus:outline-none appearance-none w-full pr-8"
+                                        >
+                                            <option value="all">All Tiers</option>
+                                            {TIERS.map(tier => (
+                                                <option key={tier.name} value={tier.name}>{tier.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="w-5 h-5 text-gray-300 absolute right-3" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sort */}
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                                <button
+                                    onClick={() => setSortBy(sortBy === 'trophies' ? 'name' : 'trophies')}
+                                    className="relative bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 w-full px-4 py-3 text-left flex items-center"
+                                >
+                                    <BarChart2 className="w-5 h-5 text-gray-300 mr-2" />
+                                    <span className="text-white">
+                                        Sort: {sortBy === 'trophies' ? 'Trophies' : 'Name'}
+                                    </span>
+                                </button>
                             </div>
                         </div>
 
@@ -181,7 +309,7 @@ const TrophyCabinet = () => {
                                     Champions
                                 </h2>
                                 <div className="text-gray-300 text-sm">
-                                    {sortedWinners.length} Total
+                                    {sortedWinners.length} {capitalizePlayer("Player")}{sortedWinners.length !== 1 ? 's' : ''}
                                 </div>
                             </div>
 
@@ -200,7 +328,7 @@ const TrophyCabinet = () => {
                                         return (
                                             <div
                                                 key={winner._id}
-                                                className={`${tier.rowClass} ${tier.bgGlow} p-4 hover:bg-white/5 transition-all duration-200 cursor-pointer`}
+                                                className={`${tier.rowClass} ${tier.bgGlow} p-4 hover:bg-white/5 transition-all duration-200 cursor-pointer group`}
                                                 onClick={() => handleWinnerClick(winner)}
                                             >
                                                 {/* Desktop Layout */}
@@ -213,8 +341,9 @@ const TrophyCabinet = () => {
                                                             </span>
                                                         </div>
                                                         <div>
-                                                            <h3 className="font-bold text-white text-lg">{winner.name}</h3>
-                                                            <div className="flex items-center space-x-3">
+                                                            <h3 className="font-bold text-white text-lg truncate">
+                                                                {winner.name.toUpperCase()}
+                                                            </h3>                                                            <div className="flex items-center space-x-3">
                                                                 <span className={`text-sm font-medium ${tier.textClass} flex items-center`}>
                                                                     {tier.icon}
                                                                     <span className="ml-1">{tier.name}</span>
@@ -226,7 +355,21 @@ const TrophyCabinet = () => {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                                    <div className="flex items-center">
+                                                        <div className="flex -space-x-2 mr-4">
+                                                            {winner.trophies.slice(0, 3).map((trophy, idx) => (
+                                                                <div key={idx} className="bg-slate-700 border-2 border-slate-800 rounded-full w-8 h-8 flex items-center justify-center">
+                                                                    {getTrophyIcon(trophy.timesWon)}
+                                                                </div>
+                                                            ))}
+                                                            {winner.trophies.length > 3 && (
+                                                                <div className="bg-slate-700 border-2 border-slate-800 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">
+                                                                    +{winner.trophies.length - 3}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                                                    </div>
                                                 </div>
 
                                                 {/* Mobile Layout */}
@@ -240,8 +383,9 @@ const TrophyCabinet = () => {
                                                                     <span className="font-bold text-sm">#{index + 1}</span>
                                                                 )}
                                                             </div>
-                                                            <h3 className="font-bold text-white">{winner.name}</h3>
-                                                        </div>
+                                                            <h3 className="font-bold text-white truncate">
+                                                                {winner.name.toUpperCase()}
+                                                            </h3>                                                        </div>
                                                         <ChevronRight className="w-5 h-5 text-gray-400" />
                                                     </div>
                                                     <div className="flex items-center justify-between pl-11">
@@ -254,6 +398,18 @@ const TrophyCabinet = () => {
                                                                 <Trophy className="w-4 h-4 mr-1" />
                                                                 <span className="font-bold">{winner.totalTrophies}</span>
                                                             </div>
+                                                        </div>
+                                                        <div className="flex -space-x-2">
+                                                            {winner.trophies.slice(0, 2).map((trophy, idx) => (
+                                                                <div key={idx} className="bg-slate-700 border-2 border-slate-800 rounded-full w-6 h-6 flex items-center justify-center">
+                                                                    {getTrophyIcon(trophy.timesWon)}
+                                                                </div>
+                                                            ))}
+                                                            {winner.trophies.length > 2 && (
+                                                                <div className="bg-slate-700 border-2 border-slate-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                                                                    +{winner.trophies.length - 2}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -280,16 +436,35 @@ const TrophyCabinet = () => {
                             {/* Hero Section */}
                             <div className="bg-gradient-to-r from-slate-800 to-purple-900 p-6 md:p-8 text-center relative">
                                 <div className="relative z-10">
-                                    
-
-                                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{selectedWinner.name}</h1>
-                                    <div className="flex items-center justify-center">
+                                    <div className="mx-auto mb-4 w-24 h-24 bg-slate-700/50 rounded-full flex items-center justify-center border-4 border-yellow-500/30">
+                                        <div className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-200 bg-clip-text text-transparent">
+                                            {winners.findIndex(w => w._id === selectedWinner._id) + 1}
+                                        </div>
+                                    </div>
+                                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                                        {selectedWinner.name.toUpperCase()}
+                                    </h1>                                    <div className="flex items-center justify-center">
                                         <Trophy className="w-6 h-6 text-yellow-400 mr-2" />
                                         <span className="text-xl md:text-2xl font-bold text-yellow-400">{selectedWinner.totalTrophies}</span>
                                         <span className="text-gray-300 ml-2 text-base md:text-lg">
                                             Trophies
                                         </span>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Tier & Stats */}
+                            <div className="p-4 md:p-6 grid grid-cols-2 gap-4 border-b border-white/10">
+                                <div className="bg-slate-800/50 rounded-xl p-3 text-center">
+                                    <p className="text-gray-400 text-sm">Tier Rank</p>
+                                    <div className="flex items-center justify-center mt-1">
+                                        {getTierForWinner(selectedWinner.totalTrophies).icon}
+                                        <span className="text-white font-medium ml-2">{getTierForWinner(selectedWinner.totalTrophies).name}</span>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded-xl p-3 text-center">
+                                    <p className="text-gray-400 text-sm">Competitions Won</p>
+                                    <p className="text-white font-medium mt-1">{selectedWinner.trophies.length}</p>
                                 </div>
                             </div>
 
@@ -306,7 +481,7 @@ const TrophyCabinet = () => {
                                         <p className="text-gray-400 text-lg">No victories yet</p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4">
                                         {selectedWinner.trophies
                                             .sort((a, b) => b.timesWon - a.timesWon || a.competition.localeCompare(b.competition))
                                             .map((trophy, index) => (
@@ -320,17 +495,21 @@ const TrophyCabinet = () => {
                                                                 {getTrophyIcon(trophy.timesWon)}
                                                                 <span className="ml-2">{trophy.competition}</span>
                                                             </h3>
-                                                            <p className="text-gray-400 text-sm mt-1">
-                                                                Won {trophy.timesWon} time{trophy.timesWon !== 1 ? 's' : ''}
-                                                            </p>
+                                                            <div className="flex items-center mt-1 text-gray-400">
+                                                                <Calendar className="w-4 h-4 mr-1" />
+                                                                <span className="text-sm">
+                                                                    First won: {new Date().toLocaleDateString()} {/* Replace with actual date */}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                         <div className="text-right">
                                                             <span className="text-xl md:text-2xl font-bold text-yellow-400">{trophy.timesWon}</span>
+                                                            <span className="block text-sm text-gray-400">wins</span>
                                                         </div>
                                                     </div>
 
                                                     {/* Progress Bar */}
-                                                    <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                                                    <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden mt-2">
                                                         <div
                                                             className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full transition-all duration-500"
                                                             style={{ width: `${Math.min((trophy.timesWon / 15) * 100, 100)}%` }}
