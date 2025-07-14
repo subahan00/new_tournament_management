@@ -8,21 +8,37 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to check if token is expired
+  const isTokenExpired = (token) => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      return payload.exp < currentTime;
+    } catch (error) {
+      return true;
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = () => {
       try {
         const storedToken = localStorage.getItem('authToken');
         const storedUser = localStorage.getItem('user');
-        
-        // Fix: Check if storedUser exists before parsing
-        if (storedUser && storedUser !== "undefined") {
-          setUser(JSON.parse(storedUser));
-        }
-        
-        if (storedToken) {
+
+        // Check if token exists and is valid
+        if (storedToken && !isTokenExpired(storedToken)) {
+          // Fix: Check if storedUser exists before parsing
+          if (storedUser && storedUser !== "undefined") {
+            setUser(JSON.parse(storedUser));
+          }
+          
           setToken(storedToken);
           axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        } else {
+          // Clear expired/invalid token
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
         }
       } catch (error) {
         console.error("Failed to initialize auth state:", error);
@@ -39,6 +55,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = (newToken, userData) => {
     try {
+      // Validate token before storing
+      if (isTokenExpired(newToken)) {
+        console.error("Attempting to login with expired token");
+        return false;
+      }
+
       localStorage.setItem('authToken', newToken);
       localStorage.setItem('user', JSON.stringify(userData));
       setToken(newToken);
@@ -62,11 +84,11 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
+    <AuthContext.Provider value={{
+      user,
       token,
-      login, 
-      logout, 
+      login,
+      logout,
       isAdmin,
       loading
     }}>
