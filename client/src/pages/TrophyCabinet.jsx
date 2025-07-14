@@ -234,16 +234,7 @@ const TrophyCabinet = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl p-4 border border-white/10">
-                                    <div className="flex items-center">
-                                        <Award className="w-8 h-8 text-emerald-400 mr-3" />
-                                        <div>
-                                            <p className="text-gray-400 text-sm">Top Competition</p>
-                                            <p className="text-xl font-bold text-white truncate">{stats.topCompetition.name}</p>
-                                            <p className="text-sm text-gray-300">{stats.topCompetition.wins} wins</p>
-                                        </div>
-                                    </div>
-                                </div>
+                               
                             </div>
                         )}
 
@@ -438,7 +429,7 @@ const TrophyCabinet = () => {
                                 <div className="relative z-10">
                                     <div className="mx-auto mb-4 w-24 h-24 bg-slate-700/50 rounded-full flex items-center justify-center border-4 border-yellow-500/30">
                                         <div className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-200 bg-clip-text text-transparent">
-                                            {winners.findIndex(w => w._id === selectedWinner._id) + 1}
+{sortedWinners.findIndex(w => w._id === selectedWinner._id) + 1}
                                         </div>
                                     </div>
                                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
