@@ -234,7 +234,7 @@ const TrophyCabinet = () => {
                                         </div>
                                     </div>
                                 </div>
-                               
+
                             </div>
                         )}
 
@@ -425,18 +425,25 @@ const TrophyCabinet = () => {
                         {/* Champion Profile */}
                         <div className="bg-gradient-to-br from-slate-800/80 to-purple-900/80 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden">
                             {/* Hero Section */}
-                            <div className="bg-gradient-to-r from-slate-800 to-purple-900 p-6 md:p-8 text-center relative">
+                            <div className="bg-gradient-to-r from-slate-800 to-purple-900 p-6 md:p8 text-center relative">
                                 <div className="relative z-10">
                                     <div className="mx-auto mb-4 w-24 h-24 bg-slate-700/50 rounded-full flex items-center justify-center border-4 border-yellow-500/30">
                                         <div className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-200 bg-clip-text text-transparent">
-{sortedWinners.findIndex(w => w._id === selectedWinner._id) + 1}
+                                            {/* Calculate rank based on trophy count */}
+                                            {winners
+                                                .slice() // Create a copy to avoid mutating original array
+                                                .sort((a, b) => b.totalTrophies - a.totalTrophies)
+                                                .findIndex(w => w._id === selectedWinner._id) + 1}
                                         </div>
                                     </div>
                                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
                                         {selectedWinner.name.toUpperCase()}
-                                    </h1>                                    <div className="flex items-center justify-center">
+                                    </h1>
+                                    <div className="flex items-center justify-center">
                                         <Trophy className="w-6 h-6 text-yellow-400 mr-2" />
-                                        <span className="text-xl md:text-2xl font-bold text-yellow-400">{selectedWinner.totalTrophies}</span>
+                                        <span className="text-xl md:text-2xl font-bold text-yellow-400">
+                                            {selectedWinner.totalTrophies}
+                                        </span>
                                         <span className="text-gray-300 ml-2 text-base md:text-lg">
                                             Trophies
                                         </span>
