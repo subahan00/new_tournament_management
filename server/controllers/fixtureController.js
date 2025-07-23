@@ -356,24 +356,29 @@ exports.createFixturesForLeague = async (req, res) => {
     }
   };
 
-  exports.getCompetitionById = async (req, res) => {
-    try {
-      const { competitionId } = req.params;
-      
-      const competition = await Competition.findById(competitionId)
-        .populate('players')
-        .populate('winner');
-      
-      if (!competition) {
-        return res.status(404).json({ message: 'Competition not found' });
-      }
-      
-      res.status(200).json(competition);
-    } catch (error) {
-      console.error('Error fetching competition:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
+exports.getCompetitionById = async (req, res) => {
+  try {
+    const { competitionId } = req.params;
+
+    const competition = await Competition.findById(competitionId)
+      .select('-__v') // exclude unwanted fields if needed
+      .populate([
+        { path: 'players', select: 'name teamName credits' },
+        { path: 'winner', select: 'name teamName' }
+      ])
+      .lean(); // improves performance by skipping Mongoose document methods
+
+    if (!competition) {
+      return res.status(404).json({ message: 'Competition not found' });
     }
-  };
+
+    res.status(200).json(competition);
+  } catch (error) {
+    console.error('Error fetching competition:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 exports.getFixturesByCompetition = async (req, res) => {
   try {
     const fixtures = await Fixture.find({ competitionId: req.params.competitionId })
