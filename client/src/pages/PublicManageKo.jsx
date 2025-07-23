@@ -1,5 +1,6 @@
 // client/src/pages/PublicManageKo.jsx
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 
@@ -11,6 +12,7 @@ const PublicManageKo = () => {
   const [positions, setPositions] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const svgRef = useRef(null);
 
   // Define round order with actual round names from data
   const roundOrder = [
@@ -173,6 +175,61 @@ const PublicManageKo = () => {
     return positions;
   };
 
+  const downloadBracket = async () => {
+    if (!svgRef.current) return;
+
+    try {
+      const svgElement = svgRef.current;
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      
+      // Create a canvas element
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Get SVG dimensions
+      const svgRect = svgElement.getBoundingClientRect();
+      const svgWidth = svgElement.width.baseVal.value;
+      const svgHeight = svgElement.height.baseVal.value;
+      
+      // Set canvas size (scale up for better quality)
+      const scale = 2;
+      canvas.width = svgWidth * scale;
+      canvas.height = svgHeight * scale;
+      ctx.scale(scale, scale);
+      
+      // Create an image from SVG
+      const img = new Image();
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      
+      img.onload = () => {
+        // Fill canvas with background color
+        ctx.fillStyle = '#1F2937';
+        ctx.fillRect(0, 0, svgWidth, svgHeight);
+        
+        // Draw the SVG image
+        ctx.drawImage(img, 0, 0);
+        
+        // Convert to PNG and download
+        canvas.toBlob((blob) => {
+          const link = document.createElement('a');
+          link.download = `${competition?.name || 'Tournament'}_Bracket.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          
+          // Cleanup
+          URL.revokeObjectURL(url);
+          URL.revokeObjectURL(link.href);
+        }, 'image/png');
+      };
+      
+      img.src = url;
+    } catch (error) {
+      console.error('Error downloading bracket:', error);
+      alert('Error downloading bracket. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -197,7 +254,7 @@ const PublicManageKo = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4"> {/* Fixed background color */}
+    <div className="min-h-screen bg-gray-900 text-white p-4">
       {/* Header */}
       <header className="bg-gray-900 shadow-sm border-b border-gray-800">
         <div className="px-6 py-8 text-center">
@@ -217,22 +274,36 @@ const PublicManageKo = () => {
                 {fixtures.length} Matches
               </span>
             </div>
+            
+            {/* Download Button */}
+            <div className="mt-6">
+              <button
+                onClick={downloadBracket}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Bracket
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Tournament Bracket */}
-<div className="px-6 py-8 bg-gradient-to-br from-[#0a0f1c] via-[#0f172a] to-[#1e293b]">
+      <div className="px-6 py-8 bg-gradient-to-br from-[#0a0f1c] via-[#0f172a] to-[#1e293b]">
         <TournamentBracket
           groupedFixtures={groupedFixtures}
           positions={positions}
+          svgRef={svgRef}
         />
       </div>
     </div>
   );
 };
 
-const TournamentBracket = ({ groupedFixtures, positions }) => {
+const TournamentBracket = ({ groupedFixtures, positions, svgRef }) => {
   // Calculate SVG dimensions
   const matchBoxWidth = 200;
   const matchBoxHeight = 70;
@@ -250,6 +321,7 @@ const TournamentBracket = ({ groupedFixtures, positions }) => {
   return (
     <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6 overflow-auto">
       <svg
+        ref={svgRef}
         width={totalWidth}
         height={totalHeight}
         viewBox={`0 0 ${totalWidth} ${totalHeight}`}
@@ -375,20 +447,44 @@ const BracketConnector = ({ start, end, matchBoxWidth, matchBoxHeight }) => {
   const endX = end.x;
   const endY = end.y + matchBoxHeight / 2;
 
-  // Calculate intermediate points for the connector path
-  const midX1 = startX + 40;
-  const midX2 = endX - 40;
+  // Calculate intermediate points for straight line connector
+  const midX = startX + (endX - startX) / 2;
 
   return (
-    <path
-      d={`M ${startX} ${startY} 
-         C ${midX1} ${startY}, ${midX2} ${endY}, ${endX} ${endY}`}
-      stroke="#9CA3AF"
-      strokeWidth="2"
-      fill="none"
-      className="connector-path"
-      opacity="0.5"
-    />
+    <g>
+      {/* Horizontal line from start match */}
+      <line
+        x1={startX}
+        y1={startY}
+        x2={midX}
+        y2={startY}
+        stroke="#9CA3AF"
+        strokeWidth="2"
+        opacity="0.5"
+      />
+      
+      {/* Vertical connecting line */}
+      <line
+        x1={midX}
+        y1={startY}
+        x2={midX}
+        y2={endY}
+        stroke="#9CA3AF"
+        strokeWidth="2"
+        opacity="0.5"
+      />
+      
+      {/* Horizontal line to end match */}
+      <line
+        x1={midX}
+        y1={endY}
+        x2={endX}
+        y2={endY}
+        stroke="#9CA3AF"
+        strokeWidth="2"
+        opacity="0.5"
+      />
+    </g>
   );
 };
 
@@ -400,7 +496,8 @@ const MatchCard = ({ match, position, width, height }) => {
   const awayWinner = match.result === "away";
   const isCompleted = match.status === "completed";
   const isTBD = match.isTBD;
-return (
+
+  return (
     <g transform={`translate(${position.x}, ${position.y})`}>
       <rect
         width={width}
