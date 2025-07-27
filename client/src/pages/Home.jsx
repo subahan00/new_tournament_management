@@ -374,7 +374,7 @@ const RegistrationFormModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      const backendUrl = process.env.REACT_APP_BACKEND_URL;
       await axios.post(`${backendUrl}/submit`, formData);
       setSubmitted(true);
     } catch (error) {
@@ -488,7 +488,7 @@ const AnnouncementSection = () => {
       setError(null);
 
       try {
-        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const backendUrl = process.env.REACT_APP_API_URL;
         const response = await axios.get(`${backendUrl}/api/announcements`);
 
         console.log("Raw response from backend:", response);
