@@ -1,10 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-
+import axios from 'axios';
+import { useState } from 'react';
 const AdminDashboard = () => {
   const { user } = useAuth();
-
+  // State for the new announcement form
+  const [announcement, setAnnouncement] = useState('');
+  const [status, setStatus] = useState({ message: '', type: '' });
+  const [isLoading, setIsLoading] = useState(false);
   // Get personalized greeting
   const getGreeting = () => {
     if (user?.username) {
@@ -12,8 +16,39 @@ const AdminDashboard = () => {
     }
     return 'Admin Dashboard';
   };
-    const showWarning = user?.username && user.username.toLowerCase() !== 'amer';
+  const showWarning = user?.username && user.username.toLowerCase() !== 'amer';
+  const handleAnnouncementSubmit = async (e) => {
+    e.preventDefault();
+    if (!announcement.trim()) {
+      setStatus({ message: 'Announcement text cannot be empty.', type: 'error' });
+      return;
+    }
+    setIsLoading(true);
+    setStatus({ message: '', type: '' });
 
+    try {
+      // In a real app, this URL should be stored in a .env file
+      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+      // Send the announcement text to the backend API
+      const response = await axios.post(`${backendUrl}/api/announcements`, {
+        text: announcement
+      });
+
+      setStatus({ message: response.data.msg, type: 'success' });
+      setAnnouncement(''); // Clear the textarea on success
+
+      // Hide success message after 3 seconds
+      setTimeout(() => setStatus({ message: '', type: '' }), 3000);
+
+    } catch (error) {
+      console.error("Failed to post announcement:", error);
+      const errorMsg = error.response?.data?.msg || 'An unexpected error occurred.';
+      setStatus({ message: errorMsg, type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-900 text-gold-100 flex">
       {/* Side Dashboard */}
@@ -164,7 +199,43 @@ const AdminDashboard = () => {
             <h1 className="text-3xl md:text-4xl font-bold text-gold-400 mb-2">{getGreeting()}</h1>
             <p className="text-gold-300">Manage all competition activities</p>
           </div>
+          {/* --- NEW QUICK ANNOUNCEMENT SECTION --- */}
+          <div className="bg-gray-800/50 border border-gold-700/30 rounded-xl p-6 mb-8 hover:border-gold-500/50 transition-all duration-300">
+            <h2 className="text-2xl font-bold text-gold-300 mb-4">📢 Post a Quick Announcement</h2>
+            <p className="text-sm text-gold-400/80 mb-4">This will appear on the homepage announcement ticker.</p>
+            <form onSubmit={handleAnnouncementSubmit}>
+              <textarea
+                value={announcement}
+                onChange={(e) => setAnnouncement(e.target.value)}
+                className="w-full bg-gray-900/70 border border-gold-700/40 rounded-lg p-3 text-gold-200 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition duration-200"
+                rows="3"
+                placeholder="Enter announcement text... You can use **bold** for emphasis."
+              ></textarea>
 
+              {/* Status Message */}
+              {status.message && (
+                <p className={`mt-3 text-sm font-semibold ${status.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                  {status.message}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="mt-4 px-6 py-2 bg-gold-600 text-gray-900 font-bold rounded-lg hover:bg-gold-500 transition-colors duration-200 disabled:bg-gold-800/50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Posting...
+                  </>
+                ) : 'Post to Homepage'}
+              </button>
+            </form>
+          </div>
           {/* Dashboard Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Competition Management */}
