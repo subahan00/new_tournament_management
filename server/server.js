@@ -8,19 +8,20 @@ const http = require('http');
 const { Server } = require('socket.io');
 const Competition = require('./models/Competition');
 const standings = require('./models/Standing');
+const Announcement = require('./models/Announcement');
 const competitionRoutes = require('./routes/competitionRoutes');
 const authRoutes = require('./routes/authRoutes');
 const playerRoutes = require('./routes/playerRoutes');
 const fixtureRoutes = require('./routes/fixtureRoutes');
 const standingRoutes = require('./routes/standingRoutes');
 const Admin = require('./models/Admin');
-const resultRoutes = require('./routes/resultRoutes');
+const winnerRoutes = require('./routes/resultRoutes');
 const app = express();
 const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
 const Applicant=require('./models/Application');
 const wallpaperRoutes = require('./routes/wallpaperRoutes');
-const plainPassword = 'Imaad@6924';
+const plainPassword = 'Pratham@3623';
 
 // Hash the passwor
 bcrypt.genSalt(10, (err, salt) => {
@@ -61,10 +62,18 @@ app.use(express.json());
 // ✅ Updated Socket.IO config for CORS
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST"]
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS (Socket.IO)'));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
+
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -76,7 +85,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ✅ MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect("mongodb://127.0.0.1/official90", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -89,13 +98,34 @@ app.use('/api/auth', authRoutes);
 app.use('/api/players', playerRoutes);
 app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes);
-app.use('/api/winners', resultRoutes);
+app.use('/api/winners', winnerRoutes);
 app.use('/api/wallpaper', wallpaperRoutes);
-app.get('/api/ping', (req, res) => {
-  res.status(200).send('pong');
+app.post('/api/announcements', async (req, res) => {
+    const { text } = req.body;
+
+    if (!text || text.trim() === '') {
+        return res.status(400).json({ msg: 'Announcement text is required.' });
+    }
+
+    try {
+        const newAnnouncement = new Announcement({ text });
+        const savedAnnouncement = await newAnnouncement.save();
+        res.status(201).json({ msg: 'Announcement posted successfully!', announcement: savedAnnouncement });
+    } catch (err) {
+        console.error('Error saving announcement:', err.message);
+        res.status(500).send('Server Error');
+    }
 });
-
-
+app.get('/api/announcements', async (req, res) => {
+    try {
+        // Fetch all announcements and sort by `createdAt` in descending order (newest first)
+        const announcements = await Announcement.find().sort({ createdAt: -1 });
+        res.json(announcements);
+    } catch (err) {
+        console.error('Error fetching announcements:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
 // ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;
