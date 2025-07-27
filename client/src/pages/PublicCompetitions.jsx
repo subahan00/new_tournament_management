@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
-import { Loader2, AlertTriangle, Calendar, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, AlertTriangle, Calendar, Users, ChevronLeft, ChevronRight, GitMerge, BarChart3, ChevronRight as ArrowRightIcon } from 'lucide-react';
 import competitionService from '../services/competitionService';
+// This is a placeholder for your actual competition service.
+
 
 const ITEMS_PER_PAGE = 6;
 
@@ -87,7 +89,9 @@ const ThreeNebula = () => {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
-      mount.removeChild(renderer.domElement);
+      if (mount && mount.contains(renderer.domElement)) {
+        mount.removeChild(renderer.domElement);
+      }
     };
   }, [isMobile]);
 
@@ -95,14 +99,21 @@ const ThreeNebula = () => {
 };
 
 
-// A reusable, themed competition card component with motion
+// The new, re-themed CompetitionCard component
 const CompetitionCard = ({ competition }) => {
-    const { name, status, startDate, endDate, teamsCount, _id } = competition;
-    const statusInfo = {
-        Active: { class: 'bg-green-500/20 text-green-300', label: 'Active' },
-        Completed: { class: 'bg-gray-500/20 text-gray-300', label: 'Completed' },
-        Upcoming: { class: 'bg-yellow-500/20 text-yellow-300', label: 'Upcoming' },
-    }[status] || { class: 'bg-purple-500/20 text-purple-300', label: 'Unknown' };
+    const isKnockout = competition.type === 'KO_REGULAR';
+    const isLeague = competition.type === 'LEAGUE';
+
+    const getStatusInfo = (status) => {
+        switch (status) {
+            case 'Active': return { class: 'bg-green-500/10 text-green-300 border-green-400/30', label: 'Active' };
+            case 'Completed': return { class: 'bg-gray-500/10 text-gray-300 border-gray-400/30', label: 'Completed' };
+            case 'Upcoming': return { class: 'bg-yellow-500/10 text-yellow-300 border-yellow-400/30', label: 'Upcoming' };
+            default: return { class: 'bg-purple-500/10 text-purple-300 border-purple-400/30', label: 'Unknown' };
+        }
+    };
+
+    const statusInfo = getStatusInfo(competition.status);
 
     return (
         <motion.div
@@ -110,22 +121,36 @@ const CompetitionCard = ({ competition }) => {
                 hidden: { opacity: 0, y: 20 },
                 visible: { opacity: 1, y: 0 }
             }}
-            whileHover={{ y: -5, scale: 1.03 }}
-            className="bg-slate-900/50 backdrop-blur-md border border-gold-400/20 rounded-2xl p-6 shadow-lg shadow-gold-500/10 h-full"
+            className="h-full"
         >
-            <Link to={`/competitions/${_id}`} className="flex flex-col h-full">
+            <Link to={isKnockout ? `/manage-ko/${competition._id}` : `/standings/${competition._id}`} className="modern-info-card h-full flex flex-col group">
                 <div className="flex-grow">
                     <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-2xl font-bold font-cinzel text-gold-300 pr-4">{name}</h3>
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${statusInfo.class}`}>{statusInfo.label}</span>
+                        <h3 className="modern-card-title text-xl pr-4">{competition.name}</h3>
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${statusInfo.class}`}>
+                            {statusInfo.label}
+                        </span>
                     </div>
                     <div className="space-y-3 text-sm text-purple-200 font-lora">
-                        <div className="flex items-center"><Calendar size={14} className="mr-3 text-gold-400/70" /><span>{new Date(startDate).toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}</span></div>
-                        <div className="flex items-center"><Users size={14} className="mr-3 text-gold-400/70" /><span>{teamsCount} Teams</span></div>
+                        <div className="flex items-center">
+                           <Calendar size={14} className="mr-3 text-gold-400/70" />
+                           <span>{new Date(competition.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center">
+                           <Users size={14} className="mr-3 text-gold-400/70" />
+                           <span>{competition.players?.length || 0} Teams</span>
+                        </div>
+                         <div className="flex items-center">
+                           {isLeague ? <BarChart3 size={14} className="mr-3 text-gold-400/70" /> : <GitMerge size={14} className="mr-3 text-gold-400/70" />}
+                           <span>{competition.type.replace('_', ' ')}</span>
+                        </div>
                     </div>
                 </div>
-                <div className="mt-6 pt-4 border-t border-gold-400/20 text-right">
-                    <span className="font-cinzel font-bold text-sm text-gold-300 group-hover:text-white transition-colors">View Details →</span>
+                <div className="mt-6 pt-4 border-t border-purple-800/30 text-right">
+                    <span className="modern-card-button">
+                        {isKnockout ? 'View Bracket' : 'View Standings'}
+                        <ArrowRightIcon size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                    </span>
                 </div>
             </Link>
         </motion.div>
@@ -144,7 +169,7 @@ const Competitions = () => {
             try {
                 setLoading(true);
                 const data = await competitionService.getAllCompetitions();
-                const sorted = [...(data || [])].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+                const sorted = [...(data || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 setCompetitions(sorted);
             } catch (err) {
                 console.error(err);
@@ -164,7 +189,7 @@ const Competitions = () => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-
+    
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: {
@@ -177,11 +202,7 @@ const Competitions = () => {
         if (loading) {
             return (
                 <div className="flex items-center justify-center h-64">
-                    <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        className="w-16 h-16 border-4 border-gold-400 border-t-transparent rounded-full"
-                    />
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-16 h-16 border-4 border-gold-400 border-t-transparent rounded-full" />
                 </div>
             );
         }
@@ -207,12 +228,7 @@ const Competitions = () => {
 
         return (
             <>
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-                >
+                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {paginatedCompetitions.map((comp) => (
                         <CompetitionCard key={comp._id} competition={comp} />
                     ))}
@@ -257,6 +273,8 @@ const Competitions = () => {
                 .modern-info-card:hover { transform: translateY(-8px); border-color: rgba(255, 223, 128, 0.3); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 223, 128, 0.1); }
                 .modern-card-title { font-family: 'Cinzel', serif; font-size: 1.75rem; font-weight: 700; color: var(--gold-main); line-height: 1.3; }
                 .modern-card-desc { color: var(--purple-light); line-height: 1.6; font-size: 1rem; }
+                .modern-card-button { display: inline-flex; align-items: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.875rem; color: var(--gold-main); transition: color 0.3s ease; }
+                .modern-info-card:hover .modern-card-button { color: #fff; }
                 .modern-pagination-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(44, 27, 75, 0.5); border: 1px solid rgba(255, 223, 128, 0.2); color: var(--gold-main); transition: all 0.3s ease; }
                 .modern-pagination-button:not(:disabled):hover { background: rgba(255, 223, 128, 0.15); }
             `}</style>
