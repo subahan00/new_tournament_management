@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Link } from 'react-router-dom'; // Keep Link for navigation
 import * as THREE from 'three';
 import axios from 'axios';
-import { X, ChevronLeft, AlertCircle  ,ChevronRight, CheckCircle, Loader2, Menu, Crown, Shield, Instagram, Send, Trophy, Swords, Star, Zap, Users, Award, Calendar, UserCog } from 'lucide-react';
+import { X, ChevronLeft, AlertCircle, ChevronRight, CheckCircle, Loader2, Menu, Crown, Shield, Instagram, Send, Trophy, Swords, Star, Zap, Users, Award, Calendar, UserCog } from 'lucide-react';
 
 // NOTE: In a real app, components like Header, Footer, etc., would likely be in their own files.
 // They are kept here to make this a single, runnable example.
@@ -479,43 +479,43 @@ const AnnouncementSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const timeoutRef = useRef(null);
-    const availableIcons = [Trophy, Calendar, Star, Users];
+  const availableIcons = [Trophy, Calendar, Star, Users];
 
   // Simulate fetching announcements from an API
- useEffect(() => {
-  const fetchAnnouncements = async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await axios.get(`${backendUrl}/api/announcements`);
+      try {
+        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const response = await axios.get(`${backendUrl}/api/announcements`);
 
-      console.log("Raw response from backend:", response);
+        console.log("Raw response from backend:", response);
 
-      if (response.data && Array.isArray(response.data)) {
-        const formattedAnnouncements = response.data.map((announcement, index) => ({
-          title: announcement.text || "Untitled Announcement",
-          icon: availableIcons[index % availableIcons.length]
-        }));
+        if (response.data && Array.isArray(response.data)) {
+          const formattedAnnouncements = response.data.map((announcement, index) => ({
+            title: announcement.text || "Untitled Announcement",
+            icon: availableIcons[index % availableIcons.length]
+          }));
 
-        console.log("Formatted announcements:", formattedAnnouncements);
-        setAnnouncements(formattedAnnouncements);
-      } else {
-        console.warn("Unexpected data format:", response.data);
-        setAnnouncements([]);
+          console.log("Formatted announcements:", formattedAnnouncements);
+          setAnnouncements(formattedAnnouncements);
+        } else {
+          console.warn("Unexpected data format:", response.data);
+          setAnnouncements([]);
+        }
+
+      } catch (err) {
+        console.error("Failed to fetch announcements:", err);
+        setError("Could not load latest announcements. Please try again later.");
+      } finally {
+        setLoading(false);
       }
+    };
 
-    } catch (err) {
-      console.error("Failed to fetch announcements:", err);
-      setError("Could not load latest announcements. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchAnnouncements();
-}, []);
+    fetchAnnouncements();
+  }, []);
 
 
   const resetTimeout = () => {
@@ -633,10 +633,11 @@ export default function Home() {
         <section id="home" className="min-h-screen flex items-center justify-center text-center px-4 sm:px-6 relative">
           <div className="modern-hero-content">
             <h1 className="modern-hero-title">Welcome to <span className="modern-brand-accent">Official_90</span></h1>
-            <p className="modern-hero-subtitle">Forge your legacy in the crucible of competition. Your path to becoming a legend starts now.</p>
+            <p className="modern-hero-subtitle">Start your journey to greatness. Compete, grow, and make your name unforgettable.
+            </p>
             <div className="modern-hero-cta">
               <button id="join" onClick={() => setShowForm(true)} className="modern-cta-button">
-                <span className="relative z-10">⚔️ Join The Quest</span>
+                <span className="relative z-10">⚔️ Join The Arena</span>
                 <div className="modern-cta-glow"></div>
               </button>
             </div>
@@ -651,15 +652,17 @@ export default function Home() {
               <div className="modern-info-card">
                 <div className="modern-card-icon-wrapper"><Swords size={48} className="modern-card-icon" /></div>
                 <h2 className="modern-card-title">Weekly Arenas</h2>
-                <p className="modern-card-desc">Clash with mighty warriors every weekend for glory, prizes, and eternal fame in the hall of legends.</p>
+                <p className="modern-card-desc">Battle strong opponents every weekend for glory, rewards, and a place in the hall of legends.
+                </p>
                 <Link to="/view" className="modern-card-button">Enter The Arena</Link>
               </div>
             </InteractiveCard>
             <InteractiveCard className="group cursor-pointer" style={{ transitionDelay: '200ms' }}>
               <div className="modern-info-card">
                 <div className="modern-card-icon-wrapper"><Star size={48} className="modern-card-icon" /></div>
-                <h2 className="modern-card-title">Legendary Wallpapers</h2>
-                <p className="modern-card-desc">Adorn your devices with epic, high-definition art from the world of football legends.</p>
+                <h2 className="modern-card-title">Wallpapers</h2>
+                <p className="modern-card-desc">Decorate your devices with stunning HD art featuring legendary football heroes.
+</p>
                 <Link to="/wallpaper" className="modern-card-button">Browse Gallery</Link>
               </div>
             </InteractiveCard>
