@@ -584,7 +584,7 @@ const AnnouncementSection = () => {
                 <>
                   <div key={currentIndex} className="announcement-content">
                     <CurrentIcon className="text-gold-400 flex-shrink-0" size={28} />
-                    <ParseAnnounceText text={currentAnnouncement.title} />
+<ParseAnnounceText text={currentAnnouncement?.title || 'No announcement'} />
                   </div>
 
                   {/* Progress Dots */}
