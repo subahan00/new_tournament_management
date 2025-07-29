@@ -174,7 +174,7 @@ const ViewPage = () => {
     { label: "View Tournaments", icon: Swords, path: "/competitions" },
     { label: "Knockout Fixtures", icon: GitMerge, path: "/public-ko" },
     { label: "League Standings", icon: BarChart3, path: "/standings" },
-    { label: "Hall of Fame", icon: Award, path: "/hall-of-fame" },
+    { label: "Hall of Fame", icon: Award, path: "/trophy-cabinet" },
     { label: "Player Directory", icon: Users, path: "#" }, // Example path
     { label: "FAQs & Support", icon: ShieldQuestion, path: "" }, // Example path
   ];
