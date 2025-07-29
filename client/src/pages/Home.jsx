@@ -488,7 +488,7 @@ const AnnouncementSection = () => {
       setError(null);
 
       try {
-        const backendUrl = process.env.REACT_APP_API_URL;
+        const backendUrl = process.env.REACT_APP_BACKEND_URL;
         const response = await axios.get(`${backendUrl}/api/announcements`);
 
         console.log("Raw response from backend:", response);
