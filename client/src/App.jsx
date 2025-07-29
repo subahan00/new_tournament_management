@@ -33,73 +33,80 @@ import { AuthProvider } from './contexts/AuthContext';
 import DeleteWallpaper from './pages/deleteWallpaper';
 import TrophyCabinet from './pages/TrophyCabinet';
 import TrophyManagement from './pages/TrophyManagement';
-import Maintenance from './pages/maintenance'; // Import the new page
-
+import ScrollToTop from './components/ScrollToTop';
 const App = () => {
-  const isMaintenance = process.env.REACT_APP_MAINTENANCE_MODE === 'true';
-
   return (
     <AuthProvider>
       <Router>
-        {isMaintenance ? (
-          <Routes>
-            <Route path="*" element={<Maintenance />} />
-          </Routes>
-        ) : (
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/hall-of-fame" element={<HallOfFame />} />
-            <Route path="/competitions" element={<Competitions />} />
-            <Route path="/fixtures" element={<FixtureManagement />} />
-            <Route path="/fixtures/:competitionId" element={<CompetitionFixtures />} />
-            <Route path="/standings" element={<ManageStandings />} />
-            <Route path="/standings/:competitionId" element={<Standings />} />
-            <Route path="/public-ko" element={<PublicKo />} />
-            <Route path="/wallpaper" element={<PublicWallpaperPage />} />
-            <Route path="/view" element={<ViewPage />} />
-            <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
-            <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
-            <Route path="/trophy-cabinet" element={<TrophyCabinet />} />
-
-            {/* Admin protected routes */}
+        <ScrollToTop />
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/hall-of-fame" element={<HallOfFame />} />
+          <Route path="/competitions" element={<Competitions />} />
+          <Route path="/fixtures" element={<FixtureManagement />} />
+          <Route path="/fixtures/:competitionId" element={<CompetitionFixtures />} />
+          <Route path="/standings" element={<ManageStandings />} />
+          <Route path="/standings/:competitionId" element={<Standings />} />
+          <Route path="/public-ko" element={<PublicKo />} />
+          <Route path="/wallpaper" element={<PublicWallpaperPage />} />
+          <Route path="/view" element={<ViewPage />} />
+          <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
+          <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
+          <Route path="/trophy-cabinet" element={<TrophyCabinet />} />
+          {/* Admin protected routes */}
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/trophy-management" 
+            element={
+              <ProtectedRoute adminOnly>
+                <TrophyManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/manage-players" 
+            element={
+              <ProtectedRoute adminOnly>
+                <CreatePlayerForm />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Mapped admin routes */}
+          {[
+            { path: "/admin/create-competition", component: <CreateCompetition /> },
+            { path: "/admin/manage-competitions", component: <ManageCompetitions /> },
+            { path: "/admin/create-fixture", component: <FixtureManagement /> },
+            { path: "/admin/manage-fixtures", component: <ManageFixtures /> },
+            { path: "/admin/results/:competitionId", component: <CompetitionResults /> },
+            { path: "/admin/manage-kos", component: <ManageKoResults /> },
+            { path: "/admin/manage-kos/:competitionId", component: <ResultKo /> },
+            { path: "/upload-wallpaper", component: <AdminUploadPage /> },
+            { path: "/admin/applicant-list", component: <ApplicantList /> },
+            { path: "/post-winner", component: <AdminWinnerForm /> },
+            { path: "/results", component: <ResultsEntry /> },
+            { path: "/admin/update-competition", component: <UpdatePlayerName /> }
+          ].map((route, index) => (
             <Route 
-              path="/admin/dashboard" 
-              element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} 
+              key={index}
+              path={route.path}
+              element={
+                <ProtectedRoute adminOnly>
+                  {route.component}
+                </ProtectedRoute>
+              }
             />
-            <Route 
-              path="/admin/trophy-management" 
-              element={<ProtectedRoute adminOnly><TrophyManagement /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/admin/manage-players" 
-              element={<ProtectedRoute adminOnly><CreatePlayerForm /></ProtectedRoute>} 
-            />
-
-            {/* Mapped admin routes */}
-            {[
-              { path: "/admin/create-competition", component: <CreateCompetition /> },
-              { path: "/admin/manage-competitions", component: <ManageCompetitions /> },
-              { path: "/admin/create-fixture", component: <FixtureManagement /> },
-              { path: "/admin/manage-fixtures", component: <ManageFixtures /> },
-              { path: "/admin/results/:competitionId", component: <CompetitionResults /> },
-              { path: "/admin/manage-kos", component: <ManageKoResults /> },
-              { path: "/admin/manage-kos/:competitionId", component: <ResultKo /> },
-              { path: "/upload-wallpaper", component: <AdminUploadPage /> },
-              { path: "/admin/applicant-list", component: <ApplicantList /> },
-              { path: "/post-winner", component: <AdminWinnerForm /> },
-              { path: "/results", component: <ResultsEntry /> },
-              { path: "/admin/update-competition", component: <UpdatePlayerName /> }
-            ].map((route, index) => (
-              <Route 
-                key={index}
-                path={route.path}
-                element={<ProtectedRoute adminOnly>{route.component}</ProtectedRoute>}
-              />
-            ))}
-          </Routes>
-        )}
+          ))}
+        </Routes>
       </Router>
     </AuthProvider>
   );
