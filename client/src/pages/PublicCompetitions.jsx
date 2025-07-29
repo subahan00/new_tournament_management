@@ -247,6 +247,12 @@ const Competitions = () => {
 
     return (
         <div className="min-h-screen flex flex-col modern-bg text-white font-serif overflow-x-hidden">
+              <header className="fixed top-0 left-0 w-full z-50 p-4">
+                         <Link to="/" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-300 transition-colors duration-300 group glass-header-light p-2 rounded-lg">
+                            <ChevronLeft size={20} className="transition-transform duration-300 group-hover:-translate-x-1" />
+                            <span className="font-cinzel font-bold text-sm">Back to Home</span>
+                        </Link>
+                    </header>
             <Suspense fallback={<div className="fixed inset-0 bg-purple-950" />}>
                 <ThreeNebula />
             </Suspense>
@@ -256,6 +262,7 @@ const Competitions = () => {
             
             <main className="flex-grow container mx-auto px-4 sm:px-6 py-24 md:py-32 relative z-10">
                 <header className="text-center mb-12 md:mb-16">
+                    
                     <motion.h1 initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="modern-hero-title" style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)' }}>Tournaments</motion.h1>
                     <motion.p initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="modern-hero-subtitle">Browse all available arenas of competition.</motion.p>
                 </header>
