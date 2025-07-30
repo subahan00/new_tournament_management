@@ -14,6 +14,7 @@ const authRoutes = require('./routes/authRoutes');
 const playerRoutes = require('./routes/playerRoutes');
 const fixtureRoutes = require('./routes/fixtureRoutes');
 const standingRoutes = require('./routes/standingRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
 const Admin = require('./models/Admin');
 const winnerRoutes = require('./routes/resultRoutes');
 const app = express();
@@ -85,7 +86,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ✅ MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect("mongodb://127.0.0.1/official90", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -100,32 +101,7 @@ app.use('/api/fixtures', fixtureRoutes);
 app.use('/api/standings', standingRoutes);
 app.use('/api/winners', winnerRoutes);
 app.use('/api/wallpaper', wallpaperRoutes);
-app.post('/api/announcements', async (req, res) => {
-    const { text } = req.body;
-
-    if (!text || text.trim() === '') {
-        return res.status(400).json({ msg: 'Announcement text is required.' });
-    }
-
-    try {
-        const newAnnouncement = new Announcement({ text });
-        const savedAnnouncement = await newAnnouncement.save();
-        res.status(201).json({ msg: 'Announcement posted successfully!', announcement: savedAnnouncement });
-    } catch (err) {
-        console.error('Error saving announcement:', err.message);
-        res.status(500).send('Server Error');
-    }
-});
-app.get('/api/announcements', async (req, res) => {
-    try {
-        // Fetch all announcements and sort by `createdAt` in descending order (newest first)
-        const announcements = await Announcement.find().sort({ createdAt: -1 });
-        res.json(announcements);
-    } catch (err) {
-        console.error('Error fetching announcements:', err.message);
-        res.status(500).send('Server Error');
-    }
-});
+app.use('/api/announcements', announcementRoutes);
 // ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;
