@@ -167,9 +167,9 @@ const ManageAnnouncements = () => {
             </Suspense>
 
             <header className="fixed top-0 left-0 w-full z-50 p-4 flex justify-between items-center">
-                <Link to="/" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-300 transition-colors duration-300 group glass-header-light p-2 rounded-lg">
+                <Link to="/admin/dashboard" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-300 transition-colors duration-300 group glass-header-light p-2 rounded-lg">
                     <ChevronLeft size={20} className="transition-transform duration-300 group-hover:-translate-x-1" />
-                    <span className="font-cinzel font-bold text-sm">Back to Home</span>
+                    <span className="font-cinzel font-bold text-sm">Back to Dashboard</span>
                 </Link>
             </header>
 
