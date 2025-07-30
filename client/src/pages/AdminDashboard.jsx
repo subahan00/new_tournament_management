@@ -235,6 +235,12 @@ const AdminDashboard = () => {
                 ) : 'Post to Homepage'}
               </button>
             </form>
+            <div className="mt-4 text-right">
+              <Link to="/manage-announcements" className="inline-block px-3 py-2 rounded text-gold-300 hover:bg-gold-800/30">
+                Manage Announcements
+              </Link>
+            </div>
+          </div>
           </div>
           {/* Dashboard Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
