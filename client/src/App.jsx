@@ -34,6 +34,7 @@ import DeleteWallpaper from './pages/deleteWallpaper';
 import TrophyCabinet from './pages/TrophyCabinet';
 import TrophyManagement from './pages/TrophyManagement';
 import ScrollToTop from './components/ScrollToTop';
+import ManageAnnouncements from './pages/ManageAnnouncements';
 const App = () => {
   return (
     <AuthProvider>
@@ -55,6 +56,8 @@ const App = () => {
           <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
           <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
           <Route path="/trophy-cabinet" element={<TrophyCabinet />} />
+          <Route path="/manage-announcements" element={<ManageAnnouncements />} />
+
           {/* Admin protected routes */}
           <Route 
             path="/admin/dashboard" 
