@@ -28,7 +28,7 @@
 
       try {
         // In a real app, this URL should be stored in a .env file
-        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
         // Send the announcement text to the backend API
         const response = await axios.post(`${backendUrl}/api/announcements`, {
