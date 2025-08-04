@@ -6,7 +6,8 @@ const Standing = require('../models/Standing');
 const mongoose = require('mongoose');
 const Player = require('../models/Player');
 
-const calculateStandings = async (competitionId) => {
+const calculateStandings = async (competitionId, requestId = 'N/A') => {
+  console.log(`[${requestId}] START calculateStandings for ${competitionId}`);
   try {
     // 1. Get competition WITHOUT populating players
     const competition = await Competition.findById(competitionId)
@@ -139,6 +140,8 @@ const calculateLeagueStandings = async (competitionId, competition) => {
   }
 };
 
+const { performance } = require('perf_hooks');
+
 const calculateGroupStageStandings = async (competitionId, competition) => {
   const overallStart = performance.now();
   let timings = {
@@ -155,30 +158,30 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
   };
 
   try {
-    // 1. Get completed fixtures - optimized query
     const fixturesStart = performance.now();
-    const fixtures = await Fixture.find({
-      competitionId,
-      status: 'completed'
-    }).select('homePlayer awayPlayer homeScore awayScore result round').lean();
+    // Fetch all fixtures (not just completed) to get all participants.
+    const allFixtures = await Fixture.find({ competitionId })
+      .select('homePlayer awayPlayer homeScore awayScore result round status')
+      .lean();
     timings.fetchFixtures = performance.now() - fixturesStart;
 
-    if (fixtures.length === 0) {
-      console.log('No completed fixtures found for group stage calculation');
+    if (allFixtures.length === 0) {
+      console.log('No fixtures found for this competition.');
       return [];
     }
 
-    // 2. Get existing standings - optimized projection
+    // Filter for completed fixtures to process results.
+    const completedFixtures = allFixtures.filter(f => f.status === 'completed');
+
     const standingsStart = performance.now();
     const existingStandings = await Standing.find({ competition: competitionId })
       .select('player playerName group -_id')
       .lean();
     timings.fetchStandings = performance.now() - standingsStart;
 
-    // 3. Group fixtures by round - optimized with Map
     const groupStart = performance.now();
     const fixturesByGroup = new Map();
-    fixtures.forEach(fixture => {
+    completedFixtures.forEach(fixture => {
       const group = fixture.round;
       if (!fixturesByGroup.has(group)) {
         fixturesByGroup.set(group, []);
@@ -187,13 +190,12 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     });
     timings.groupFixtures = performance.now() - groupStart;
 
-    // 4. Player-group mapping optimization
     const mappingStart = performance.now();
     const playerGroupMap = new Map();
     const playerIds = new Set();
 
-    // Efficient player-group mapping from fixtures
-    fixtures.forEach(fixture => {
+    // Use all fixtures to map every player.
+    allFixtures.forEach(fixture => {
       playerGroupMap.set(fixture.homePlayer.toString(), fixture.round);
       playerGroupMap.set(fixture.awayPlayer.toString(), fixture.round);
       playerIds.add(fixture.homePlayer.toString());
@@ -201,12 +203,10 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     });
     timings.playerMapping = performance.now() - mappingStart;
 
-    // 5. Initialize standings - optimized player data fetch
     const initStart = performance.now();
     const standingsMap = new Map();
     const uniquePlayerIds = Array.from(playerIds).map(id => new mongoose.Types.ObjectId(id));
 
-    // Batch player name lookup
     const players = await Player.find(
       { _id: { $in: uniquePlayerIds } },
       { name: 1 }
@@ -214,7 +214,7 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     
     const playerNameMap = new Map(players.map(p => [p._id.toString(), p.name]));
 
-    // Initialize only relevant players
+    // Initialize standings for all players with 0 values.
     for (const playerId of playerIds) {
       const group = playerGroupMap.get(playerId);
       if (group) {
@@ -240,7 +240,7 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     }
     timings.initStandings = performance.now() - initStart;
 
-    // 6. Process completed fixtures
+    // Process results from completed fixtures.
     const processStart = performance.now();
     fixturesByGroup.forEach((groupFixtures, group) => {
       groupFixtures.forEach(fixture => {
@@ -254,7 +254,6 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
 
         homeEntry.matchesPlayed++;
         awayEntry.matchesPlayed++;
-
         homeEntry.goalsFor += fixture.homeScore;
         homeEntry.goalsAgainst += fixture.awayScore;
         awayEntry.goalsFor += fixture.awayScore;
@@ -278,7 +277,6 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     });
     timings.processFixtures = performance.now() - processStart;
 
-    // 7. Prepare bulk operations
     const bulkStart = performance.now();
     const bulkOps = [];
     standingsMap.forEach(standing => {
@@ -310,14 +308,12 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     });
     timings.bulkOps = performance.now() - bulkStart;
 
-    // 8. Update database - only if needed
     const dbStart = performance.now();
     if (bulkOps.length > 0) {
       await Standing.bulkWrite(bulkOps, { ordered: false });
     }
     timings.dbUpdate = performance.now() - dbStart;
 
-    // 9. Prepare sorted results
     const sortStart = performance.now();
     const result = {};
     standingsMap.forEach(standing => {
@@ -337,7 +333,6 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
     });
     timings.sorting = performance.now() - sortStart;
 
-    // Performance logging
     const totalTime = performance.now() - overallStart;
     console.log('Standings calculation timings:');
     Object.entries(timings).forEach(([key, val]) => {
