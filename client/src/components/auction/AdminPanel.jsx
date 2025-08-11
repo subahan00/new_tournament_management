@@ -38,7 +38,7 @@ const AdminPanel = ({
   const [showBidders, setShowBidders] = useState(false);
   const pendingBidders = bidders.filter(b => b.status === 'pending');
 
-  const controlButtonClasses = "flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-3 px-4 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100";
+  const controlButtonClasses = "flex items-center justify-center gap-2 text-sm font-semibold py-3 px-4 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100";
   const primaryButtonClasses = "bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20";
   const destructiveButtonClasses = "bg-red-500/10 text-red-400 hover:bg-red-500/20";
   const warningButtonClasses = "bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20";
@@ -49,7 +49,8 @@ const AdminPanel = ({
       
       <div className="flex flex-col md:flex-row gap-4">
         {/* Main Controls */}
-        <div className="flex-1 flex gap-2">
+        {/* I've added 'flex-wrap' here to allow buttons to wrap onto the next line on smaller screens */}
+        <div className="flex-1 flex flex-wrap gap-2">
             {auction.status === 'draft' && (
               <button onClick={onStart} className={`${controlButtonClasses} ${primaryButtonClasses}`}>
                 <PlayIcon className="h-4 w-4" /> Start Auction
@@ -78,6 +79,8 @@ const AdminPanel = ({
             <button
               onClick={() => {
                 if (!currentPlayer) return;
+                // Note: window.confirm can be problematic in some environments. 
+                // Consider a custom modal component for a better user experience.
                 const ok = window.confirm(`Force-skip "${currentPlayer.name || currentPlayer.playerName || 'this player'}"? This will remove them from bidding.`);
                 if (ok && typeof onSkip === 'function') onSkip(currentPlayer._id);
               }}
