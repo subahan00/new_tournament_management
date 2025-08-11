@@ -35,6 +35,15 @@ import TrophyCabinet from './pages/TrophyCabinet';
 import TrophyManagement from './pages/TrophyManagement';
 import ScrollToTop from './components/ScrollToTop';
 import ManageAnnouncements from './pages/ManageAnnouncements';
+import AuctionList from './components/auction/AuctionList';
+import AuctionLobby from './components/auction/AuctionLobby';
+import AuctionRoom from './components/auction/AuctionRoom';
+import CreateAuction from './components/auction/CreateAuction';
+import ManageAuctions from './components/auction/ManageAuctions';
+import AdminPanel from './components/auction/AdminPanel';
+import BidderPanel from './components/auction/BidderPanel';
+import ViewerPanel from './components/auction/ViewerPanel';
+
 const App = () => {
   return (
     <AuthProvider>
@@ -57,33 +66,42 @@ const App = () => {
           <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
           <Route path="/trophy-cabinet" element={<TrophyCabinet />} />
           <Route path="/manage-announcements" element={<ManageAnnouncements />} />
+          {/* Auction routes - Add these to your existing routes */}
+          <Route path="/auctions" element={<AuctionList />} />
+          <Route path="/auction/:id" element={<AuctionLobby />} />
+          <Route path="/auction/:id/room" element={<AuctionRoom />} />
+
+          {/* Admin auction routes - Add these to your admin protected routes section */}
+          <Route path="/admin/create-auction" element={<CreateAuction />} />
+          <Route path="/admin/manage-auctions" element={<ManageAuctions />} />
+
 
           {/* Admin protected routes */}
-          <Route 
-            path="/admin/dashboard" 
+          <Route
+            path="/admin/dashboard"
             element={
               <ProtectedRoute adminOnly>
                 <AdminDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/trophy-management" 
+          <Route
+            path="/admin/trophy-management"
             element={
               <ProtectedRoute adminOnly>
                 <TrophyManagement />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin/manage-players" 
+          <Route
+            path="/admin/manage-players"
             element={
               <ProtectedRoute adminOnly>
                 <CreatePlayerForm />
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Mapped admin routes */}
           {[
             { path: "/admin/create-competition", component: <CreateCompetition /> },
@@ -99,7 +117,7 @@ const App = () => {
             { path: "/results", component: <ResultsEntry /> },
             { path: "/admin/update-competition", component: <UpdatePlayerName /> }
           ].map((route, index) => (
-            <Route 
+            <Route
               key={index}
               path={route.path}
               element={

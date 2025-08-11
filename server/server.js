@@ -22,8 +22,14 @@ const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
 const Applicant=require('./models/Application');
 const wallpaperRoutes = require('./routes/wallpaperRoutes');
+const Auction = require('./models/Auction');
+const AuctionPlayer = require('./models/AuctionPlayer');
+const Bidder = require('./models/Bidder');
+const Bid = require('./models/Bid');
+const ChatMessage = require('./models/ChatMessage');
 const plainPassword = 'Pratham@3623';
-
+const auctionRoutes = require('./routes/auctionRoutes');
+const auctionHandler = require('./socketHandlers/auctionHandler');
 // Hash the passwor
 bcrypt.genSalt(10, (err, salt) => {
   if (err) throw err;
@@ -102,6 +108,10 @@ app.use('/api/standings', standingRoutes);
 app.use('/api/winners', winnerRoutes);
 app.use('/api/wallpaper', wallpaperRoutes);
 app.use('/api/announcements', announcementRoutes);
+
+app.use('/api/auctions', auctionRoutes);
+auctionHandler(io);
+
 // ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;
