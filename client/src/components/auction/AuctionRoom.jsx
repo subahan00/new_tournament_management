@@ -191,11 +191,11 @@ const AuctionRoom = () => {
                             <h1 className="text-3xl font-bold text-white">{auctionState.name}</h1>
                             <div className="flex items-center space-x-3 mt-2">
                                 <span className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold ${auctionState.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                                        auctionState.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
-                                            'bg-gray-500/20 text-gray-400'
+                                    auctionState.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
+                                        'bg-gray-500/20 text-gray-400'
                                     }`}>
                                     <span className={`h-2 w-2 rounded-full ${auctionState.status === 'active' ? 'bg-green-400 animate-pulse' :
-                                            auctionState.status === 'paused' ? 'bg-yellow-400' : 'bg-gray-400'
+                                        auctionState.status === 'paused' ? 'bg-yellow-400' : 'bg-gray-400'
                                         }`}></span>
                                     <span>{auctionState.status.toUpperCase()}</span>
                                 </span>
@@ -219,11 +219,10 @@ const AuctionRoom = () => {
                     </div>
                 </header>
 
-                {/* Main Content Area */}
                 <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-h-0">
                     {/* Center Column */}
                     <main className="lg:col-span-2 flex flex-col gap-4 lg:gap-6">
-                        <div className="flex-grow bg-black/20 backdrop-blur-sm border border-slate-700 rounded-xl p-6 flex flex-col justify-center items-center">
+                        <div className="flex-grow bg-black/20 backdrop-blur-sm border border-slate-700 rounded-xl p-4 sm:p-6 flex flex-col justify-center items-center w-full">
                             {currentPlayer ? (
                                 <PlayerCard
                                     player={currentPlayer}
@@ -231,35 +230,46 @@ const AuctionRoom = () => {
                                     userStatus={userStatus}
                                     onBid={placeBid}
                                     canBid={userType === 'bidder' && userStatus === 'approved' && auctionState.status === 'active'}
+                                    className="w-full max-w-md"
                                 />
                             ) : (
                                 <div className="text-center">
                                     <GavelIcon className="h-16 w-16 mx-auto text-slate-600 mb-4" />
-                                    <h2 className="text-2xl font-bold text-white mb-2">Waiting for Next Player</h2>
-                                    <p className="text-slate-400">The auction block is currently empty.</p>
+                                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Waiting for Next Player</h2>
+                                    <p className="text-slate-400 text-sm sm:text-base">The auction block is currently empty.</p>
                                 </div>
                             )}
                         </div>
-                        <div className="bg-black/20 backdrop-blur-sm border border-slate-700 rounded-xl p-4">
-                            {userType === 'admin' && <AdminPanel
-                                auction={auctionState}
-                                currentPlayer={currentPlayer}
-                                bidders={bidders}
-                                onStart={startAuction}
-                                onPause={pauseAuction}
-                                onNext={nextPlayer}
-                                onSell={sellPlayer}
-                                onApproveBidder={approveBidder}
-                                onSkip={skipPlayer} // new
-                            />
-                            }
-                            {userType === 'bidder' && <BidderPanel bidder={bidders.find(b => b._id === bidderId)} currentPlayer={currentPlayer} canBid={userStatus === 'approved' && auctionState.status === 'active'} onBid={placeBid} />}
+
+                        <div className="bg-black/20 backdrop-blur-sm border border-slate-700 rounded-xl p-4 w-full">
+                            {userType === 'admin' && (
+                                <AdminPanel
+                                    auction={auctionState}
+                                    currentPlayer={currentPlayer}
+                                    bidders={bidders}
+                                    onStart={startAuction}
+                                    onPause={pauseAuction}
+                                    onNext={nextPlayer}
+                                    onSell={sellPlayer}
+                                    onApproveBidder={approveBidder}
+                                    onSkip={skipPlayer}
+                                />
+                            )}
+                            {userType === 'bidder' && (
+                                <BidderPanel
+                                    bidder={bidders.find(b => b._id === bidderId)}
+                                    currentPlayer={currentPlayer}
+                                    canBid={userStatus === 'approved' && auctionState.status === 'active'}
+                                    onBid={placeBid}
+                                    className="w-full"
+                                />
+                            )}
                             {userType === 'viewer' && <ViewerPanel currentPlayer={currentPlayer} />}
                         </div>
                     </main>
 
                     {/* Right Sidebar */}
-                    <aside className="lg:col-span-1 bg-black/20 backdrop-blur-sm border border-slate-700 rounded-xl flex flex-col overflow-hidden min-h-0">
+                    <aside className="lg:col-span-1 bg-black/20 backdrop-blur-sm border border-slate-700 rounded-xl flex flex-col overflow-hidden min-h-0 w-full">
                         <div className="flex-1 overflow-y-auto">
                             <BiddersList bidders={bidders} />
                         </div>
@@ -272,6 +282,7 @@ const AuctionRoom = () => {
                         </div>
                     </aside>
                 </div>
+
             </div>
 
             {/* Render the modal conditionally */}
