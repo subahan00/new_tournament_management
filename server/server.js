@@ -20,7 +20,7 @@ const winnerRoutes = require('./routes/resultRoutes');
 const app = express();
 const server = http.createServer(app);
 const bcrypt = require('bcryptjs');
-const Applicant=require('./models/Application');
+const Applicant = require('./models/Application');
 const wallpaperRoutes = require('./routes/wallpaperRoutes');
 const Auction = require('./models/Auction');
 const AuctionPlayer = require('./models/AuctionPlayer');
@@ -96,8 +96,8 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ Connected to MongoDB'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // ✅ API Routes
 app.use('/api/competitions', competitionRoutes);
@@ -189,6 +189,7 @@ app.use((error, req, res, next) => {
   }
   res.status(500).json({ message: error.message });
 });
+app.get('/api/ping', (req, res) => res.status(200).send('pong'));
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;
