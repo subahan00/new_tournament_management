@@ -393,8 +393,48 @@ const AdminDashboard = () => {
                 </Link>
               </div>
             </div>
-
-            {/* Knockout & Standings */}
+            {/* Auctions Management */}
+            <div className="bg-gray-800/50 border border-gold-700/30 rounded-xl p-6 hover:border-gold-500/50 transition-all duration-200 group">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-gold-900/20 flex items-center justify-center mr-4 border border-gold-700/50">
+                  <svg className="w-6 h-6 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6m3-3l2-2m4 4l2-2m-8 8l2-2m4 4l2-2" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">Auctions</h2>
+              </div> 
+              <div className="space-y-3">
+                <Link
+                  to="/auctions"
+                  className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6m3-3l2-2m4 4l2-2m-8 8l2-2m4 4l2-2" />
+                  </svg>
+                  View All Auctions
+                </Link>
+                <Link
+                  to="/admin/create-auction"
+                  className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6m3-3l2-2m4 4l2-2m-8 8l2-2m4 4l2-2" />
+                  </svg>
+                  Create Auction
+                </Link>
+                <Link
+                  to="/admin/manage-auctions"
+                  className="block bg-gold-900/30 hover:bg-gold-800/50 text-gold-200 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
+                > 
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6m3-3l2-2m4 4l2-2m-8 8l2-2m4 4l2-2" />
+                  </svg>
+                  Manage Auctions
+                </Link>
+              </div>
+            </div>
+            
+              {/* Knockout & Standings */}    
             <div className="bg-gray-800/50 border border-gold-700/30 rounded-xl p-6 hover:border-gold-500/50 transition-all duration-200 group">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 rounded-full bg-gold-900/20 flex items-center justify-center mr-4 border border-gold-700/50">

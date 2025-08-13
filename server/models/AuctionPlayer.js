@@ -2,29 +2,27 @@
 const mongoose = require('mongoose');
 
 const auctionPlayerSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true 
-  },
-  position: {
+  name: {
     type: String,
-    enum: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
-    required: true
+    required: true,
+    trim: true
   },
-  rating: {
+  trophiesWon: {
     type: Number,
-    min: 1,
-    max: 100,
-    required: true
+    required: true,
+    default: 0,
+    min: 0
+  },
+  division1ReachedCount: {
+    type: Number,
+    required: true,
+    default: 0,
+    min: 0
   },
   basePrice: {
     type: Number,
     required: true,
     min: 0
-  },
-  currentPrice: {
-    type: Number,
-    default: function() { return this.basePrice; }
   },
   soldPrice: {
     type: Number,
@@ -42,10 +40,9 @@ const auctionPlayerSchema = new mongoose.Schema({
   },
   soldTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Bidder',
+    ref: 'Bidder', // Reverted back to 'Bidder' as per your original code
     default: null
-  },
-  imageUrl: String // Optional player image
-}, { timestamps: true });
+  }
+});
 
 module.exports = mongoose.model('AuctionPlayer', auctionPlayerSchema);

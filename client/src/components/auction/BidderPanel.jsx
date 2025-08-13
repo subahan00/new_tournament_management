@@ -27,9 +27,9 @@ const BidderPanel = ({ bidder, currentPlayer, canBid, onBid }) => {
   };
 
   const quickBidAmounts = currentPlayer ? [
-    currentPlayer.currentPrice + 50000,
-    currentPlayer.currentPrice + 100000,
-    currentPlayer.currentPrice + 200000
+    currentPlayer.currentPrice + 50,
+    currentPlayer.currentPrice + 100,
+    currentPlayer.currentPrice + 200
   ] : [];
 
   if (!bidder) {

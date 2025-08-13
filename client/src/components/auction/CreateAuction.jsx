@@ -9,24 +9,26 @@ const CreateAuction = () => {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  
+
+  // State for the main auction details
   const [auctionData, setAuctionData] = useState({
     name: '',
     description: '',
     totalBudget: 1000000
   });
 
+  // State for the list of players to be added to the auction
+  // This is updated to match the new eFootball-specific model
   const [players, setPlayers] = useState([
     {
       name: '',
-      position: 'Forward',
-      rating: 75,
+      trophiesWon: 0,
+      division1ReachedCount: 0,
       basePrice: 100000
     }
   ]);
 
-  const positions = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'];
-
+  // Handler for auction detail changes
   const handleAuctionChange = (e) => {
     setAuctionData({
       ...auctionData,
@@ -34,39 +36,46 @@ const CreateAuction = () => {
     });
   };
 
+  // Handler for individual player field changes
   const handlePlayerChange = (index, field, value) => {
     const updatedPlayers = [...players];
     updatedPlayers[index][field] = value;
     setPlayers(updatedPlayers);
   };
 
+  // Adds a new blank player form
   const addPlayer = () => {
     setPlayers([...players, {
       name: '',
-      position: 'Forward',
-      rating: 75,
+      trophiesWon: 0,
+      division1ReachedCount: 0,
       basePrice: 100000
     }]);
   };
 
+  // Removes a player form
   const removePlayer = (index) => {
     if (players.length > 1) {
       setPlayers(players.filter((_, i) => i !== index));
     }
   };
 
+  // Handles the final form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
+    // --- Validation ---
     if (!auctionData.name.trim()) {
-      setMessage('Please enter auction name');
+      setMessage('Please enter an auction name.');
       return;
     }
 
-    const invalidPlayers = players.some(p => !p.name.trim() || p.rating < 1 || p.rating > 100 || p.basePrice < 1);
+    // Validate player fields based on the new model
+    const invalidPlayers = players.some(p =>
+      !p.name.trim() || p.trophiesWon < 0 || p.division1ReachedCount < 0 || p.basePrice < 1
+    );
     if (invalidPlayers) {
-      setMessage('Please fill all player details correctly');
+      setMessage('Please fill all player details correctly. All numbers must be positive.');
       return;
     }
 
@@ -74,14 +83,18 @@ const CreateAuction = () => {
     setMessage('');
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auctions`, {
+      // Prepare the payload for the API
+      const payload = {
         ...auctionData,
         players: players.map(p => ({
           ...p,
-          rating: parseInt(p.rating),
-          basePrice: parseInt(p.basePrice)
+          trophiesWon: parseInt(p.trophiesWon, 10),
+          division1ReachedCount: parseInt(p.division1ReachedCount, 10),
+          basePrice: parseInt(p.basePrice, 10)
         }))
-      }, {
+      };
+
+      const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auctions`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -89,24 +102,22 @@ const CreateAuction = () => {
       setTimeout(() => {
         navigate(`/auction/${response.data._id}`);
       }, 2000);
-      
+
     } catch (error) {
       setMessage(error.response?.data?.message || 'Failed to create auction');
     }
-    
+
     setLoading(false);
   };
 
+  // Generates sample players based on the new eFootball model
   const generateSamplePlayers = () => {
     const samplePlayers = [
-      { name: 'Lionel Messi', position: 'Forward', rating: 95, basePrice: 1000000 },
-      { name: 'Virgil van Dijk', position: 'Defender', rating: 92, basePrice: 800000 },
-      { name: 'Kevin De Bruyne', position: 'Midfielder', rating: 91, basePrice: 750000 },
-      { name: 'Alisson Becker', position: 'Goalkeeper', rating: 90, basePrice: 600000 },
-      { name: 'Kylian Mbappé', position: 'Forward', rating: 89, basePrice: 900000 },
-      { name: 'Sergio Ramos', position: 'Defender', rating: 88, basePrice: 500000 },
-      { name: 'Luka Modrić', position: 'Midfielder', rating: 87, basePrice: 400000 },
-      { name: 'Manuel Neuer', position: 'Goalkeeper', rating: 86, basePrice: 450000 }
+      { name: 'eFootball Champion', trophiesWon: 15, division1ReachedCount: 25, basePrice: 1000000 },
+      { name: 'Division 1 Veteran', trophiesWon: 5, division1ReachedCount: 50, basePrice: 800000 },
+      { name: 'Consistent Performer', trophiesWon: 8, division1ReachedCount: 30, basePrice: 750000 },
+      { name: 'Cup Specialist', trophiesWon: 20, division1ReachedCount: 10, basePrice: 600000 },
+      { name: 'Rising Star', trophiesWon: 2, division1ReachedCount: 5, basePrice: 400000 },
     ];
     setPlayers(samplePlayers);
   };
@@ -118,14 +129,14 @@ const CreateAuction = () => {
           {/* Header */}
           <div className="bg-gradient-to-r from-gold-600 to-gold-500 p-6">
             <h1 className="text-3xl font-bold text-white">Create New Auction</h1>
-            <p className="text-gold-100 mt-2">Set up a new player auction for your tournament</p>
+            <p className="text-gold-100 mt-2">Set up a new player auction for your eFootball tournament</p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-8">
-            {/* Message */}
+            {/* Message Display */}
             {message && (
               <div className={`p-4 rounded-lg text-center ${
-                message.includes('success') ? 
+                message.includes('success') ?
                 'bg-green-900 text-green-300 border border-green-700' :
                 'bg-red-900 text-red-300 border border-red-700'
               }`}>
@@ -133,32 +144,26 @@ const CreateAuction = () => {
               </div>
             )}
 
-            {/* Auction Details */}
+            {/* Auction Details Section */}
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gold-300 border-b border-gold-600 pb-2">
                 Auction Details
               </h2>
-              
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-gold-300 text-sm font-medium mb-2">
-                    Auction Name *
-                  </label>
+                  <label className="block text-gold-300 text-sm font-medium mb-2">Auction Name *</label>
                   <input
                     type="text"
                     name="name"
                     value={auctionData.name}
                     onChange={handleAuctionChange}
                     className="w-full p-3 border border-gray-600 rounded-lg bg-slate-700 text-white focus:border-gold-500 focus:outline-none"
-                    placeholder="e.g., Premier League Draft 2024"
+                    placeholder="e.g., eFootball Championship 2024"
                     required
                   />
                 </div>
-
                 <div>
-                  <label className="block text-gold-300 text-sm font-medium mb-2">
-                    Budget per Team
-                  </label>
+                  <label className="block text-gold-300 text-sm font-medium mb-2">Budget per Team</label>
                   <input
                     type="number"
                     name="totalBudget"
@@ -170,11 +175,8 @@ const CreateAuction = () => {
                   />
                 </div>
               </div>
-
               <div>
-                <label className="block text-gold-300 text-sm font-medium mb-2">
-                  Description
-                </label>
+                <label className="block text-gold-300 text-sm font-medium mb-2">Description</label>
                 <textarea
                   name="description"
                   value={auctionData.description}
@@ -201,7 +203,7 @@ const CreateAuction = () => {
                 </button>
               </div>
 
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4 max-h-96 overflow-y-auto p-2">
                 {players.map((player, index) => (
                   <div key={index} className="bg-slate-700 rounded-lg p-4 border border-gray-600">
                     <div className="flex items-center justify-between mb-4">
@@ -217,11 +219,11 @@ const CreateAuction = () => {
                       )}
                     </div>
 
+                    {/* UPDATED PLAYER FIELDS */}
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Player Name */}
                       <div>
-                        <label className="block text-gold-300 text-xs font-medium mb-1">
-                          Name *
-                        </label>
+                        <label className="block text-gold-300 text-xs font-medium mb-1">Name *</label>
                         <input
                           type="text"
                           value={player.name}
@@ -232,39 +234,33 @@ const CreateAuction = () => {
                         />
                       </div>
 
+                      {/* Trophies Won */}
                       <div>
-                        <label className="block text-gold-300 text-xs font-medium mb-1">
-                          Position
-                        </label>
-                        <select
-                          value={player.position}
-                          onChange={(e) => handlePlayerChange(index, 'position', e.target.value)}
-                          className="w-full p-2 border border-gray-600 rounded bg-slate-600 text-white text-sm focus:border-gold-500 focus:outline-none"
-                        >
-                          {positions.map(pos => (
-                            <option key={pos} value={pos}>{pos}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-gold-300 text-xs font-medium mb-1">
-                          Rating (1-100)
-                        </label>
+                        <label className="block text-gold-300 text-xs font-medium mb-1">Trophies Won</label>
                         <input
                           type="number"
-                          value={player.rating}
-                          onChange={(e) => handlePlayerChange(index, 'rating', e.target.value)}
+                          value={player.trophiesWon}
+                          onChange={(e) => handlePlayerChange(index, 'trophiesWon', e.target.value)}
                           className="w-full p-2 border border-gray-600 rounded bg-slate-600 text-white text-sm focus:border-gold-500 focus:outline-none"
-                          min="1"
-                          max="100"
+                          min="0"
                         />
                       </div>
 
+                      {/* Division 1 Reached Count */}
                       <div>
-                        <label className="block text-gold-300 text-xs font-medium mb-1">
-                          Base Price
-                        </label>
+                        <label className="block text-gold-300 text-xs font-medium mb-1">Times Reached Div 1</label>
+                        <input
+                          type="number"
+                          value={player.division1ReachedCount}
+                          onChange={(e) => handlePlayerChange(index, 'division1ReachedCount', e.target.value)}
+                          className="w-full p-2 border border-gray-600 rounded bg-slate-600 text-white text-sm focus:border-gold-500 focus:outline-none"
+                          min="0"
+                        />
+                      </div>
+
+                      {/* Base Price */}
+                      <div>
+                        <label className="block text-gold-300 text-xs font-medium mb-1">Base Price</label>
                         <input
                           type="number"
                           value={player.basePrice}
@@ -288,7 +284,7 @@ const CreateAuction = () => {
               </button>
             </div>
 
-            {/* Actions */}
+            {/* Action Buttons */}
             <div className="flex space-x-4 pt-6 border-t border-gray-700">
               <button
                 type="button"
