@@ -47,6 +47,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // CREATE new auction (admin only)
+// This route is updated to handle the new player model structure
 router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, totalBudget, players } = req.body;
@@ -60,12 +61,14 @@ router.post('/', authenticate, async (req, res) => {
 
     await auction.save();
 
-    // Create auction players
+    // Create auction players with the new eFootball-specific fields
     if (players && players.length > 0) {
       const auctionPlayers = players.map(player => ({
-        ...player,
+        name: player.name,
+        trophiesWon: player.trophiesWon,
+        division1ReachedCount: player.division1ReachedCount,
+        basePrice: player.basePrice,
         auctionId: auction._id,
-        currentPrice: player.basePrice
       }));
       
       await AuctionPlayer.insertMany(auctionPlayers);
@@ -110,13 +113,16 @@ router.get('/:id/players', async (req, res) => {
 });
 
 // ADD players to auction (admin only)
+// This route is also updated to handle the new player model
 router.post('/:id/players', authenticate, async (req, res) => {
   try {
     const { players } = req.body;
     const auctionPlayers = players.map(player => ({
-      ...player,
-      auctionId: req.params.id,
-      currentPrice: player.basePrice
+        name: player.name,
+        trophiesWon: player.trophiesWon,
+        division1ReachedCount: player.division1ReachedCount,
+        basePrice: player.basePrice,
+        auctionId: req.params.id,
     }));
     
     const createdPlayers = await AuctionPlayer.insertMany(auctionPlayers);
