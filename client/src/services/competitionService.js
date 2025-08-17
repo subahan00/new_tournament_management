@@ -1,3 +1,4 @@
+//competitionService.js
 import axios from 'axios';
 const BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
 console.log('Backend URL:', BASE_URL);
@@ -11,7 +12,23 @@ export const getAllCompetitions = async () => {
     throw error;
   }
 };
+// New function for creating clan war competitions
+export const createClanWarCompetition = async (competitionData) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Unauthorized: No token found');
 
+    const response = await axios.post(
+      `${BASE_URL}/competitions/create-clan-war`,
+      competitionData,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error creating clan war competition:', error.response?.data || error.message);
+    throw error;
+  }
+};
 export const getCompetition = async (competitionId) => {
   try {
     const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/competitions/${competitionId}`);
@@ -136,6 +153,52 @@ const getAllPlayers = async () => {
     throw error;
   }
 };
+// Get clan war fixtures
+export const getClanWarFixtures = async (competitionId) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/competitions/clan-war/${competitionId}/fixtures`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching clan war fixtures:', error);
+    throw error;
+  }
+};
+
+// Update individual match result in clan war
+export const updateClanWarMatch = async (fixtureId, matchIndex, homeScore, awayScore) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Unauthorized: No token found');
+
+    const response = await axios.put(
+      `${BASE_URL}/competitions/clan-war/${fixtureId}/match/${matchIndex}`,
+      { homeScore, awayScore },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating clan war match:', error);
+    throw error;
+  }
+};
+
+// Progress clan war to next round
+export const progressClanWarToNextRound = async (competitionId) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Unauthorized: No token found');
+
+    const response = await axios.post(
+      `${BASE_URL}/competitions/clan-war/${competitionId}/next-round`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error progressing clan war:', error);
+    throw error;
+  }
+};
 //
 export default {
   createCompetition,
@@ -143,5 +206,9 @@ export default {
   getAllCompetitions,
   updateCompetition,
   getCompetition,
-  getAllPlayers
+  getAllPlayers,
+  createClanWarCompetition,
+  getClanWarFixtures,
+  updateClanWarMatch,
+  progressClanWarToNextRound,
 };

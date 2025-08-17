@@ -28,7 +28,10 @@ router.post('/create',
   competitionController.createCompetition
 );
 router.put('/:competitionId/player-name', competitionController.updatePlayerNameInCompetition);
-
+router.post('/create-clan-war',competitionController.createClanWarCompetition);
+router.put('/clan-war/:fixtureId/match/:matchIndex',competitionController.updateClanWarResult);
+router.get('/clan-war/:competitionId/fixtures', competitionController.getClanWarFixtures);
+router.post('/clan-war/:competitionId/next-round', competitionController.clanWarNextRound);
 router.put('/:id', 
   authenticate,
   validateCompetition,

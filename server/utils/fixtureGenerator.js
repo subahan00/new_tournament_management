@@ -1,4 +1,50 @@
 const Competition = require('../models/Competition');
+const Clan=require('../models/Clan');
+const Fixture = require('../models/Fixture');
+// Generate clan war round fixtures
+async function generateClanWarRound(competitionId, clanIds, roundName) {
+  if (clanIds.length < 2) return;
+
+  // Shuffle clans for random pairing
+  const shuffledClans = shuffleArray(clanIds);
+  
+  // Create fixtures for pairs
+  for (let i = 0; i < shuffledClans.length; i += 2) {
+    if (i + 1 < shuffledClans.length) {
+      const homeClan = await Clan.findById(shuffledClans[i]).populate('members');
+      const awayClan = await Clan.findById(shuffledClans[i + 1]).populate('members');
+
+      // Randomly pair up members from each clan
+      const shuffledHomeMembers = shuffleArray(homeClan.members);
+      const shuffledAwayMembers = shuffleArray(awayClan.members);
+
+      const individualMatches = [];
+      for (let j = 0; j < 5; j++) {
+        individualMatches.push({
+          homePlayer: shuffledHomeMembers[j]._id,
+          awayPlayer: shuffledAwayMembers[j]._id,
+          homePlayerName: shuffledHomeMembers[j].name,
+          awayPlayerName: shuffledAwayMembers[j].name,
+          status: 'pending'
+        });
+      }
+
+      const fixture = new Fixture({
+        competitionId,
+        round: roundName,
+        isClanWar: true,
+        homeClan: homeClan._id,
+        awayClan: awayClan._id,
+        individualMatches,
+        homeClanPoints: 0,
+        awayClanPoints: 0,
+        bracketPosition: Math.floor(i / 2)
+      });
+
+      await fixture.save();
+    }
+  }
+}
 
 function generateLeagueFixtures(players, playerNames = new Map(),roundCount ) {
     const fixtures = [];
@@ -308,6 +354,7 @@ module.exports = {
   getRoundName,
   shuffleArray,
   pairPlayers ,
-  generateRoundRobinFixtures
+  generateRoundRobinFixtures,
+  generateClanWarRound
 };
 

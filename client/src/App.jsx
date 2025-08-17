@@ -43,7 +43,7 @@ import ManageAuctions from './components/auction/ManageAuctions';
 import AdminPanel from './components/auction/AdminPanel';
 import BidderPanel from './components/auction/BidderPanel';
 import ViewerPanel from './components/auction/ViewerPanel';
-
+import ClanWarManagement from './pages/ClanWarManagement';
 const App = () => {
   return (
     <AuthProvider>
@@ -115,7 +115,8 @@ const App = () => {
             { path: "/admin/applicant-list", component: <ApplicantList /> },
             { path: "/post-winner", component: <AdminWinnerForm /> },
             { path: "/results", component: <ResultsEntry /> },
-            { path: "/admin/update-competition", component: <UpdatePlayerName /> }
+            { path: "/admin/update-competition", component: <UpdatePlayerName /> },
+            { path: "/admin/clan-war-management", component: <ClanWarManagement /> },
           ].map((route, index) => (
             <Route
               key={index}
