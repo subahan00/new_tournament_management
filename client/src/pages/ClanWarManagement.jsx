@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AlertCircle, Trophy, Users, Calendar, ArrowLeft, CheckCircle, Edit3, Save, X, ChevronRight, Plus, Loader2 } from 'lucide-react';
+import { 
+    AlertCircle, Trophy, Users, Calendar, ArrowLeft, 
+    CheckCircle, Edit3, Save, X, ChevronRight, Loader2 
+} from 'lucide-react';
 import {
     getAllCompetitions,
     getClanWarFixtures,
@@ -9,9 +12,9 @@ import {
 
 // Helper component for a consistent loading spinner
 const LoadingSpinner = ({ message }) => (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-gray-300">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-gray-300 p-4">
         <Loader2 className="animate-spin text-amber-400 h-12 w-12 mb-4" />
-        <p className="text-lg">{message}</p>
+        <p className="text-lg text-center">{message}</p>
     </div>
 );
 
@@ -76,11 +79,12 @@ const CompetitionList = ({ onSelectCompetition }) => {
                 <header className="mb-8 border-b border-amber-500/20 pb-6">
                     <div className="flex items-center space-x-4">
                         <div className="bg-gradient-to-br from-amber-500 to-yellow-400 p-3 rounded-lg shadow-lg">
-                            <Trophy className="text-slate-900" size={28} />
+                            <Trophy className="text-slate-900" size={24} />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white tracking-wider">Competition Hub</h1>
-                            <p className="text-amber-400">Oversee all active and upcoming events.</p>
+                            {/* Mobile-first: smaller base text size, larger on bigger screens */}
+                            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">Competition Hub</h1>
+                            <p className="text-amber-400 text-sm sm:text-base">Oversee all active and upcoming events.</p>
                         </div>
                     </div>
                 </header>
@@ -98,7 +102,7 @@ const CompetitionList = ({ onSelectCompetition }) => {
                     </div>
                 )}
 
-                {/* Competitions Grid */}
+                {/* Competitions Grid - Already mobile-first with grid-cols-1 as default */}
                 {competitions.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {competitions.map((comp) => (
@@ -107,9 +111,9 @@ const CompetitionList = ({ onSelectCompetition }) => {
                                 onClick={() => onSelectCompetition(comp)}
                                 className="bg-slate-800/50 rounded-xl shadow-lg border border-amber-500/10 hover:border-amber-500/40 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
                             >
-                                <div className="p-6">
+                                <div className="p-5">
                                     <div className="flex justify-between items-start mb-4">
-                                        <h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors">{comp.name}</h3>
+                                        <h3 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">{comp.name}</h3>
                                         <ChevronRight className="text-gray-500 group-hover:text-amber-400 transition-transform group-hover:translate-x-1" size={24} />
                                     </div>
                                     <div className="flex flex-wrap gap-2 mb-4">
@@ -120,7 +124,7 @@ const CompetitionList = ({ onSelectCompetition }) => {
                                         Round {comp.currentRound.index + 1} of {comp.rounds}
                                     </p>
                                 </div>
-                                <div className="bg-slate-900/40 rounded-b-xl px-6 py-3 border-t border-amber-500/10 flex justify-between items-center text-sm text-gray-400">
+                                <div className="bg-slate-900/40 rounded-b-xl px-5 py-3 border-t border-amber-500/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm text-gray-400">
                                     <div className="flex items-center gap-2">
                                         <Users size={16} />
                                         <span>{comp.numberOfClans} clans</span>
@@ -157,9 +161,9 @@ const ClanWarManagement = ({ competition, onBack }) => {
     const [scores, setScores] = useState({ home: '', away: '' });
     const [showProgressDialog, setShowProgressDialog] = useState(false);
     const [progressLoading, setProgressLoading] = useState(false);
-    
+
     const competitionId = useMemo(() => competition._id?.$oid || competition.id || competition._id, [competition]);
-    
+
     const fetchFixtures = async () => {
         if (!competitionId) {
             setError("Competition ID is missing.");
@@ -189,7 +193,6 @@ const ClanWarManagement = ({ competition, onBack }) => {
         );
     }, [fixtures]);
 
-    // Group fixtures by round
     const groupedFixtures = useMemo(() => {
         if (!fixtures) return {};
         return fixtures.reduce((acc, fixture) => {
@@ -269,15 +272,16 @@ const ClanWarManagement = ({ competition, onBack }) => {
                             <ArrowLeft size={22} />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-white tracking-wider">{competition.name}</h1>
-                            <p className="text-amber-400">Clan War Management</p>
+                             {/* Mobile-first: smaller base text size */}
+                            <h1 className="text-xl sm:text-3xl font-bold text-white tracking-wider">{competition.name}</h1>
+                            <p className="text-amber-400 text-sm sm:text-base">Clan War Management</p>
                         </div>
                     </div>
                 </header>
-                
+
                 {/* Error Message */}
                 {error && (
-                     <div className="bg-red-900/50 border border-red-500/30 rounded-lg p-4 mb-6 flex items-center justify-between">
+                    <div className="bg-red-900/50 border border-red-500/30 rounded-lg p-4 mb-6 flex items-center justify-between">
                         <div className="flex items-center">
                             <AlertCircle className="text-red-400 mr-3" size={20} />
                             <span className="text-red-300">{error}</span>
@@ -287,12 +291,12 @@ const ClanWarManagement = ({ competition, onBack }) => {
                         </button>
                     </div>
                 )}
-                
-                {/* Progress to Next Round Banner */}
+
+                {/* Progress to Next Round Banner - Already mobile-first with flex-col */}
                 {canProgressToNext && !competition.isCompleted && (
                     <div className="bg-green-900/50 border border-green-500/30 rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center">
-                            <CheckCircle className="text-green-400 mr-3" size={24} />
+                        <div className="flex items-center text-center sm:text-left">
+                            <CheckCircle className="text-green-400 mr-3 flex-shrink-0" size={24} />
                             <div>
                                 <p className="font-semibold text-green-300">This round is complete!</p>
                                 <p className="text-green-400 text-sm">You are ready to advance to the next stage.</p>
@@ -303,51 +307,62 @@ const ClanWarManagement = ({ competition, onBack }) => {
                         </button>
                     </div>
                 )}
-                
+
                 {/* Fixtures grouped by round */}
                 <div className="space-y-12">
                     {Object.entries(groupedFixtures).map(([roundName, roundFixtures]) => (
                         <section key={roundName}>
-                            <h2 className="text-3xl font-bold text-amber-400 mb-6 border-l-4 border-amber-400 pl-4">{roundName}</h2>
+                            <h2 className="text-2xl sm:text-3xl font-bold text-amber-400 mb-6 border-l-4 border-amber-400 pl-4">{roundName}</h2>
                             <div className="space-y-6">
                                 {roundFixtures.map((fixture) => (
                                     <div key={fixture.id || fixture._id} className="bg-slate-800/60 rounded-xl shadow-lg border border-amber-500/10">
                                         <header className="p-4 border-b border-amber-500/10 bg-slate-900/50 rounded-t-xl">
-                                            <div className="flex items-center justify-center sm:justify-between flex-wrap gap-4">
-                                                <span className="font-bold text-2xl text-blue-400">{fixture.homeClan?.name || 'N/A'}</span>
-                                                <span className="text-gray-500 font-mono text-xl">VS</span>
-                                                <span className="font-bold text-2xl text-red-400">{fixture.awayClan?.name || 'N/A'}</span>
+                                             {/* Mobile-first: Center on mobile, space-between on larger screens */}
+                                            <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-between flex-wrap gap-2 sm:gap-4">
+                                                <span className="font-bold text-lg sm:text-2xl text-blue-400 text-center">{fixture.homeClan?.name || 'N/A'}</span>
+                                                <span className="text-gray-500 font-mono text-sm sm:text-xl">VS</span>
+                                                <span className="font-bold text-lg sm:text-2xl text-red-400 text-center">{fixture.awayClan?.name || 'N/A'}</span>
                                             </div>
                                         </header>
-                                        
+
                                         <div className="p-4 space-y-3">
                                             {fixture.individualMatches?.map((match, matchIndex) => (
-                                                <div key={match._id || matchIndex} className="bg-slate-900/50 rounded-lg p-3 grid grid-cols-3 items-center gap-2">
-                                                    <span className="font-medium text-right truncate">{match.homePlayer?.name || match.homePlayerName || 'Player 1'}</span>
+                                                <div key={match._id || matchIndex} className="bg-slate-900/50 rounded-lg p-3 flex flex-col sm:flex-row items-center gap-2 text-sm">
                                                     
-                                                    {editingMatch?.fixtureId === (fixture.id || fixture._id) && editingMatch?.matchIndex === matchIndex ? (
-                                                        <div className="flex items-center justify-center gap-1 sm:gap-2">
-                                                            <input type="number" value={scores.home} onChange={(e) => setScores(p => ({ ...p, home: e.target.value }))} className="w-14 p-1 bg-slate-700 border border-amber-500/30 rounded text-center text-white" />
-                                                            <span className="text-gray-500">-</span>
-                                                            <input type="number" value={scores.away} onChange={(e) => setScores(p => ({ ...p, away: e.target.value }))} className="w-14 p-1 bg-slate-700 border border-amber-500/30 rounded text-center text-white" />
-                                                            <button onClick={handleSaveMatch} className="text-green-400 p-1 hover:text-green-300"><Save size={18} /></button>
-                                                            <button onClick={handleCancelEdit} className="text-red-400 p-1 hover:text-red-300"><X size={18} /></button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-center gap-2 sm:gap-4">
-                                                            <span className="text-2xl font-bold text-white">{match.homeScore ?? '-'}</span>
-                                                            <span className="text-gray-600">-</span>
-                                                            <span className="text-2xl font-bold text-white">{match.awayScore ?? '-'}</span>
-                                                            <button onClick={() => handleEditMatch(fixture.id || fixture._id, matchIndex, match)} className="text-gray-400 p-1 ml-2 hover:text-amber-400 transition-colors">
-                                                                <Edit3 size={16} />
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    {/* Home Player */}
+                                                    <span className="font-medium sm:text-right w-full sm:w-auto sm:flex-1 truncate">{match.homePlayer?.name || match.homePlayerName || 'Player 1'}</span>
                                                     
-                                                    <div className="flex items-center gap-2">
+                                                    {/* Score / Editing UI */}
+                                                    <div className="w-full sm:w-auto flex-shrink-0">
+                                                        {editingMatch?.fixtureId === (fixture.id || fixture._id) && editingMatch?.matchIndex === matchIndex ? (
+                                                            <div className="flex items-center justify-center gap-1 sm:gap-2">
+                                                                <input type="number" value={scores.home} onChange={(e) => setScores(p => ({ ...p, home: e.target.value }))} className="w-14 p-1 bg-slate-700 border border-amber-500/30 rounded text-center text-white" />
+                                                                <span className="text-gray-500">-</span>
+                                                                <input type="number" value={scores.away} onChange={(e) => setScores(p => ({ ...p, away: e.target.value }))} className="w-14 p-1 bg-slate-700 border border-amber-500/30 rounded text-center text-white" />
+                                                                <button onClick={handleSaveMatch} className="text-green-400 p-1 hover:text-green-300"><Save size={16} /></button>
+                                                                <button onClick={handleCancelEdit} className="text-red-400 p-1 hover:text-red-300"><X size={16} /></button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center gap-2 sm:gap-4 py-1">
+                                                                <span className="text-2xl font-bold text-white">{match.homeScore ?? '-'}</span>
+                                                                <span className="text-gray-600">-</span>
+                                                                <span className="text-2xl font-bold text-white">{match.awayScore ?? '-'}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Away Player & Actions */}
+                                                    <div className="flex items-center w-full sm:w-auto sm:flex-1">
                                                         <span className="font-medium truncate">{match.awayPlayer?.name || match.awayPlayerName || 'Player 2'}</span>
-                                                        <div className={`ml-auto text-xs px-2 py-0.5 rounded-md hidden md:block ${getMatchStatusColor(match.status)}`}>
-                                                            {match.status}
+                                                        <div className="ml-auto flex items-center gap-2">
+                                                            <div className={`text-xs px-2 py-0.5 rounded-md ${getMatchStatusColor(match.status)}`}>
+                                                                {match.status}
+                                                            </div>
+                                                            {!(editingMatch?.fixtureId === (fixture.id || fixture._id) && editingMatch?.matchIndex === matchIndex) && (
+                                                                <button onClick={() => handleEditMatch(fixture.id || fixture._id, matchIndex, match)} className="text-gray-400 p-1 hover:text-amber-400 transition-colors">
+                                                                    <Edit3 size={16} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -369,16 +384,16 @@ const ClanWarManagement = ({ competition, onBack }) => {
                 )}
             </div>
 
-            {/* Progress Dialog Modal */}
+            {/* Progress Dialog Modal - Already responsive */}
             {showProgressDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4 border border-amber-500/20 shadow-2xl">
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                    <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-amber-500/20 shadow-2xl">
                         <h3 className="text-xl font-semibold text-white mb-2">Confirm Advancement</h3>
                         <p className="text-gray-400 mb-6">Are you sure you want to advance to the next round? This action cannot be undone.</p>
-                        <div className="flex space-x-4">
-                            <button onClick={() => setShowProgressDialog(false)} disabled={progressLoading} className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-white transition-colors">Cancel</button>
-                            <button onClick={handleProgressToNextRound} disabled={progressLoading} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
-                                {progressLoading && <Loader2 className="animate-spin" size={18}/>}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button onClick={() => setShowProgressDialog(false)} disabled={progressLoading} className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-white transition-colors">Cancel</button>
+                            <button onClick={handleProgressToNextRound} disabled={progressLoading} className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+                                {progressLoading && <Loader2 className="animate-spin" size={18} />}
                                 {progressLoading ? 'Advancing...' : 'Confirm & Proceed'}
                             </button>
                         </div>
@@ -389,10 +404,6 @@ const ClanWarManagement = ({ competition, onBack }) => {
     );
 };
 
-
-//================================================================================
-// Main Component
-//================================================================================
 const CompetitionManagement = () => {
     const [selectedCompetition, setSelectedCompetition] = useState(null);
 

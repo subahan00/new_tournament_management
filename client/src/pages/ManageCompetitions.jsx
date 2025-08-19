@@ -1,38 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import competitionService from '../services/competitionService';
-import { TrashIcon, CheckCircle , ArrowLeft} from 'lucide-react';
+import competitionService from '../services/competitionService'; // Assuming this service exists
+import { TrashIcon, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 
 const ManageCompetitions = () => {
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [competitionToDelete, setCompetitionToDelete] = useState(null);
+  
+  // State to hold IDs of competitions to be deleted (single or bulk)
+  const [competitionsToDelete, setCompetitionsToDelete] = useState([]);
+  
+  // State for managing selected competitions for bulk actions
+  const [selectedCompetitions, setSelectedCompetitions] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // State to track deletion status (processing, success, error)
   const [deleteStatus, setDeleteStatus] = useState(null);
   const [deleteProgress, setDeleteProgress] = useState(0);
-  // Validate competition data structure
-  const validateCompetition = (comp) => ({
-    id: comp?.id || '',
-    name: comp?.name || 'Unnamed Competition',
-    status: comp?.status || 'Unknown',
-    startDate: comp?.startDate || new Date().toISOString(),
-    endDate: comp?.endDate || new Date().toISOString(),
-    teamsCount: comp?.teamsCount || comp?.teams?.length || 0
-  });
 
-  // Fetch competitions with data validation
-  const fetchCompetitions = async () => {
+  // Fetch competitions from the service
+  const fetchCompetitions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const competitions = await competitionService.getAllCompetitions();
+      const fetchedCompetitions = await competitionService.getAllCompetitions();
       
-      if (Array.isArray(competitions)) {
-        setCompetitions(competitions);
+      if (Array.isArray(fetchedCompetitions)) {
+        // Ensure each competition has a unique ID, fallback to a random key if needed
+        setCompetitions(fetchedCompetitions.map(c => ({ ...c, uniqueId: c._id || c.id || Math.random().toString() })));
       } else {
-        console.warn('Unexpected competitions format:', competitions);
+        console.warn('Unexpected competitions format:', fetchedCompetitions);
         setError('Could not parse competitions data');
         setCompetitions([]);
       }
@@ -43,70 +44,93 @@ const ManageCompetitions = () => {
     } finally {
       setLoading(false);
     }
-  };
-  useEffect(() => {
-    if (deleteStatus?.success) {
-      const timer = setTimeout(() => {
-        fetchCompetitions();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [deleteStatus]);
-  useEffect(() => {
-    fetchCompetitions();
   }, []);
 
+  useEffect(() => {
+    fetchCompetitions();
+  }, [fetchCompetitions]);
 
-
-  // Safe filtering with null checks
+  // Filter competitions based on search term and status
   const filteredCompetitions = competitions.filter(comp => {
     const name = comp?.name?.toLowerCase() || '';
     const status = comp?.status?.toLowerCase() || '';
     const term = searchTerm.toLowerCase();
     
-    return name.includes(term) || status.includes(term);
+    const matchesSearch = name.includes(term);
+    const matchesStatus = statusFilter ? status === statusFilter.toLowerCase() : true;
+    
+    return matchesSearch && matchesStatus;
   });
-  const deleteCompetition = useCallback(async (id) => {
-    try {
-      await competitionService.deleteCompetition(id);
-    } catch (err) {
-      throw new Error(err.response?.data?.message || 'Failed to delete competition');
+
+  // Handlers for checkbox selection
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedCompetitions(filteredCompetitions.map(c => c.uniqueId));
+    } else {
+      setSelectedCompetitions([]);
     }
-  }, []);
-  const handleDelete = (id) => {
-    console.log('Deleting competition:', id);
-    setCompetitionToDelete(id);
+  };
+
+  const handleSelectOne = (e, id) => {
+    if (e.target.checked) {
+      setSelectedCompetitions(prev => [...prev, id]);
+    } else {
+      setSelectedCompetitions(prev => prev.filter(compId => compId !== id));
+    }
+  };
+
+  // Prepare and open the delete modal for single or bulk deletion
+  const openDeleteModal = (ids) => {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    setCompetitionsToDelete(ids);
+    setDeleteStatus(null);
+    setDeleteProgress(0);
     setDeleteModalOpen(true);
   };
 
+  // The core deletion logic, now handles an array of IDs
   const confirmDelete = async () => {
-          console.log('Deleting competition:', competitionToDelete);
+    if (competitionsToDelete.length === 0) return;
 
-    if (!competitionToDelete) return;
-    
-    try {
-      setDeleteStatus({ processing: true, message: 'Deleting competition...' });
-      console.log('Deleting competition:', competitionToDelete);
-      // 1. Make the API call
-      await competitionService.deleteCompetition(competitionToDelete);
-      
-      // 2. Optimistic UI update
-      setCompetitions(prev => prev.filter(c => c._id !== competitionToDelete));
-      
-      // 3. Update status and close modal
-      setDeleteStatus({ success: true, message: 'Competition deleted!' });
-      setTimeout(() => setDeleteModalOpen(false), 2000);
-      
-    } catch (err) {
-      setDeleteStatus({ 
-        error: true,
-        message: err.message || 'Deletion failed. Please try again.'
-      });
-      // Re-fetch to ensure sync
-      fetchCompetitions();
+    setDeleteStatus({ processing: true, message: `Deleting ${competitionsToDelete.length} competition(s)...` });
+    setDeleteProgress(0);
+
+    const totalToDelete = competitionsToDelete.length;
+    const successfullyDeleted = [];
+    const errors = [];
+
+    for (const id of competitionsToDelete) {
+      try {
+        await competitionService.deleteCompetition(id);
+        successfullyDeleted.push(id);
+      } catch (err) {
+        errors.push({ id, message: err.message });
+        console.error(`Failed to delete competition ${id}:`, err);
+      }
+      // Update progress after each attempt
+      setDeleteProgress(((successfullyDeleted.length + errors.length) / totalToDelete) * 100);
     }
-  };
 
+    // Optimistic UI update: remove deleted items from state
+    setCompetitions(prev => prev.filter(c => !successfullyDeleted.includes(c.uniqueId)));
+    setSelectedCompetitions([]); // Clear selection after deletion
+
+    if (errors.length > 0) {
+      setDeleteStatus({
+        error: true,
+        message: `Deleted ${successfullyDeleted.length} of ${totalToDelete}. Some deletions failed.`
+      });
+    } else {
+      setDeleteStatus({ success: true, message: 'All selected competitions deleted successfully!' });
+    }
+
+    // Close modal after showing the result message
+    setTimeout(() => {
+      setDeleteModalOpen(false);
+      setDeleteStatus(null); // Reset for next time
+    }, 2500);
+  };
+  
   // Loading state
   if (loading && competitions.length === 0) {
     return (
@@ -139,17 +163,18 @@ const ManageCompetitions = () => {
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gold-100 p-4 md:p-6">
       <div className="mb-6">
-  <Link
-    to="/admin/dashboard"
-    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-  >
-    <ArrowLeft className="w-4 h-4" />
-    Back to Dashboard
-  </Link>
-</div>
+        <Link
+          to="/admin/dashboard"
+          className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      </div>
 
       <div className="mb-6 border-b border-gold-500 pb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -194,13 +219,26 @@ const ManageCompetitions = () => {
             <label htmlFor="status" className="block text-sm font-medium text-gold-300 mb-1">Status</label>
             <select
               id="status"
-              className="bg-gray-700 border border-gold-700/30 text-gold-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gold-500"
+              className="bg-gray-700 border border-gold-700/30 text-gold-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gold-500 w-full md:w-auto"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
               <option value="Upcoming">Upcoming</option>
               <option value="Completed">Completed</option>
             </select>
+          </div>
+          {/* Bulk Delete Button */}
+          <div>
+            <button
+              onClick={() => openDeleteModal(selectedCompetitions)}
+              disabled={selectedCompetitions.length === 0}
+              className="w-full md:w-auto mt-5 md:mt-0 px-4 py-2 bg-red-600/80 text-white rounded-lg flex items-center justify-center transition-all duration-200 disabled:bg-gray-600 disabled:cursor-not-allowed hover:bg-red-600"
+            >
+              <TrashIcon className="w-5 h-5 mr-2" />
+              Delete ({selectedCompetitions.length})
+            </button>
           </div>
         </div>
       </div>
@@ -211,38 +249,37 @@ const ManageCompetitions = () => {
           <table className="min-w-full divide-y divide-gold-700/30">
             <thead className="bg-gray-800">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">
-                  Name
+                <th scope="col" className="px-6 py-3">
+                  <input 
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 bg-gray-700 border-gold-600 text-gold-500 rounded focus:ring-gold-500"
+                    onChange={handleSelectAll}
+                    checked={filteredCompetitions.length > 0 && selectedCompetitions.length === filteredCompetitions.length}
+                    indeterminate={selectedCompetitions.length > 0 && selectedCompetitions.length < filteredCompetitions.length}
+                  />
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">
-                  Dates
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">
-                  Teams
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gold-400 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">Dates</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">Teams</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gold-400 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gold-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-gray-800/50 divide-y divide-gold-700/30">
               {filteredCompetitions.length > 0 ? (
                 filteredCompetitions.map((competition) => (
-                  <tr key={competition.id} className="hover:bg-gray-800/70">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gold-200">{competition.name}</div>
+                  <tr key={competition.uniqueId} className="hover:bg-gray-800/70">
+                    <td className="px-6 py-4">
+                      <input 
+                        type="checkbox"
+                        className="form-checkbox h-4 w-4 bg-gray-700 border-gold-600 text-gold-500 rounded focus:ring-gold-500"
+                        checked={selectedCompetitions.includes(competition.uniqueId)}
+                        onChange={(e) => handleSelectOne(e, competition.uniqueId)}
+                      />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gold-300">
-                        {new Date(competition.startDate).toLocaleDateString()} - {new Date(competition.endDate).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gold-300">{competition.teamsCount || competition.teams}</div>
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gold-200">{competition.name}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gold-300">{new Date(competition.startDate).toLocaleDateString()} - {new Date(competition.endDate).toLocaleDateString()}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gold-300">{competition.teamsCount || competition.teams?.length || 0}</div></td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         competition.status === 'Active' ? 'bg-green-900/50 text-green-300' :
@@ -254,22 +291,11 @@ const ManageCompetitions = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <Link
-                          to={`/admin/update-competition`}
-                          className="text-gold-400 hover:text-gold-300"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
+                        <Link to={`/admin/update-competition/${competition.uniqueId}`} className="text-gold-400 hover:text-gold-300">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </Link>
-                        <button
-                          onClick={() => handleDelete(competition._id)}
-                          className="text-red-400 hover:text-red-300"
-                        
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                        <button onClick={() => openDeleteModal([competition.uniqueId])} className="text-red-400 hover:text-red-300">
+                           <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -277,8 +303,8 @@ const ManageCompetitions = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-gold-300">
-                    {searchTerm ? 'No competitions match your search' : 'No competitions found'}
+                  <td colSpan="6" className="px-6 py-4 text-center text-sm text-gold-300">
+                    {searchTerm || statusFilter ? 'No competitions match your criteria' : 'No competitions found'}
                   </td>
                 </tr>
               )}
@@ -289,75 +315,56 @@ const ManageCompetitions = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div className="bg-gray-800 border border-gold-500/30 rounded-xl w-full max-w-lg p-6">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-xl font-bold text-gold-200">
-          {deleteStatus?.success ? 'Success!' : 'Confirm Deletion'}
-        </h3>
-        <button
-          onClick={() => setDeleteModalOpen(false)}
-          className="text-gold-400 hover:text-gold-300"
-        >
-          ✕
-        </button>
-      </div>
-
-      {deleteStatus?.processing ? (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin text-gold-500">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24">
-                {/* Spinner icon */}
-              </svg>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 border border-gold-500/30 rounded-xl w-full max-w-lg p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-bold text-gold-200">
+                {deleteStatus?.success ? 'Success!' : deleteStatus?.error ? 'Error' : 'Confirm Deletion'}
+              </h3>
+              <button onClick={() => setDeleteModalOpen(false)} className="text-gold-400 hover:text-gold-300">✕</button>
             </div>
-            <p className="text-gold-300">{deleteStatus.message}</p>
-          </div>
-          <div className="h-1 bg-gray-700 rounded-full">
-            <div 
-              className="h-full bg-gold-500/80 rounded-full transition-all duration-300"
-              style={{ width: `${deleteProgress}%` }}
-            ></div>
+
+            {deleteStatus?.processing ? (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <Loader2 className="w-6 h-6 text-gold-500 animate-spin" />
+                  <p className="text-gold-300">{deleteStatus.message}</p>
+                </div>
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gold-500 rounded-full transition-all duration-300"
+                    style={{ width: `${deleteProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            ) : deleteStatus?.success ? (
+              <div className="text-center py-6">
+                <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+                <p className="text-gold-300">{deleteStatus.message}</p>
+              </div>
+            ) : deleteStatus?.error ? (
+                 <div className="text-center py-6">
+                    <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <p className="text-gold-300">{deleteStatus.message}</p>
+                 </div>
+            ) : (
+              <>
+                <p className="text-gold-300 mb-6">
+                  You are about to permanently delete <strong>{competitionsToDelete.length}</strong> competition(s). This will remove all associated data, including fixtures, standings, and stats.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <button onClick={() => setDeleteModalOpen(false)} className="px-4 py-2 border border-gold-500/30 text-gold-300 rounded-lg hover:bg-gray-700">Cancel</button>
+                  <button onClick={confirmDelete} className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg flex items-center">
+                    <TrashIcon className="w-5 h-5 mr-2" />
+                    Confirm Deletion
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      ) : deleteStatus?.success ? (
-        <div className="text-center py-6">
-          <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-          <p className="text-gold-300">{deleteStatus.message}</p>
-        </div>
-      ) : (
-        <>
-          <p className="text-gold-300 mb-6">
-            This will permanently delete:
-            <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>The competition details</li>
-              <li>All associated fixtures/matches</li>
-              <li>Standings and player statistics</li>
-              <li>Any related media files</li>
-            </ul>
-          </p>
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => setDeleteModalOpen(false)}
-              className="px-4 py-2 border border-gold-500/30 text-gold-300 rounded-lg hover:bg-gray-700"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDelete}
-              className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg flex items-center"
-            >
-              <TrashIcon className="w-5 h-5 mr-2" />
-              Confirm Permanent Deletion
-            </button>
-          </div>
-        </>
       )}
     </div>
-  </div>
-)}
-    </div>
-    
   );
 };
 

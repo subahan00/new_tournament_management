@@ -1,8 +1,9 @@
 import competitionService from '../services/competitionService';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Search, Plus, Minus, Users, Trophy } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus, Users, Trophy, UserPlus } from 'lucide-react';
+import axios from 'axios';
 
 const CompetitionManagement = () => {
   const [competitions, setCompetitions] = useState([]);
@@ -23,6 +24,42 @@ const CompetitionManagement = () => {
   const [selectedCompetition, setSelectedCompetition] = useState(null);
   const [existingPlayers, setExistingPlayers] = useState([]);
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
+
+  // Create Player Modal State
+  const [showCreatePlayerModal, setShowCreatePlayerModal] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState('');
+  const [createPlayerLoading, setCreatePlayerLoading] = useState(false);
+
+  // Form persistence key
+  const FORM_STORAGE_KEY = 'competition_form_data';
+
+  // Load form data from localStorage on component mount
+  useEffect(() => {
+    const savedFormData = localStorage.getItem(FORM_STORAGE_KEY);
+    if (savedFormData) {
+      try {
+        const parsedData = JSON.parse(savedFormData);
+        setFormData(parsedData);
+        if (parsedData.playerSearchTerm) {
+          setPlayerSearchTerm(parsedData.playerSearchTerm);
+        }
+      } catch (error) {
+        console.error('Error parsing saved form data:', error);
+      }
+    }
+  }, []);
+
+  // Save form data to localStorage whenever formData changes
+  useEffect(() => {
+    const dataToSave = { ...formData, playerSearchTerm };
+    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(dataToSave));
+  }, [formData, playerSearchTerm]);
+
+  // Clear form data from localStorage when form is successfully submitted
+  const clearFormPersistence = () => {
+    localStorage.removeItem(FORM_STORAGE_KEY);
+  };
 
   // Fetch initial data
   useEffect(() => {
@@ -66,6 +103,37 @@ const CompetitionManagement = () => {
       setLoading(false);
     }
   };
+
+  // Create Player Handler
+  const handleCreatePlayer = useCallback(async (e) => {
+    e.preventDefault();
+    if (!newPlayerName.trim()) {
+      setError('Player name is required');
+      return;
+    }
+
+    setCreatePlayerLoading(true);
+    setError(null);
+    
+    try {
+      const res = await axios.post('/players', {
+        name: newPlayerName,
+        competitionId: selectedCompetitionId,
+      });
+      
+      // Update existing players list without page refresh
+      setExistingPlayers(prev => [...prev, res.data]);
+      setNewPlayerName('');
+      setSelectedCompetitionId('');
+      setShowCreatePlayerModal(false);
+      setSuccess(`Player "${res.data.name}" created successfully`);
+    } catch (error) {
+      console.error('Error creating player:', error);
+      setError(error.response?.data?.message || 'Failed to create player');
+    } finally {
+      setCreatePlayerLoading(false);
+    }
+  }, [newPlayerName, selectedCompetitionId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -137,17 +205,24 @@ const CompetitionManagement = () => {
     }));
   };
 
-  const handleAddPlayer = (playerId) => {
+  const handleTogglePlayer = (playerId) => {
+    // If player is already selected, remove them
     if (formData.players.includes(playerId)) {
-      setError('This player is already added');
+      setFormData(prev => ({
+        ...prev,
+        players: prev.players.filter(id => id !== playerId)
+      }));
+      setError(null);
       return;
     }
 
+    // If trying to add but already at capacity
     if (formData.players.length >= formData.numberOfPlayers) {
       setError(`Cannot add more than ${formData.numberOfPlayers} players`);
       return;
     }
 
+    // Add the player
     setError(null);
     setFormData(prev => ({
       ...prev,
@@ -253,8 +328,8 @@ const CompetitionManagement = () => {
       setSuccess('Competition created successfully!');
       await fetchCompetitions();
       
-      // Reset form
-      setFormData({
+      // Reset form and clear persistence
+      const resetFormData = {
         name: '',
         type: 'KO_REGULAR',
         numberOfPlayers: 0,
@@ -262,8 +337,10 @@ const CompetitionManagement = () => {
         rounds: 3,
         numberOfClans: 2,
         clans: []
-      });
+      };
+      setFormData(resetFormData);
       setPlayerSearchTerm('');
+      clearFormPersistence();
     } catch (err) {
       console.error('Create competition error:', err);
       setError(err.response?.data?.message || 'Failed to create competition.');
@@ -301,6 +378,13 @@ const CompetitionManagement = () => {
   const closeModal = () => {
     setShowDetailsModal(false);
     setSelectedCompetition(null);
+  };
+
+  const closeCreatePlayerModal = () => {
+    setShowCreatePlayerModal(false);
+    setNewPlayerName('');
+    setSelectedCompetitionId('');
+    setError(null);
   };
 
   const filteredPlayers = existingPlayers
@@ -406,9 +490,19 @@ const CompetitionManagement = () => {
       )}
 
       <div>
-        <label className="block text-gold-300 mb-2 font-medium">
-          Add Players <span className="text-gold-400">({formData.players.length}/{formData.numberOfPlayers})</span>
-        </label>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-gold-300 font-medium">
+            Add Players <span className="text-gold-400">({formData.players.length}/{formData.numberOfPlayers})</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowCreatePlayerModal(true)}
+            className="inline-flex items-center gap-1 px-3 py-1 bg-green-600/20 hover:bg-green-600/30 text-green-400 hover:text-green-300 border border-green-600/50 rounded-lg text-sm transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            Create Player
+          </button>
+        </div>
         <div className="relative mb-4">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <Search className="h-5 w-5 text-gold-500" />
@@ -423,25 +517,39 @@ const CompetitionManagement = () => {
         </div>
         <div className="max-h-60 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-2 p-2 bg-gray-800/20 rounded-lg border border-gold-800/50">
           {filteredPlayers.length > 0 ? (
-            filteredPlayers.map(player => (
-              <button
-                type="button"
-                key={player._id}
-                onClick={() => handleAddPlayer(player._id)}
-                disabled={formData.players.includes(player._id) || formData.players.length >= formData.numberOfPlayers}
-                className={`text-sm p-2 rounded-lg transition-colors text-center truncate ${
-                  formData.players.includes(player._id)
-                    ? 'bg-gold-600 text-black cursor-not-allowed'
-                    : 'bg-gray-800 hover:bg-gray-700 border border-gold-700/50'
-                } ${
-                  !formData.players.includes(player._id) && formData.players.length >= formData.numberOfPlayers
-                    ? 'opacity-50 cursor-not-allowed'
-                    : ''
-                }`}
-              >
-                {player.name}
-              </button>
-            ))
+            filteredPlayers.map(player => {
+              const isSelected = formData.players.includes(player._id);
+              const isAtCapacity = formData.players.length >= formData.numberOfPlayers;
+              const isDisabled = !isSelected && isAtCapacity;
+              
+              return (
+                <button
+                  type="button"
+                  key={player._id}
+                  onClick={() => handleTogglePlayer(player._id)}
+                  disabled={isDisabled}
+                  className={`text-sm p-2 rounded-lg transition-all duration-200 text-center truncate relative ${
+                    isSelected
+                      ? 'bg-gold-600 text-black font-medium shadow-lg transform scale-105'
+                      : 'bg-gray-800 hover:bg-gray-700 border border-gold-700/50 text-gold-200 hover:text-gold-100'
+                  } ${
+                    isDisabled
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:shadow-md cursor-pointer'
+                  }`}
+                  title={isSelected ? 'Click to deselect' : 'Click to select'}
+                >
+                  {isSelected && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  {player.name}
+                </button>
+              );
+            })
           ) : (
             <p className="col-span-full text-center text-gold-400 py-4">No players found matching your search.</p>
           )}
@@ -631,6 +739,81 @@ const CompetitionManagement = () => {
           )}
         </div>
       </div>
+
+      {/* Create Player Modal */}
+      {showCreatePlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border border-gold-700/50 rounded-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gold-300">Create New Player</h3>
+                <button onClick={closeCreatePlayerModal} className="text-gold-500 hover:text-gold-300">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleCreatePlayer} className="space-y-4">
+                <div>
+                  <label className="block text-gold-300 mb-2 font-medium">Player Name</label>
+                  <input
+                    type="text"
+                    value={newPlayerName}
+                    onChange={(e) => setNewPlayerName(e.target.value)}
+                    placeholder="Enter player name"
+                    required
+                    className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white placeholder-gold-500/70"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gold-300 mb-2 font-medium">Competition (Optional)</label>
+                  <select
+                    value={selectedCompetitionId}
+                    onChange={(e) => setSelectedCompetitionId(e.target.value)}
+                    className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white appearance-none"
+                  >
+                    <option value="">No specific competition</option>
+                    {competitions.map(comp => (
+                      <option key={comp._id} value={comp._id}>
+                        {comp.name} ({comp.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeCreatePlayerModal}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createPlayerLoading || !newPlayerName.trim()}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center"
+                  >
+                    {createPlayerLoading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Player'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Competition Details Modal */}
       {showDetailsModal && selectedCompetition && (
