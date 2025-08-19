@@ -4,12 +4,6 @@ import * as THREE from 'three';
 import axios from 'axios';
 import { X, ChevronLeft, AlertCircle, ChevronRight, CheckCircle, Loader2, Menu, Crown, Shield, Instagram, Send, Trophy, Swords, Star, Zap, Users, Award, Calendar, UserCog } from 'lucide-react';
 
-// NOTE: In a real app, components like Header, Footer, etc., would likely be in their own files.
-// They are kept here to make this a single, runnable example.
-
-//=================================================================
-// 1. ENHANCED 3D NEBULA WITH DEPTH LAYERS
-//=================================================================
 const ThreeNebula = () => {
   const mountRef = useRef(null);
   const mouse = useRef({ x: 0, y: 0 });
@@ -119,9 +113,7 @@ const ThreeNebula = () => {
   return <div ref={mountRef} className="fixed inset-0 -z-20" />;
 };
 
-//=================================================================
-// 2. MODERN INTERACTIVE CARD (NO TILT)
-//=================================================================
+
 const useScrollAnimation = () => {
   const ref = useRef(null);
   const [isInView, setIsInView] = useState(false);
@@ -166,9 +158,6 @@ const InteractiveCard = ({ children, className = "" }) => {
   );
 };
 
-//=================================================================
-// 3. ENHANCED & REFINED COMPONENTS
-//=================================================================
 
 const Header = ({ onQuestClick }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -240,7 +229,7 @@ const Header = ({ onQuestClick }) => {
   };
 
   return (
-    <><header className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled || menuOpen ? 'glass-header' : 'bg-transparent'}`}><div className="relative px-4 sm:px-6 py-4 flex justify-between items-center max-w-screen-2xl mx-auto"><Link to="/" className="flex items-center space-x-2 sm:space-x-3 group"><div className="relative"><div className="absolute -inset-2 rounded-full modern-glow"></div><Crown size={32} className="relative text-gold-400 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500" /></div><div><span className="text-xl sm:text-2xl font-cinzel font-black tracking-wider text-white group-hover:text-gold-300 transition-colors duration-300">Official <span className="text-gold-400">90</span></span></div></Link><button className="md:hidden focus:outline-none text-gold-300 hover:text-gold-100 p-2 rounded-lg transition-all duration-300 hover:bg-gold-500/10 z-50" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={28} /> : <Menu size={28} />}</button><nav className="hidden md:flex items-center space-x-1 text-sm font-cinzel font-bold">{navLinks.map((item) => <NavItem key={item.label} item={item} />)}</nav></div></header><div className={`md:hidden fixed inset-0 modern-mobile-menu z-40 transition-all duration-500 ${menuOpen ? 'opacity-100 pointer-events-auto backdrop-blur-2xl' : 'opacity-0 pointer-events-none backdrop-blur-0'}`}><nav className="flex flex-col items-center justify-center h-full text-center space-y-8">{navLinks.map((item, index) => <MobileNavItem key={item.label} item={item} />)}</nav></div></>
+    <><header className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled || menuOpen ? 'glass-header' : 'bg-transparent'}`}><div className="relative px-4 sm:px-6 py-4 flex justify-between items-center max-w-screen-2xl mx-auto"><Link to="/" className="flex items-center space-x-2 sm:space-x-3 group"><div className="relative"><div className="absolute -inset-2 rounded-full modern-glow"></div><Crown size={32} className="relative text-gold-400 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500" /></div><div><span className="text-xl sm:text-2xl font-title font-black tracking-wider text-white group-hover:text-gold-300 transition-colors duration-300">Official <span className="text-gold-400">90</span></span></div></Link><button className="md:hidden focus:outline-none text-gold-300 hover:text-gold-100 p-2 rounded-lg transition-all duration-300 hover:bg-gold-500/10 z-50" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={28} /> : <Menu size={28} />}</button><nav className="hidden md:flex items-center space-x-1 text-sm font-heading font-bold">{navLinks.map((item) => <NavItem key={item.label} item={item} />)}</nav></div></header><div className={`md:hidden fixed inset-0 modern-mobile-menu z-40 transition-all duration-500 ${menuOpen ? 'opacity-100 pointer-events-auto backdrop-blur-2xl' : 'opacity-0 pointer-events-none backdrop-blur-0'}`}><nav className="flex flex-col items-center justify-center h-full text-center space-y-8">{navLinks.map((item, index) => <MobileNavItem key={item.label} item={item} />)}</nav></div></>
   );
 };
 
@@ -282,10 +271,10 @@ const Footer = () => (
             <div className="absolute -inset-3 rounded-full modern-glow"></div>
             <Crown size={56} className="relative text-gold-400" />
           </div>
-          <p className="text-purple-300 text-sm font-lora mb-2">
-            © {new Date().getFullYear()} <span className="font-bold text-gold-400 font-cinzel">Official_90</span>. All rights reserved.
+          <p className="text-purple-300 text-sm font-body mb-2">
+            © {new Date().getFullYear()} <span className="font-bold text-gold-400 font-title">Official_90</span>. All rights reserved.
           </p>
-          <p className="text-purple-400 text-xs font-lora">
+          <p className="text-purple-400 text-xs font-body">
             Forged in the fires of competition ⚔️
           </p>
         </div>
@@ -334,12 +323,9 @@ const StatsSection = () => {
     { icon: Users, value: 406, label: "Players", suffix: "+" }, { icon: Trophy, value: 104, label: "Tournaments" },
     { icon: Award, value: 15000, label: "Matches", suffix: "+" }, { icon: Zap, value: 206, label: "Winners", suffix: "" }
   ];
-  return (<section id="stats" ref={ref} className={`py-24 relative transition-all duration-1000 ${isInView ? 'opacity-100' : 'opacity-0'}`}><div className="container mx-auto px-4 sm:px-6 relative z-10"><div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">{stats.map((stat, index) => (<div key={stat.label} className="text-center group" style={{ animationDelay: `${index * 200}ms` }}><div className="modern-stat-card"><div className="relative mb-4"><div className="stat-icon-glow"></div><stat.icon className="relative mx-auto text-gold-400 group-hover:scale-110 transition-transform duration-500" size={36} /></div><div className="text-3xl sm:text-4xl lg:text-5xl font-cinzel font-black text-gold-300 mb-2"><AnimatedCounter end={stat.value} suffix={stat.suffix} /></div><p className="text-purple-200 font-lora text-sm sm:text-base font-medium">{stat.label}</p></div></div>))}</div></div></section>);
+  return (<section id="stats" ref={ref} className={`py-24 relative transition-all duration-1000 ${isInView ? 'opacity-100' : 'opacity-0'}`}><div className="container mx-auto px-4 sm:px-6 relative z-10"><div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">{stats.map((stat, index) => (<div key={stat.label} className="text-center group" style={{ animationDelay: `${index * 200}ms` }}><div className="modern-stat-card"><div className="relative mb-4"><div className="stat-icon-glow"></div><stat.icon className="relative mx-auto text-gold-400 group-hover:scale-110 transition-transform duration-500" size={36} /></div><div className="text-3xl sm:text-4xl lg:text-5xl font-title font-black text-gold-300 mb-2"><AnimatedCounter end={stat.value} suffix={stat.suffix} /></div><p className="text-purple-200 font-body text-sm sm:text-base font-medium">{stat.label}</p></div></div>))}</div></div></section>);
 };
 
-//=================================================================
-// 4. UPDATED REGISTRATION FORM MODAL
-//=================================================================
 const RegistrationFormModal = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -407,13 +393,13 @@ const RegistrationFormModal = ({ isOpen, onClose }) => {
           {!submitted ? (
             <div className="relative z-10">
               <div className="text-center mb-4">
-                <h2 className="text-xl font-cinzel font-black modern-gradient-text mb-2">⚔️ Join The Quest</h2>
+                <h2 className="text-xl font-title font-black modern-gradient-text mb-2">⚔️ Join The Quest</h2>
                 <p className="text-purple-200 text-sm leading-relaxed">Enter the arena and prove your worth</p>
               </div>
               <form onSubmit={handleSubmit} className="space-y-3">
                 {formFields.map((field) => (
                   <div key={field.name} className="relative group">
-                    <label htmlFor={field.name} className="block text-xs text-purple-200 mb-1 flex items-center gap-1 font-cinzel font-semibold">
+                    <label htmlFor={field.name} className="block text-xs text-purple-200 mb-1 flex items-center gap-1 font-heading font-semibold">
                       <span className="text-sm">{field.icon}</span>{field.label}
                     </label>
                     <input
@@ -442,7 +428,7 @@ const RegistrationFormModal = ({ isOpen, onClose }) => {
               <div className="relative mb-3">
                 <CheckCircle className="relative text-green-400 mx-auto animate-bounce" size={40} />
               </div>
-              <h3 className="text-lg font-cinzel font-black modern-gradient-text mb-2">🎉 Registration Complete!</h3>
+              <h3 className="text-lg font-title font-black modern-gradient-text mb-2">🎉 Registration Complete!</h3>
               <p className="text-purple-200 mb-3 text-sm leading-relaxed">We'll contact you via WhatsApp within 24 hours</p>
               <div className="modern-success-card p-3">
                 <a href="https://www.instagram.com/official.t90__/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-gold-400 hover:text-gold-300 font-semibold transition-colors text-sm">
@@ -456,14 +442,15 @@ const RegistrationFormModal = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
 const ParseAnnounceText = ({ text }) => {
   if (!text) return null;
   const parts = text.split('**');
   return (
-    <p className="text-purple-200 text-center md:text-left text-base sm:text-lg font-lora">
+    <p className="text-purple-200 text-center md:text-left text-base sm:text-lg font-body">
       {parts.map((part, index) =>
         index % 2 === 1 ? (
-          <strong key={index} className="font-bold text-gold-400 font-cinzel tracking-wide">{part}</strong>
+          <strong key={index} className="font-bold text-gold-400 font-heading tracking-wide">{part}</strong>
         ) : (
           <span key={index}>{part}</span>
         )
@@ -471,9 +458,7 @@ const ParseAnnounceText = ({ text }) => {
     </p>
   );
 };
-//=================================================================
-// 5. NEW ANNOUNCEMENT TICKER COMPONENT
-//=================================================================
+
 const AnnouncementSection = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -483,7 +468,7 @@ const AnnouncementSection = () => {
   const timeoutRef = useRef(null);
   const availableIcons = [Trophy, Calendar, Star, Users];
 
- useEffect(() => {
+  useEffect(() => {
     const fetchAnnouncements = async () => {
       setLoading(true);
       setError(null);
@@ -492,24 +477,17 @@ const AnnouncementSection = () => {
         const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
         const response = await axios.get(`${backendUrl}/api/announcements`);
 
-        // ✅ KEY CORRECTION STARTS HERE:
-        // This 'if' block validates the specific structure from your backend.
         if (response.data && response.data.success && Array.isArray(response.data.data)) {
-          
-          // It correctly accesses the nested array: response.data.data
           const formattedAnnouncements = response.data.data.map((announcement, index) => ({
             title: announcement.text || "Untitled Announcement",
             icon: availableIcons[index % availableIcons.length]
           }));
-
-          setAnnouncements(formattedAnnouncements); // Update state to show announcements
+          setAnnouncements(formattedAnnouncements);
         } else {
-          // Handles cases where the response is successful but the data format is wrong.
           console.warn("Unexpected data format:", response.data);
           setError("Received invalid data from server.");
           setAnnouncements([]);
         }
-        // ✅ KEY CORRECTION ENDS HERE.
 
       } catch (err) {
         console.error("Failed to fetch announcements:", err);
@@ -522,7 +500,6 @@ const AnnouncementSection = () => {
     fetchAnnouncements();
   }, []);
 
-
   const resetTimeout = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -534,7 +511,7 @@ const AnnouncementSection = () => {
     if (!isPaused && announcements.length > 0) {
       timeoutRef.current = setTimeout(
         () => setCurrentIndex(prevIndex => (prevIndex + 1) % announcements.length),
-        5000 // 5 second delay
+        5000
       );
     }
     return () => resetTimeout();
@@ -547,7 +524,6 @@ const AnnouncementSection = () => {
     setCurrentIndex(newIndex);
   };
 
-  // Guard against no announcements
   const currentAnnouncement = announcements.length > 0 ? announcements[currentIndex] : null;
   const CurrentIcon = currentAnnouncement ? currentAnnouncement.icon : Loader2;
 
@@ -562,7 +538,6 @@ const AnnouncementSection = () => {
           >
             <div className="announcement-card-glow"></div>
 
-            {/* Navigation Controls */}
             {!loading && !error && announcements.length > 1 && (
               <>
                 <button onClick={() => handleNavClick('prev')} className="announcement-nav-button left-2 md:left-4" aria-label="Previous Announcement">
@@ -578,12 +553,12 @@ const AnnouncementSection = () => {
               {loading ? (
                 <div className="flex items-center gap-4 text-purple-200">
                   <Loader2 className="animate-spin text-gold-400" size={24} />
-                  <span className="font-lora">Loading Latest News...</span>
+                  <span className="font-body">Loading Latest News...</span>
                 </div>
               ) : error ? (
                 <div className="flex items-center gap-4 text-red-400">
                   <AlertCircle size={24} />
-                  <span className="font-lora">{error}</span>
+                  <span className="font-body">{error}</span>
                 </div>
               ) : announcements.length > 0 ? (
                 <>
@@ -592,7 +567,6 @@ const AnnouncementSection = () => {
                     <ParseAnnounceText text={currentAnnouncement?.title || 'No announcement'} />
                   </div>
 
-                  {/* Progress Dots */}
                   {announcements.length > 1 && (
                     <div className="flex gap-2.5 mt-4">
                       {announcements.map((_, index) => (
@@ -609,7 +583,7 @@ const AnnouncementSection = () => {
               ) : (
                  <div className="flex items-center gap-4 text-purple-200">
                     <CheckCircle size={24} />
-                    <span className="font-lora">No new announcements right now.</span>
+                    <span className="font-body">No new announcements right now.</span>
                 </div>
               )}
             </div>
@@ -620,9 +594,7 @@ const AnnouncementSection = () => {
   );
 };
 
-//=================================================================
-// 6. HOME PAGE COMPONENT (DEFAULT EXPORT)
-//=================================================================
+
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const handleCloseForm = () => setShowForm(false);
@@ -631,7 +603,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col modern-bg text-white font-serif overflow-x-hidden">
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-      <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
       <Suspense fallback={<div className="fixed inset-0 bg-purple-950" />}>
         <ThreeNebula />
@@ -687,150 +659,563 @@ export default function Home() {
       <RegistrationFormModal isOpen={showForm} onClose={handleCloseForm} />
 
       <style jsx global>{`
-              :root { --purple-dark: #2c1b4b; --purple-mid: #4a2a6c; --purple-light: #8b7bb8; --gold-main: #ffdf80; --gold-dark: #e6b422; }
-              .font-cinzel { font-family: 'Cinzel', serif; } .font-lora { font-family: 'Lora', serif; }
-              .modern-bg {
-                background-color: #0a0510;
-                background-image: linear-gradient(160deg, #0a0510 0%, #1a0f2e 40%, #1a0f2e 60%, #0a0510 100%);
-                position: relative;
-                overflow-x: hidden;
-                font-family: 'Lora', serif;
-              }
-              .modern-bg::after {
-                content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                width: 100vw; height: 100vh;
-                background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"%3E%3Cg fill-opacity="0.22"%3E%3Crect fill="%231a0f2e" width="800" height="800"/%3E%3Cg fill="%232c1b4b"%3E%3Ccircle cx="400" cy="400" r="100"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');
-                opacity: 0.025; pointer-events: none; z-index: -1;
-              }
-              ::-webkit-scrollbar { width: 12px; } ::-webkit-scrollbar-track { background: linear-gradient(to bottom, #1a0f2e, #0a0510); border-radius: 6px; } ::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, var(--gold-main), var(--gold-dark)); border-radius: 6px; border: 2px solid #1a0f2e; } ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #fff8e7, var(--gold-main)); }
-              .glass-header { background: rgba(10, 5, 16, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 223, 128, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
-              .modern-glow { background: radial-gradient(circle, rgba(255, 223, 128, 0.15) 0%, transparent 70%); filter: blur(8px); }
-              .modern-nav-link { position: relative; padding: 0.75rem 1.25rem; border-radius: 12px; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); color: var(--purple-light); background: transparent; overflow: hidden; text-decoration: none; }
-              .modern-nav-link::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255, 223, 128, 0.05) 0%, rgba(255, 223, 128, 0.02) 100%); opacity: 0; transition: opacity 0.4s ease; border-radius: 12px; }
-              .modern-nav-link:hover::before { opacity: 1; }
-              .modern-nav-link:hover { color: var(--gold-main); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255, 223, 128, 0.15); }
-              .modern-nav-link.special { color: var(--gold-main); background: linear-gradient(135deg, rgba(255, 223, 128, 0.1) 0%, rgba(255, 223, 128, 0.05) 100%); border: 1px solid rgba(255, 223, 128, 0.2); }
-              .modern-nav-link.special:hover { background: linear-gradient(135deg, rgba(255, 223, 128, 0.15) 0%, rgba(255, 223, 128, 0.08) 100%); border-color: rgba(255, 223, 128, 0.4); box-shadow: 0 8px 25px rgba(255, 223, 128, 0.25); }
-              .nav-underline { position: absolute; bottom: 0; left: 50%; width: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold-main), transparent); transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(-50%); }
-              .modern-nav-link:hover .nav-underline { width: 80%; }
-              .modern-mobile-menu { background: linear-gradient(135deg, rgba(10, 5, 16, 0.95) 0%, rgba(44, 27, 75, 0.9) 100%); }
-              .modern-mobile-nav-link { font-size: 1.5rem; font-family: 'Cinzel', serif; font-weight: 700; color: var(--purple-light); display: flex; align-items: center; padding: 1rem 0; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); opacity: 0; transform: translateY(30px); animation: slideInMobile 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; text-decoration: none;}
-              .modern-mobile-nav-link:hover { color: var(--gold-main); transform: scale(1.05) translateY(30px); }
-              @keyframes slideInMobile { to { opacity: 1; transform: translateY(0); } }
-              .modern-hero-content { max-width: 5xl; margin: 0 auto; }
-              .modern-hero-title { font-size: clamp(3rem, 8vw, 7rem); font-family: 'Cinzel', serif; font-weight: 900; background: linear-gradient(135deg, #fff8e7 0%, var(--gold-main) 25%, var(--gold-dark) 50%, var(--gold-main) 75%, #fff8e7 100%); background-clip: text; -webkit-background-clip: text; color: transparent; margin-bottom: 2rem; line-height: 1.1; letter-spacing: -0.02em; opacity: 0; animation: heroFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.3s forwards; }
-              .modern-brand-accent { background: linear-gradient(135deg, var(--purple-mid) 0%, var(--purple-light) 100%); background-clip: text; -webkit-background-clip: text; color: transparent; position: relative; }
-              .modern-hero-subtitle { font-size: clamp(1.125rem, 2.5vw, 1.5rem); color: var(--purple-light); font-weight: 400; line-height: 1.6; max-w: 42rem; margin: 0 auto 3rem; opacity: 0; animation: heroFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.6s forwards; }
-              .modern-hero-cta { opacity: 0; animation: heroFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.9s forwards; }
-              @keyframes heroFadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-              .modern-cta-button { position: relative; padding: 1.25rem 3rem; background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%); color: var(--purple-dark); border: none; border-radius: 16px; font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.125rem; cursor: pointer; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); overflow: hidden; box-shadow: 0 12px 40px rgba(255, 223, 128, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4); }
-              .modern-cta-button:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 20px 60px rgba(255, 223, 128, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6); }
-              .modern-cta-button:active { transform: translateY(-2px) scale(0.98); }
-              .modern-cta-glow { position: absolute; inset: -2px; background: linear-gradient(135deg, rgba(255, 223, 128, 0.6), rgba(230, 180, 34, 0.6)); border-radius: 18px; opacity: 0; transition: opacity 0.4s ease; z-index: -1; filter: blur(8px); }
-              .modern-cta-button:hover .modern-cta-glow { opacity: 1; }
-              .modern-card-container { perspective: 2000px; }
-              .modern-interactive-card { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); position: relative; }
-              .modern-reflection { position: absolute; inset: 0; background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 50%); opacity: 0; transition: opacity 0.4s ease; border-radius: 24px; pointer-events: none; }
-              .modern-card-container:hover .modern-reflection { opacity: 1; }
-              .modern-info-card { background: linear-gradient(135deg, rgba(44, 27, 75, 0.4) 0%, rgba(30, 42, 90, 0.3) 50%, rgba(44, 27, 75, 0.4) 100%); backdrop-filter: blur(20px); border: 1px solid rgba(255, 223, 128, 0.1); border-radius: 24px; padding: 2.5rem; height: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); position: relative; overflow: hidden; }
-              .modern-info-card::before { 
-                  content: ''; 
-                  position: absolute; 
-                  inset: 0; 
-                  background: linear-gradient(135deg, rgba(255, 223, 128, 0.05) 0%, transparent 50%, rgba(255, 223, 128, 0.05) 100%); 
-                  opacity: 0; 
-                  transition: opacity 0.4s ease;
-                  pointer-events: none; /* ✅ THIS IS THE FIX */
-              }
-              .group:hover .modern-info-card::before { opacity: 1; }
-              .group:hover .modern-info-card { transform: translateY(-8px); border-color: rgba(255, 223, 128, 0.3); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 223, 128, 0.1); }
-              .modern-card-icon-wrapper { position: relative; margin-bottom: 2rem; }
-              .modern-card-icon { color: var(--gold-main); transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); filter: drop-shadow(0 0 20px rgba(255, 223, 128, 0.4)); }
-              .group:hover .modern-card-icon { transform: scale(1.1); filter: drop-shadow(0 0 30px rgba(255, 223, 128, 0.6)); }
-              .modern-card-title { font-family: 'Cinzel', serif; font-size: 1.75rem; font-weight: 700; color: var(--gold-main); margin-bottom: 1.5rem; line-height: 1.3; }
-              .modern-card-desc { color: var(--purple-light); line-height: 1.6; margin-bottom: 2rem; flex-grow: 1; font-size: 1rem; }
-              .modern-card-button { padding: 0.75rem 2rem; background: linear-gradient(135deg, rgba(255, 223, 128, 0.8) 0%, rgba(230, 180, 34, 0.8) 100%); color: var(--purple-dark); border: none; border-radius: 12px; font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.875rem; text-decoration: none; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); box-shadow: 0 4px 15px rgba(255, 223, 128, 0.2); }
-              .modern-card-button:hover { background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%); transform: translateY(-2px) scale(1.05); box-shadow: 0 8px 25px rgba(255, 223, 128, 0.3); }
-              .announcement-card { background: linear-gradient(145deg, rgba(44, 27, 75, 0.6) 0%, rgba(30, 42, 90, 0.5) 100%); backdrop-filter: blur(25px); border: 1px solid rgba(255, 223, 128, 0.15); border-radius: 24px; padding: 1.5rem 2rem; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding-top: 2rem;
-    padding-bottom: 2rem; }
-              .announcement-nav-button {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background-color: rgba(255, 223, 128, 0.1);
-    color: var(--gold-main);
-    border: 1px solid rgba(255, 223, 128, 0.2);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    opacity: 0;
-    z-index: 10;
-}
-              .announcement-card:hover .announcement-nav-button {
-    opacity: 1;
-}
-                .announcement-nav-button:hover {
-    background-color: rgba(255, 223, 128, 0.2);
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 0 15px rgba(255, 223, 128, 0.3);
-}
-
-.announcement-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: rgba(147, 51, 234, 0.4);
-    transition: all 0.4s ease;
-    cursor: pointer;
-    border: none;
-}
-
-.announcement-dot:hover {
-    background-color: rgba(255, 223, 128, 0.8);
-}
-
-.announcement-dot.active {
-    background-color: var(--gold-main);
-    transform: scale(1.4);
-    box-shadow: 0 0 10px rgba(255, 223, 128, 0.5);
-}
-              .announcement-card-glow { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 24px; background: linear-gradient(120deg, transparent, rgba(255, 223, 128, 0.1), transparent 40%, transparent 60%, rgba(255, 223, 128, 0.1), transparent); background-size: 200% 100%; animation: featuredGlow 8s linear infinite; }
-              @keyframes featuredGlow { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-              .announcement-content { display: flex; align-items: center; gap: 1.5rem; animation: announce-in 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
-              @keyframes announce-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-              .modern-stat-card { background: linear-gradient(135deg, rgba(44, 27, 75, 0.3) 0%, rgba(30, 42, 90, 0.2) 50%, rgba(44, 27, 75, 0.3) 100%); backdrop-filter: blur(15px); border: 1px solid rgba(255, 223, 128, 0.1); border-radius: 20px; padding: 2rem 1.5rem; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); position: relative; overflow: hidden; }
-              .modern-stat-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255, 223, 128, 0.03) 0%, transparent 50%, rgba(255, 223, 128, 0.03) 100%); opacity: 0; transition: opacity 0.4s ease; }
-              .group:hover .modern-stat-card::before { opacity: 1; }
-              .group:hover .modern-stat-card { border-color: rgba(255, 223, 128, 0.25); box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); transform: translateY(-5px); }
-              .stat-icon-glow { position: absolute; inset: -10px; background: radial-gradient(circle, rgba(255, 223, 128, 0.15) 0%, transparent 70%); filter: blur(15px); opacity: 0; transition: opacity 0.4s ease; }
-              .group:hover .stat-icon-glow { opacity: 1; }
-              .modern-footer { background: linear-gradient(135deg, rgba(10, 5, 16, 0.95) 0%, rgba(26, 15, 46, 0.9) 50%, rgba(10, 5, 16, 0.95) 100%); border-top: 1px solid rgba(255, 223, 128, 0.1); }
-              .modern-footer-bg { background: radial-gradient(ellipse at center, rgba(44, 27, 75, 0.1) 0%, transparent 70%); }
-              .modern-accent-line { height: 3px; background: linear-gradient(90deg, transparent 0%, var(--gold-main) 25%, var(--gold-dark) 50%, var(--gold-main) 75%, transparent 100%); box-shadow: 0 0 20px rgba(255, 223, 128, 0.3); }
-              .modern-footer-title { color: var(--gold-main); font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.25rem; margin-bottom: 1.5rem; letter-spacing: 0.05em; }
-              .modern-footer-link { color: var(--purple-light); transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; }
-              @media (min-width: 768px) { .modern-footer-link { justify-content: flex-start; } .modern-footer-link:hover { transform: translateX(8px) !important; } }
-              .modern-footer-link:hover { color: var(--gold-main); }
-              .modern-social-link { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, rgba(255, 223, 128, 0.1) 0%, rgba(255, 223, 128, 0.05) 100%); border: 1px solid rgba(255, 223, 128, 0.2); color: var(--gold-main); transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); }
-              .modern-social-link:hover { transform: translateY(-4px) scale(1.1); background: linear-gradient(135deg, rgba(255, 223, 128, 0.15) 0%, rgba(255, 223, 128, 0.08) 100%); border-color: rgba(255, 223, 128, 0.4); box-shadow: 0 12px 30px rgba(255, 223, 128, 0.2); }
-              .modern-modal-backdrop { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); }
-              .modern-form-container { background: linear-gradient(135deg, rgba(15, 8, 25, 0.98) 0%, rgba(44, 27, 75, 0.95) 25%, rgba(30, 42, 90, 0.95) 75%, rgba(8, 4, 12, 0.99) 100%); backdrop-filter: blur(30px); border: 2px solid rgba(255, 223, 128, 0.2); border-radius: 24px; box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5); animation: modalAppear 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
-              .modern-form-glow { position: absolute; inset: -3px; background: linear-gradient(135deg, rgba(255, 223, 128, 0.3) 0%, rgba(147, 51, 234, 0.3) 50%, rgba(59, 130, 246, 0.3) 100%); border-radius: 27px; opacity: 0.5; filter: blur(10px); z-index: -1; }
-              @keyframes modalAppear { from { opacity: 0; transform: scale(0.9) translateY(30px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-              .modern-gradient-text { background: linear-gradient(135deg, var(--gold-main) 0%, #fff8e7 100%); background-clip: text; -webkit-background-clip: text; color: transparent; }
-              .modern-input { width: 100%; padding: 1rem 1.25rem; background: rgba(10, 5, 15, 0.8); border: 2px solid rgba(127, 90, 155, 0.3); border-radius: 12px; color: white; font-size: 1rem; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); outline: none; }
-              .modern-input:focus { border-color: var(--gold-main); box-shadow: 0 0 0 3px rgba(255, 223, 128, 0.1), 0 0 20px rgba(255, 223, 128, 0.2); background: rgba(10, 5, 15, 0.9); }
-              .modern-submit-button { background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%); color: var(--purple-dark); border: none; border-radius: 16px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); box-shadow: 0 12px 40px rgba(255, 223, 128, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4); }
-              .modern-submit-button:hover:not(:disabled) { transform: translateY(-3px) scale(1.02); box-shadow: 0 20px 60px rgba(255, 223, 128, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6); }
-              .success-glow { position: absolute; inset: -15px; background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%); filter: blur(20px); }
-              .modern-success-card { background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border: 1px solid rgba(255, 223, 128, 0.2); border-radius: 16px; padding: 1.5rem; backdrop-filter: blur(10px); }
-              @media (max-width: 768px) { .modern-info-card { padding: 2rem 1.5rem; } .modern-card-title { font-size: 1.5rem; } .modern-stat-card { padding: 1.5rem 1rem; } .modern-form-container { margin: 1rem; padding: 2rem 1.5rem; } .announcement-card { padding: 1rem 1.5rem; } .announcement-content { gap: 1rem; } }
-            `}</style>
+        :root { 
+          --purple-dark: #2c1b4b; 
+          --purple-mid: #4a2a6c; 
+          --purple-light: #8b7bb8; 
+          --gold-main: #ffdf80; 
+          --gold-dark: #e6b422; 
+        }
+        
+        /* Professional Font Stack */
+        .font-title { font-family: 'Orbitron', 'Helvetica Neue', Arial, sans-serif; }
+        .font-heading { font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .font-body { font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        
+        .modern-bg {
+          background-color: #0a0510;
+          background-image: linear-gradient(160deg, #0a0510 0%, #1a0f2e 40%, #1a0f2e 60%, #0a0510 100%);
+          position: relative;
+          overflow-x: hidden;
+          font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .modern-bg::after {
+          content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          width: 100vw; height: 100vh;
+          background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"%3E%3Cg fill-opacity="0.22"%3E%3Crect fill="%231a0f2e" width="800" height="800"/%3E%3Cg fill="%232c1b4b"%3E%3Ccircle cx="400" cy="400" r="100"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');
+          opacity: 0.025; pointer-events: none; z-index: -1;
+        }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 12px; } 
+        ::-webkit-scrollbar-track { background: linear-gradient(to bottom, #1a0f2e, #0a0510); border-radius: 6px; } 
+        ::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, var(--gold-main), var(--gold-dark)); border-radius: 6px; border: 2px solid #1a0f2e; } 
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #fff8e7, var(--gold-main)); }
+        
+        /* Header Styles */
+        .glass-header { 
+          background: rgba(10, 5, 16, 0.8); 
+          backdrop-filter: blur(20px); 
+          border-bottom: 1px solid rgba(255, 223, 128, 0.1); 
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); 
+        }
+        .modern-glow { 
+          background: radial-gradient(circle, rgba(255, 223, 128, 0.15) 0%, transparent 70%); 
+          filter: blur(8px); 
+        }
+        
+        /* Navigation Styles */
+        .modern-nav-link { 
+          position: relative; 
+          padding: 0.75rem 1.25rem; 
+          border-radius: 12px; 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          color: var(--purple-light); 
+          background: transparent; 
+          overflow: hidden; 
+          text-decoration: none;
+          font-weight: 600;
+          letter-spacing: 0.025em;
+        }
+        .modern-nav-link::before { 
+          content: ''; 
+          position: absolute; 
+          inset: 0; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.05) 0%, rgba(255, 223, 128, 0.02) 100%); 
+          opacity: 0; 
+          transition: opacity 0.4s ease; 
+          border-radius: 12px; 
+        }
+        .modern-nav-link:hover::before { opacity: 1; }
+        .modern-nav-link:hover { 
+          color: var(--gold-main); 
+          transform: translateY(-2px); 
+          box-shadow: 0 8px 25px rgba(255, 223, 128, 0.15); 
+        }
+        .modern-nav-link.special { 
+          color: var(--gold-main); 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.1) 0%, rgba(255, 223, 128, 0.05) 100%); 
+          border: 1px solid rgba(255, 223, 128, 0.2); 
+        }
+        .modern-nav-link.special:hover { 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.15) 0%, rgba(255, 223, 128, 0.08) 100%); 
+          border-color: rgba(255, 223, 128, 0.4); 
+          box-shadow: 0 8px 25px rgba(255, 223, 128, 0.25); 
+        }
+        .nav-underline { 
+          position: absolute; 
+          bottom: 0; 
+          left: 50%; 
+          width: 0; 
+          height: 2px; 
+          background: linear-gradient(90deg, transparent, var(--gold-main), transparent); 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          transform: translateX(-50%); 
+        }
+        .modern-nav-link:hover .nav-underline { width: 80%; }
+        
+        /* Mobile Menu */
+        .modern-mobile-menu { 
+          background: linear-gradient(135deg, rgba(10, 5, 16, 0.95) 0%, rgba(44, 27, 75, 0.9) 100%); 
+        }
+        .modern-mobile-nav-link { 
+          font-size: 1.5rem; 
+          font-family: 'Orbitron', sans-serif; 
+          font-weight: 700; 
+          color: var(--purple-light); 
+          display: flex; 
+          align-items: center; 
+          padding: 1rem 0; 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          opacity: 0; 
+          transform: translateY(30px); 
+          animation: slideInMobile 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; 
+          text-decoration: none;
+          letter-spacing: 0.05em;
+        }
+        .modern-mobile-nav-link:hover { 
+          color: var(--gold-main); 
+          transform: scale(1.05) translateY(30px); 
+        }
+        @keyframes slideInMobile { to { opacity: 1; transform: translateY(0); } }
+        
+        /* Hero Section */
+        .modern-hero-content { max-width: 5xl; margin: 0 auto; }
+        .modern-hero-title { 
+          font-size: clamp(3rem, 8vw, 7rem); 
+          font-family: 'Orbitron', sans-serif; 
+          font-weight: 900; 
+          background: linear-gradient(135deg, #fff8e7 0%, var(--gold-main) 25%, var(--gold-dark) 50%, var(--gold-main) 75%, #fff8e7 100%); 
+          background-clip: text; 
+          -webkit-background-clip: text; 
+          color: transparent; 
+          margin-bottom: 2rem; 
+          line-height: 1.1; 
+          letter-spacing: -0.02em; 
+          opacity: 0; 
+          animation: heroFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.3s forwards; 
+        }
+        .modern-brand-accent { 
+          background: linear-gradient(135deg, var(--purple-mid) 0%, var(--purple-light) 100%); 
+          background-clip: text; 
+          -webkit-background-clip: text; 
+          color: transparent; 
+          position: relative; 
+        }
+        .modern-hero-subtitle { 
+          font-size: clamp(1.125rem, 2.5vw, 1.5rem); 
+          color: var(--purple-light); 
+          font-weight: 400; 
+          line-height: 1.6; 
+          max-width: 42rem; 
+          margin: 0 auto 3rem; 
+          opacity: 0; 
+          animation: heroFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.6s forwards;
+          font-family: 'Poppins', sans-serif;
+        }
+        .modern-hero-cta { 
+          opacity: 0; 
+          animation: heroFadeIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.9s forwards; 
+        }
+        @keyframes heroFadeIn { 
+          from { opacity: 0; transform: translateY(30px); } 
+          to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        /* CTA Button */
+        .modern-cta-button { 
+          position: relative; 
+          padding: 1.25rem 3rem; 
+          background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%); 
+          color: var(--purple-dark); 
+          border: none; 
+          border-radius: 16px; 
+          font-family: 'Inter', sans-serif; 
+          font-weight: 700; 
+          font-size: 1.125rem; 
+          cursor: pointer; 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          overflow: hidden; 
+          box-shadow: 0 12px 40px rgba(255, 223, 128, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+          letter-spacing: 0.025em;
+        }
+        .modern-cta-button:hover { 
+          transform: translateY(-4px) scale(1.02); 
+          box-shadow: 0 20px 60px rgba(255, 223, 128, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6); 
+        }
+        .modern-cta-button:active { 
+          transform: translateY(-2px) scale(0.98); 
+        }
+        .modern-cta-glow { 
+          position: absolute; 
+          inset: -2px; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.6), rgba(230, 180, 34, 0.6)); 
+          border-radius: 18px; 
+          opacity: 0; 
+          transition: opacity 0.4s ease; 
+          z-index: -1; 
+          filter: blur(8px); 
+        }
+        .modern-cta-button:hover .modern-cta-glow { opacity: 1; }
+        
+        /* Card Components */
+        .modern-card-container { perspective: 2000px; }
+        .modern-interactive-card { 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          position: relative; 
+        }
+        .modern-reflection { 
+          position: absolute; 
+          inset: 0; 
+          background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 50%); 
+          opacity: 0; 
+          transition: opacity 0.4s ease; 
+          border-radius: 24px; 
+          pointer-events: none; 
+        }
+        .modern-card-container:hover .modern-reflection { opacity: 1; }
+        .modern-info-card { 
+          background: linear-gradient(135deg, rgba(44, 27, 75, 0.4) 0%, rgba(30, 42, 90, 0.3) 50%, rgba(44, 27, 75, 0.4) 100%); 
+          backdrop-filter: blur(20px); 
+          border: 1px solid rgba(255, 223, 128, 0.1); 
+          border-radius: 24px; 
+          padding: 2.5rem; 
+          height: 100%; 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center; 
+          text-align: center; 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          position: relative; 
+          overflow: hidden; 
+        }
+        .modern-info-card::before { 
+          content: ''; 
+          position: absolute; 
+          inset: 0; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.05) 0%, transparent 50%, rgba(255, 223, 128, 0.05) 100%); 
+          opacity: 0; 
+          transition: opacity 0.4s ease;
+          pointer-events: none;
+        }
+        .group:hover .modern-info-card::before { opacity: 1; }
+        .group:hover .modern-info-card { 
+          transform: translateY(-8px); 
+          border-color: rgba(255, 223, 128, 0.3); 
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 223, 128, 0.1); 
+        }
+        .modern-card-icon-wrapper { position: relative; margin-bottom: 2rem; }
+        .modern-card-icon { 
+          color: var(--gold-main); 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          filter: drop-shadow(0 0 20px rgba(255, 223, 128, 0.4)); 
+        }
+        .group:hover .modern-card-icon { 
+          transform: scale(1.1); 
+          filter: drop-shadow(0 0 30px rgba(255, 223, 128, 0.6)); 
+        }
+        .modern-card-title { 
+          font-family: 'Orbitron', sans-serif; 
+          font-size: 1.75rem; 
+          font-weight: 700; 
+          color: var(--gold-main); 
+          margin-bottom: 1.5rem; 
+          line-height: 1.3;
+          letter-spacing: 0.025em;
+        }
+        .modern-card-desc { 
+          color: var(--purple-light); 
+          line-height: 1.6; 
+          margin-bottom: 2rem; 
+          flex-grow: 1; 
+          font-size: 1rem;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 400;
+        }
+        .modern-card-button { 
+          padding: 0.75rem 2rem; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.8) 0%, rgba(230, 180, 34, 0.8) 100%); 
+          color: var(--purple-dark); 
+          border: none; 
+          border-radius: 12px; 
+          font-family: 'Inter', sans-serif; 
+          font-weight: 700; 
+          font-size: 0.875rem; 
+          text-decoration: none; 
+          transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); 
+          box-shadow: 0 4px 15px rgba(255, 223, 128, 0.2);
+          letter-spacing: 0.025em;
+        }
+        .modern-card-button:hover { 
+          background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%); 
+          transform: translateY(-2px) scale(1.05); 
+          box-shadow: 0 8px 25px rgba(255, 223, 128, 0.3); 
+        }
+        
+        /* Announcement Card */
+        .announcement-card { 
+          background: linear-gradient(145deg, rgba(44, 27, 75, 0.6) 0%, rgba(30, 42, 90, 0.5) 100%); 
+          backdrop-filter: blur(25px); 
+          border: 1px solid rgba(255, 223, 128, 0.15); 
+          border-radius: 24px; 
+          padding: 1.5rem 2rem; 
+          position: relative; 
+          overflow: hidden; 
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+          padding-top: 2rem;
+          padding-bottom: 2rem; 
+        }
+        .announcement-nav-button {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background-color: rgba(255, 223, 128, 0.1);
+          color: var(--gold-main);
+          border: 1px solid rgba(255, 223, 128, 0.2);
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          opacity: 0;
+          z-index: 10;
+        }
+        .announcement-card:hover .announcement-nav-button {
+          opacity: 1;
+        }
+        .announcement-nav-button:hover {
+          background-color: rgba(255, 223, 128, 0.2);
+          transform: translateY(-50%) scale(1.1);
+          box-shadow: 0 0 15px rgba(255, 223, 128, 0.3);
+        }
+        
+        .announcement-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: rgba(147, 51, 234, 0.4);
+          transition: all 0.4s ease;
+          cursor: pointer;
+          border: none;
+        }
+        .announcement-dot:hover {
+          background-color: rgba(255, 223, 128, 0.8);
+        }
+        .announcement-dot.active {
+          background-color: var(--gold-main);
+          transform: scale(1.4);
+          box-shadow: 0 0 10px rgba(255, 223, 128, 0.5);
+        }
+        .announcement-card-glow { 
+          position: absolute; 
+          top: 0; 
+          left: 0; 
+          width: 100%; 
+          height: 100%; 
+          border-radius: 24px; 
+          background: linear-gradient(120deg, transparent, rgba(255, 223, 128, 0.1), transparent 40%, transparent 60%, rgba(255, 223, 128, 0.1), transparent); 
+          background-size: 200% 100%; 
+          animation: featuredGlow 8s linear infinite; 
+        }
+        @keyframes featuredGlow { 
+          0% { background-position: 200% 0; } 
+          100% { background-position: -200% 0; } 
+        }
+        .announcement-content { 
+          display: flex; 
+          align-items: center; 
+          gap: 1.5rem; 
+          animation: announce-in 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; 
+        }
+        @keyframes announce-in { 
+          from { opacity: 0; transform: translateY(10px); } 
+          to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        /* Stats Section */
+        .modern-stat-card { 
+          background: linear-gradient(135deg, rgba(44, 27, 75, 0.3) 0%, rgba(30, 42, 90, 0.2) 50%, rgba(44, 27, 75, 0.3) 100%); 
+          backdrop-filter: blur(15px); 
+          border: 1px solid rgba(255, 223, 128, 0.1); 
+          border-radius: 20px; 
+          padding: 2rem 1.5rem; 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          position: relative; 
+          overflow: hidden; 
+        }
+        .modern-stat-card::before { 
+          content: ''; 
+          position: absolute; 
+          inset: 0; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.03) 0%, transparent 50%, rgba(255, 223, 128, 0.03) 100%); 
+          opacity: 0; 
+          transition: opacity 0.4s ease; 
+        }
+        .group:hover .modern-stat-card::before { opacity: 1; }
+        .group:hover .modern-stat-card { 
+          border-color: rgba(255, 223, 128, 0.25); 
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); 
+          transform: translateY(-5px); 
+        }
+        .stat-icon-glow { 
+          position: absolute; 
+          inset: -10px; 
+          background: radial-gradient(circle, rgba(255, 223, 128, 0.15) 0%, transparent 70%); 
+          filter: blur(15px); 
+          opacity: 0; 
+          transition: opacity 0.4s ease; 
+        }
+        .group:hover .stat-icon-glow { opacity: 1; }
+        
+        /* Footer */
+        .modern-footer { 
+          background: linear-gradient(135deg, rgba(10, 5, 16, 0.95) 0%, rgba(26, 15, 46, 0.9) 50%, rgba(10, 5, 16, 0.95) 100%); 
+          border-top: 1px solid rgba(255, 223, 128, 0.1); 
+        }
+        .modern-footer-bg { 
+          background: radial-gradient(ellipse at center, rgba(44, 27, 75, 0.1) 0%, transparent 70%); 
+        }
+        .modern-accent-line { 
+          height: 3px; 
+          background: linear-gradient(90deg, transparent 0%, var(--gold-main) 25%, var(--gold-dark) 50%, var(--gold-main) 75%, transparent 100%); 
+          box-shadow: 0 0 20px rgba(255, 223, 128, 0.3); 
+        }
+        .modern-footer-title { 
+          color: var(--gold-main); 
+          font-family: 'Orbitron', sans-serif; 
+          font-weight: 700; 
+          font-size: 1.25rem; 
+          margin-bottom: 1.5rem; 
+          letter-spacing: 0.05em; 
+        }
+        .modern-footer-link { 
+          color: var(--purple-light); 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          gap: 0.5rem; 
+          text-decoration: none;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 500;
+        }
+        @media (min-width: 768px) { 
+          .modern-footer-link { justify-content: flex-start; } 
+          .modern-footer-link:hover { transform: translateX(8px) !important; } 
+        }
+        .modern-footer-link:hover { color: var(--gold-main); }
+        .modern-social-link { 
+          display: inline-flex; 
+          align-items: center; 
+          justify-content: center; 
+          width: 48px; 
+          height: 48px; 
+          border-radius: 50%; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.1) 0%, rgba(255, 223, 128, 0.05) 100%); 
+          border: 1px solid rgba(255, 223, 128, 0.2); 
+          color: var(--gold-main); 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+        }
+        .modern-social-link:hover { 
+          transform: translateY(-4px) scale(1.1); 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.15) 0%, rgba(255, 223, 128, 0.08) 100%); 
+          border-color: rgba(255, 223, 128, 0.4); 
+          box-shadow: 0 12px 30px rgba(255, 223, 128, 0.2); 
+        }
+        
+        /* Modal & Form */
+        .modern-modal-backdrop { 
+          background: rgba(0, 0, 0, 0.8); 
+          backdrop-filter: blur(20px); 
+        }
+        .modern-form-container { 
+          background: linear-gradient(135deg, rgba(15, 8, 25, 0.98) 0%, rgba(44, 27, 75, 0.95) 25%, rgba(30, 42, 90, 0.95) 75%, rgba(8, 4, 12, 0.99) 100%); 
+          backdrop-filter: blur(30px); 
+          border: 2px solid rgba(255, 223, 128, 0.2); 
+          border-radius: 24px; 
+          box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5); 
+          animation: modalAppear 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; 
+        }
+        .modern-form-glow { 
+          position: absolute; 
+          inset: -3px; 
+          background: linear-gradient(135deg, rgba(255, 223, 128, 0.3) 0%, rgba(147, 51, 234, 0.3) 50%, rgba(59, 130, 246, 0.3) 100%); 
+          border-radius: 27px; 
+          opacity: 0.5; 
+          filter: blur(10px); 
+          z-index: -1; 
+        }
+        @keyframes modalAppear { 
+          from { opacity: 0; transform: scale(0.9) translateY(30px); } 
+          to { opacity: 1; transform: scale(1) translateY(0); } 
+        }
+        .modern-gradient-text { 
+          background: linear-gradient(135deg, var(--gold-main) 0%, #fff8e7 100%); 
+          background-clip: text; 
+          -webkit-background-clip: text; 
+          color: transparent; 
+        }
+        .modern-input { 
+          width: 100%; 
+          padding: 1rem 1.25rem; 
+          background: rgba(10, 5, 15, 0.8); 
+          border: 2px solid rgba(127, 90, 155, 0.3); 
+          border-radius: 12px; 
+          color: white; 
+          font-size: 1rem; 
+          transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); 
+          outline: none;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 400;
+        }
+        .modern-input:focus { 
+          border-color: var(--gold-main); 
+          box-shadow: 0 0 0 3px rgba(255, 223, 128, 0.1), 0 0 20px rgba(255, 223, 128, 0.2); 
+          background: rgba(10, 5, 15, 0.9); 
+        }
+        .modern-submit-button { 
+          background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%); 
+          color: var(--purple-dark); 
+          border: none; 
+          border-radius: 16px; 
+          font-family: 'Inter', sans-serif; 
+          font-weight: 700; 
+          cursor: pointer; 
+          transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); 
+          box-shadow: 0 12px 40px rgba(255, 223, 128, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+          letter-spacing: 0.025em;
+        }
+        .modern-submit-button:hover:not(:disabled) { 
+          transform: translateY(-3px) scale(1.02); 
+          box-shadow: 0 20px 60px rgba(255, 223, 128, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6); 
+        }
+        .success-glow { 
+          position: absolute; 
+          inset: -15px; 
+          background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%); 
+          filter: blur(20px); 
+        }
+        .modern-success-card { 
+          background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); 
+          border: 1px solid rgba(255, 223, 128, 0.2); 
+          border-radius: 16px; 
+          padding: 1.5rem; 
+          backdrop-filter: blur(10px); 
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) { 
+          .modern-info-card { padding: 2rem 1.5rem; } 
+          .modern-card-title { font-size: 1.5rem; } 
+          .modern-stat-card { padding: 1.5rem 1rem; } 
+          .modern-form-container { margin: 1rem; padding: 2rem 1.5rem; } 
+          .announcement-card { padding: 1rem 1.5rem; } 
+          .announcement-content { gap: 1rem; } 
+        }
+      `}</style>
     </div>
   );
 }
