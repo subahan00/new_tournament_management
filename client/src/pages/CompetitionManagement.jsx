@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, Minus, Users, Trophy, UserPlus } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 
 const CompetitionManagement = () => {
   const [competitions, setCompetitions] = useState([]);
