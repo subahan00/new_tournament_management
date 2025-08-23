@@ -44,6 +44,8 @@ import AdminPanel from './components/auction/AdminPanel';
 import BidderPanel from './components/auction/BidderPanel';
 import ViewerPanel from './components/auction/ViewerPanel';
 import ClanWarManagement from './pages/ClanWarManagement';
+import LiveLinkManage from './pages/LiveLinkManage';
+import ViewLinks from './pages/viewLiveLink';
 const App = () => {
   return (
     <AuthProvider>
@@ -70,10 +72,11 @@ const App = () => {
           <Route path="/auctions" element={<AuctionList />} />
           <Route path="/auction/:id" element={<AuctionLobby />} />
           <Route path="/auction/:id/room" element={<AuctionRoom />} />
-
+          <Route path="/live-links" element={<LiveLinkManage />} />
           {/* Admin auction routes - Add these to your admin protected routes section */}
           <Route path="/admin/create-auction" element={<CreateAuction />} />
           <Route path="/admin/manage-auctions" element={<ManageAuctions />} />
+          <Route path="/links-view" element={<ViewLinks />} />
 
 
           {/* Admin protected routes */}

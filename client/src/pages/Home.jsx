@@ -648,6 +648,15 @@ export default function Home() {
                 <Link to="/wallpaper" className="modern-card-button">Browse Gallery</Link>
               </div>
             </InteractiveCard>
+             <InteractiveCard className="group cursor-pointer" style={{ transitionDelay: '200ms' }}>
+              <div className="modern-info-card">
+                <div className="modern-card-icon-wrapper"><Star size={48} className="modern-card-icon" /></div>
+                <h2 className="modern-card-title">Live Links</h2>
+                <p className="modern-card-desc">Browse and enjoy live match links hassle-free
+                </p>
+                <Link to="/links-view" className="modern-card-button">Browse links</Link>
+              </div>
+            </InteractiveCard>
           </div>
         </section>
 

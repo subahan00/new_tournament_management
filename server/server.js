@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 const path = require('path');
-
+const liveLinkRoutes = require('./routes/liveLinkRoutes');
 const http = require('http');
 const { Server } = require('socket.io');
 const Competition = require('./models/Competition');
@@ -110,6 +110,7 @@ app.use('/api/wallpaper', wallpaperRoutes);
 app.use('/api/announcements', announcementRoutes);
 
 app.use('/api/auctions', auctionRoutes);
+app.use('/api/livelinks', liveLinkRoutes);
 auctionHandler(io);
 
 // ✅ Password Reset Route
