@@ -142,7 +142,7 @@ const LiveLinkManage = () => {
     if (window.confirm('Are you sure you want to delete this live link?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`/api/livelinks/${id}`, {
+        await axios.delete(`/livelinks/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMessage({ type: 'success', text: 'Live link deleted successfully!' });
