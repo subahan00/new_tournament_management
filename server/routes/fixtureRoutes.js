@@ -16,8 +16,8 @@ const {
   updateCompetitionStatus,
   setCompetitionWinner,
   getFixturesByCompetition,
-  createFixturesForGroupStage
-
+  createFixturesForGroupStage,
+  getclanWarFixtures
 } = require('../controllers/fixtureController');
 
 const { authenticate } = require('../utils/middlewares');
@@ -63,6 +63,7 @@ router.post('/:competitionId/next-round',
 router.get('/competition/:competitionId', 
   getCompetitionFixtures
 );
+router.get('/competitions/:competitionId/clan-war-fixtures', getclanWarFixtures);
 
 // Ongoing competitions
 router.get('/ongoing', 

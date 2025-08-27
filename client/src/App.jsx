@@ -46,6 +46,8 @@ import ViewerPanel from './components/auction/ViewerPanel';
 import ClanWarManagement from './pages/ClanWarManagement';
 import LiveLinkManage from './pages/LiveLinkManage';
 import ViewLinks from './pages/viewLiveLink';
+import ClanWarFixtures from './pages/ClanWarFixtures';
+import ClanWarView from './pages/ClanWarView';
 const App = () => {
   return (
     <AuthProvider>
@@ -77,7 +79,8 @@ const App = () => {
           <Route path="/admin/create-auction" element={<CreateAuction />} />
           <Route path="/admin/manage-auctions" element={<ManageAuctions />} />
           <Route path="/links-view" element={<ViewLinks />} />
-
+          <Route path="/clan-wars" element={<ClanWarView />} />
+          <Route path="/clan-wars/:id" element={<ClanWarFixtures />} />
 
           {/* Admin protected routes */}
           <Route

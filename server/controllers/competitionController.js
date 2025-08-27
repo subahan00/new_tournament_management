@@ -116,7 +116,7 @@ const competitionController = {
     if (matchIdx < 0 || matchIdx >= fixture.individualMatches.length) {
       return res.status(400).json({ message: 'Invalid match index' });
     }
-
+    
     // Update the specific match
     const match = fixture.individualMatches[matchIdx];
     match.homeScore = homeScore;

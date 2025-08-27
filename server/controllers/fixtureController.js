@@ -118,6 +118,64 @@ exports.createFixturesForLeague = async (req, res) => {
     res.status(500).json({ success: false, error: errorMessage });
   }
 };
+    exports.getclanWarFixtures= async (req, res) => {
+       try {
+      const { competitionId } = req.params;
+      
+      const fixtures = await Fixture.find({ 
+        competitionId, 
+        isClanWar: true 
+      })
+      .populate({
+        path: 'homeClan',
+        select: 'name members points matchesWon matchesDrawn matchesLost',
+        populate: {
+          path: 'members',
+          select: 'name'
+        }
+      })
+      .populate({
+        path: 'awayClan',
+        select: 'name members points matchesWon matchesDrawn matchesLost',
+        populate: {
+          path: 'members',
+          select: 'name'
+        }
+      })
+      .populate('individualMatches.homePlayer', 'name')
+      .populate('individualMatches.awayPlayer', 'name')
+      .sort({ round: 1, createdAt: 1 });
+
+      // Transform the data to include player names in individual matches
+      const transformedFixtures = fixtures.map(fixture => {
+        const fixtureObj = fixture.toObject();
+        
+        if (fixtureObj.individualMatches && fixtureObj.individualMatches.length > 0) {
+          fixtureObj.individualMatches = fixtureObj.individualMatches.map(match => ({
+            ...match,
+            homePlayerName: match.homePlayer?.name || match.homePlayerName || 'TBD',
+            awayPlayerName: match.awayPlayer?.name || match.awayPlayerName || 'TBD'
+          }));
+        }
+        
+        return fixtureObj;
+      });
+
+      res.status(200).json({
+        success: true,
+        data: transformedFixtures,
+        count: transformedFixtures.length
+      });
+      
+    } catch (error) {
+      console.error('Error fetching clan war fixtures:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Failed to fetch clan war fixtures', 
+        error: error.message 
+      });
+    }
+  };
   // Knockout Fixture Management
   exports.generateKnockoutFixturesHandler = async (req, res) => {
     try {

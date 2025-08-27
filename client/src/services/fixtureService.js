@@ -28,6 +28,7 @@ export default {
     };
   }
 },
+
 createGroupStageFixtures: async (competitionId) => {
   try {
     const token = localStorage.getItem('token');  // or wherever you store it
@@ -193,5 +194,18 @@ updateKoFixtureResult : async (fixtureId, homeScore, awayScore) => {
   // Additional Methods
   deleteFixtures: (competitionId) => {
     return axios.delete(`${BASE_URL}/fixtures/${competitionId}`);
+  },
+  getClanWarFixtures: async (competitionId) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/competitions/${competitionId}/clan-war-fixtures`);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || 
+        'Failed to fetch clan war fixtures'
+      );
+    }
   }
+  
+  
 };

@@ -29,6 +29,7 @@ const Bid = require('./models/Bid');
 const ChatMessage = require('./models/ChatMessage');
 const plainPassword = 'Pratham@3623';
 const auctionRoutes = require('./routes/auctionRoutes');
+const clanWarRoutes = require('./routes/clanWarRoutes');
 const auctionHandler = require('./socketHandlers/auctionHandler');
 // Hash the passwor
 bcrypt.genSalt(10, (err, salt) => {
@@ -108,7 +109,7 @@ app.use('/api/standings', standingRoutes);
 app.use('/api/winners', winnerRoutes);
 app.use('/api/wallpaper', wallpaperRoutes);
 app.use('/api/announcements', announcementRoutes);
-
+app.use('/api/clan-wars', clanWarRoutes);
 app.use('/api/auctions', auctionRoutes);
 app.use('/api/livelinks', liveLinkRoutes);
 auctionHandler(io);

@@ -615,8 +615,7 @@ export default function Home() {
         <section id="home" className="min-h-screen flex items-center justify-center text-center px-4 sm:px-6 relative">
           <div className="modern-hero-content">
             <h1 className="modern-hero-title">Welcome to <span className="modern-brand-accent">Official_90</span></h1>
-            <p className="modern-hero-subtitle">Start your journey to greatness. Compete, grow, and make your name unforgettable.
-            </p>
+            <p className="modern-hero-subtitle">MORE THAN A GAME </p>
             <div className="modern-hero-cta">
               <button id="join" onClick={() => setShowForm(true)} className="modern-cta-button">
                 <span className="relative z-10">⚔️ Join The Arena</span>
