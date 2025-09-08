@@ -62,7 +62,7 @@ exports.createFixturesForLeague = async (req, res) => {
         name: p.name || `Player ${p._id.toString().slice(-4)}`
       }));
 
-    if (validPlayers.length < 2 || validPlayers.length > 20) {
+    if (validPlayers.length < 2 || validPlayers.length > 100) {
       return res.status(400).json({
         error: validPlayers.length < 2 ? 'Not enough valid players' : 'Maximum 20 players allowed',
         playerCount: validPlayers.length
