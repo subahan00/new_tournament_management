@@ -51,16 +51,6 @@ const InteractiveCard = ({ children, className = "", animationDelay = '0ms', as:
   );
 };
 
-const shuffleArray = (array) => {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex !== 0) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex--;
-        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-    }
-    return array;
-};
-
 const getStatusInfo = (status) => {
     switch (status?.toLowerCase()) {
         case 'live':
@@ -176,7 +166,7 @@ const PaginationInfo = ({ currentPage, totalPages, totalItems, itemsPerPage }) =
 
   return (
     <div className="text-center text-sm text-purple-light/80 mb-6">
-      Showing {startItem}-{endItem} of {totalItems} rounds
+      Showing {startItem}-{endItem} of {totalItems} fixtures
       {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
     </div>
   );
@@ -186,7 +176,7 @@ const PaginationInfo = ({ currentPage, totalPages, totalItems, itemsPerPage }) =
 // FIXTURE CARD COMPONENT
 //=================================================================
 
-const FixtureCard = memo(({ fixture }) => {
+const FixtureCard = memo(({ fixture, index }) => {
     const statusInfo = getStatusInfo(fixture.status);
     const matchDate = new Date(fixture.matchDate);
     
@@ -196,6 +186,14 @@ const FixtureCard = memo(({ fixture }) => {
 
     // Check if it's a BYE match
     const isByeMatch = fixture.awayPlayer === null || fixture.awayPlayerName === 'BYE';
+
+    // Get round info
+    const round = fixture.round || 
+                 fixture.roundName || 
+                 fixture.round_name || 
+                 fixture.roundNumber ||
+                 fixture.stage ||
+                 'Round Unknown';
 
     // Determine what to show in the middle section
     const renderMiddleSection = () => {
@@ -218,10 +216,11 @@ const FixtureCard = memo(({ fixture }) => {
 
     return (
         <div className="fixture-card group">
+            {/* Round badge */}
             <div className="flex justify-between items-start text-xs mb-3">
                 <div className="flex items-center space-x-2 text-purple-light/80">
-                    <CalendarDays size={14} />
-                    <span>{matchDate.toLocaleDateString('en-IN', dateOptions)}</span>
+                    <Swords size={12} />
+                    <span className="font-medium">{round}</span>
                 </div>
                 <div className={`status-badge ${statusInfo.className}`}>
                     {statusInfo.text}
@@ -236,9 +235,16 @@ const FixtureCard = memo(({ fixture }) => {
                 </span>
             </div>
 
-            <div className="flex items-center justify-center text-xs text-purple-light/80 space-x-2 mt-3">
-                <Clock size={14} />
-                <span>{matchDate.toLocaleTimeString('en-IN', timeOptions)}</span>
+            {/* Date and time */}
+            <div className="flex items-center justify-between text-xs text-purple-light/80 mt-3">
+                <div className="flex items-center space-x-1">
+                    <CalendarDays size={12} />
+                    <span>{matchDate.toLocaleDateString('en-IN', dateOptions)}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                    <Clock size={12} />
+                    <span>{matchDate.toLocaleTimeString('en-IN', timeOptions)}</span>
+                </div>
             </div>
 
             {/* Show additional match info for completed matches */}
@@ -265,12 +271,12 @@ FixtureCard.displayName = 'FixtureCard';
 
 export default function CompetitionFixtures() {
   const { competitionId } = useParams();
-  const [fixturesByRound, setFixturesByRound] = useState({});
+  const [fixtures, setFixtures] = useState([]);
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [roundsPerPage] = useState(6); // Number of rounds to show per page
+  const [fixturesPerPage] = useState(24); // Number of fixtures to show per page
 
  const fetchFixtures = useCallback(async () => {
   try {
@@ -278,6 +284,9 @@ export default function CompetitionFixtures() {
     const res = await fixtureService.getCompetitionFixtures(competitionId);
     const payload = res?.data || {};
     const data = payload.data || [];
+
+    console.log("Raw fixtures data:", data);
+    console.log("Total fixtures count:", data.length);
 
     // Try to get name from fixtures response first
     let name =
@@ -289,7 +298,7 @@ export default function CompetitionFixtures() {
     if (!name) {
       try {
         const compRes = await competitionService.getCompetition(competitionId);
-        console.log('data',compRes);
+        console.log('Competition response:', compRes);
         const compPayload = compRes?.data || {};
         name =
           compPayload.name ||
@@ -301,23 +310,32 @@ export default function CompetitionFixtures() {
       }
     }
 
-    console.log("Fetched fixtures:", payload);
+    // Sort fixtures by round and then by match date
+    const sortedFixtures = data.sort((a, b) => {
+      // First sort by round
+      const aRound = a.round || a.roundName || a.round_name || 'Round 0';
+      const bRound = b.round || b.roundName || b.round_name || 'Round 0';
+      
+      // Extract numeric values from round names for proper sorting
+      const aRoundMatch = aRound.match(/\d+/);
+      const bRoundMatch = bRound.match(/\d+/);
+      
+      if (aRoundMatch && bRoundMatch) {
+        const aRoundNum = parseInt(aRoundMatch[0]);
+        const bRoundNum = parseInt(bRoundMatch[0]);
+        if (aRoundNum !== bRoundNum) {
+          return aRoundNum - bRoundNum;
+        }
+      }
+      
+      // If rounds are the same or can't be compared, sort by date
+      return new Date(a.matchDate) - new Date(b.matchDate);
+    });
 
-    const grouped = data.reduce((acc, fixture) => {
-    const round = fixture.round || "Uncategorized"; // <-- CORRECTED LINE
-    if (!acc[round]) acc[round] = [];
-    acc[round].push(fixture);
-    return acc;
-}, {});
-
-    for (const round in grouped) {
-      grouped[round] = shuffleArray(grouped[round]);
-    }
-
-    setFixturesByRound(grouped);
+    setFixtures(sortedFixtures);
     setCompetitionName(name || "Competition");
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching fixtures:", err);
     toast.error("Failed to load fixtures");
   } finally {
     setLoading(false);
@@ -329,30 +347,23 @@ export default function CompetitionFixtures() {
     fetchFixtures();
 
     const handleFixtureUpdate = (updatedFixture) => {
-      setFixturesByRound(prev => {
-        const newFixtures = { ...prev };
-        for (const round in newFixtures) {
-          const index = newFixtures[round].findIndex(f => f._id === updatedFixture._id);
-          if (index !== -1) {
-            newFixtures[round][index] = updatedFixture;
-            return newFixtures;
-          }
+      setFixtures(prev => {
+        const newFixtures = [...prev];
+        const index = newFixtures.findIndex(f => f._id === updatedFixture._id);
+        if (index !== -1) {
+          newFixtures[index] = updatedFixture;
         }
         return newFixtures;
       });
     };
     
     const handlePlayerUpdate = ({ playerId, newName }) => {
-        setFixturesByRound(prev => {
-          const newFixtures = { ...prev };
-          for (const round in newFixtures) {
-            newFixtures[round] = newFixtures[round].map(f => ({
-              ...f,
-              homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
-              awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
-            }));
-          }
-          return newFixtures;
+        setFixtures(prev => {
+          return prev.map(f => ({
+            ...f,
+            homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
+            awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
+          }));
         });
     };
 
@@ -366,43 +377,39 @@ export default function CompetitionFixtures() {
   }, [fetchFixtures]);
 
   const filteredFixtures = useMemo(() => {
-    if (!searchTerm) return fixturesByRound;
+    if (!searchTerm) return fixtures;
+    
     const term = searchTerm.toLowerCase();
-    const filtered = {};
-    Object.keys(fixturesByRound).forEach(round => {
-      const matches = fixturesByRound[round].filter(f =>
-        (f.homePlayerName || 'tbd').toLowerCase().includes(term) ||
-        (f.awayPlayerName || 'tbd').toLowerCase().includes(term)
-      );
-      if (matches.length > 0) {
-        filtered[round] = matches;
-      }
+    
+    return fixtures.filter(f => {
+      const homePlayerName = (f.homePlayerName || 'tbd').toLowerCase();
+      const awayPlayerName = (f.awayPlayerName || 'tbd').toLowerCase();
+      const round = (f.round || f.roundName || f.round_name || '').toLowerCase();
+      
+      return homePlayerName.includes(term) || 
+             awayPlayerName.includes(term) || 
+             round.includes(term);
     });
-    return filtered;
-  }, [fixturesByRound, searchTerm]);
+  }, [fixtures, searchTerm]);
 
-  // Pagination logic
+  // Linear pagination logic
   const paginatedFixtures = useMemo(() => {
-    const rounds = Object.keys(filteredFixtures).sort((a, b) => a - b);
-    const totalRounds = rounds.length;
-    const totalPages = Math.ceil(totalRounds / roundsPerPage);
+    const totalFixtures = filteredFixtures.length;
+    const totalPages = Math.ceil(totalFixtures / fixturesPerPage);
     
-    const startIndex = (currentPage - 1) * roundsPerPage;
-    const endIndex = startIndex + roundsPerPage;
-    const currentRounds = rounds.slice(startIndex, endIndex);
+    const startIndex = (currentPage - 1) * fixturesPerPage;
+    const endIndex = startIndex + fixturesPerPage;
+    const currentFixtures = filteredFixtures.slice(startIndex, endIndex);
     
-    const paginatedData = {};
-    currentRounds.forEach(round => {
-      paginatedData[round] = filteredFixtures[round];
-    });
+    console.log(`Showing page ${currentPage} of ${totalPages}, fixtures ${startIndex + 1}-${Math.min(endIndex, totalFixtures)} of ${totalFixtures}`);
     
     return {
-      data: paginatedData,
+      fixtures: currentFixtures,
       totalPages,
-      totalRounds,
-      currentRounds: currentRounds.length
+      totalFixtures,
+      currentCount: currentFixtures.length
     };
-  }, [filteredFixtures, currentPage, roundsPerPage]);
+  }, [filteredFixtures, currentPage, fixturesPerPage]);
 
   // Reset to first page when search changes
   useEffect(() => {
@@ -444,6 +451,11 @@ export default function CompetitionFixtures() {
                 <h1 className="modern-hero-title" style={{fontSize: 'clamp(2rem, 5vw, 3.5rem)'}}>
                     {competitionName} <span className="modern-brand-accent">Fixtures</span>
                 </h1>
+                {fixtures.length > 0 && (
+                  <p className="modern-hero-subtitle mt-4">
+                    {fixtures.length} total fixtures
+                  </p>
+                )}
             </div>
             
             <InteractiveCard className="mb-12 max-w-2xl mx-auto">
@@ -451,7 +463,7 @@ export default function CompetitionFixtures() {
                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-light/60 pointer-events-none" size={20} />
                      <input
                          type="text"
-                         placeholder="Search by player name..."
+                         placeholder="Search by player name or round..."
                          value={searchTerm}
                          onChange={(e) => setSearchTerm(e.target.value)}
                          className="search-input w-full"
@@ -460,17 +472,17 @@ export default function CompetitionFixtures() {
             </InteractiveCard>
 
             {/* Pagination Info */}
-            {paginatedFixtures.totalRounds > 0 && (
+            {paginatedFixtures.totalFixtures > 0 && (
                 <PaginationInfo 
                     currentPage={currentPage}
                     totalPages={paginatedFixtures.totalPages}
-                    totalItems={paginatedFixtures.totalRounds}
-                    itemsPerPage={roundsPerPage}
+                    totalItems={paginatedFixtures.totalFixtures}
+                    itemsPerPage={fixturesPerPage}
                 />
             )}
 
-            <div className="space-y-12">
-                {Object.keys(paginatedFixtures.data).length === 0 ? (
+            <div className="space-y-6">
+                {paginatedFixtures.fixtures.length === 0 ? (
                     <InteractiveCard>
                         <div className="text-center py-16 modern-info-card">
                             <Info className="h-12 w-12 text-gold-main/50 mx-auto mb-4" />
@@ -481,21 +493,19 @@ export default function CompetitionFixtures() {
                         </div>
                     </InteractiveCard>
                 ) : (
-                    Object.keys(paginatedFixtures.data).sort((a,b) => a - b).map(round => (
-                        <InteractiveCard key={round} as="section">
-                            <div className="modern-info-card p-6">
-                                <h3 className="flex items-center text-2xl font-bold mb-6 text-gold-main font-space-grotesk">
-                                    <Swords className="w-6 h-6 mr-3 text-gold-main/80" />
-                                    {round}
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                    {paginatedFixtures.data[round].map(fixture => (
-                                        <FixtureCard key={fixture._id} fixture={fixture} />
-                                    ))}
-                                </div>
+                    <InteractiveCard>
+                        <div className="modern-info-card p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                {paginatedFixtures.fixtures.map((fixture, index) => (
+                                    <FixtureCard 
+                                        key={fixture._id} 
+                                        fixture={fixture} 
+                                        index={index}
+                                    />
+                                ))}
                             </div>
-                        </InteractiveCard>
-                    ))
+                        </div>
+                    </InteractiveCard>
                 )}
             </div>
 
