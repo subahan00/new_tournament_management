@@ -8,6 +8,7 @@ import competitionService from '../services/competitionService';
 import {
     CalendarDays,
     ChevronLeft,
+    ChevronRight,
     Clock,
     Loader,
     Search,
@@ -71,6 +72,114 @@ const getStatusInfo = (status) => {
         default:
             return { text: 'pending', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
     }
+};
+
+//=================================================================
+// PAGINATION COMPONENT
+//=================================================================
+
+const PaginationControls = ({ currentPage, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const showPages = 5; // Show max 5 page numbers
+    
+    let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
+    let endPage = Math.min(totalPages, startPage + showPages - 1);
+    
+    // Adjust start if we're near the end
+    if (endPage - startPage < showPages - 1) {
+      startPage = Math.max(1, endPage - showPages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
+
+  return (
+    <div className="flex items-center justify-center space-x-2 mt-8">
+      {/* Previous button */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
+        title="Previous page"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      {/* First page */}
+      {getPageNumbers()[0] > 1 && (
+        <>
+          <button
+            onClick={() => onPageChange(1)}
+            className="pagination-btn"
+          >
+            1
+          </button>
+          {getPageNumbers()[0] > 2 && (
+            <span className="pagination-ellipsis">...</span>
+          )}
+        </>
+      )}
+
+      {/* Page numbers */}
+      {getPageNumbers().map(page => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+        >
+          {page}
+        </button>
+      ))}
+
+      {/* Last page */}
+      {getPageNumbers()[getPageNumbers().length - 1] < totalPages && (
+        <>
+          {getPageNumbers()[getPageNumbers().length - 1] < totalPages - 1 && (
+            <span className="pagination-ellipsis">...</span>
+          )}
+          <button
+            onClick={() => onPageChange(totalPages)}
+            className="pagination-btn"
+          >
+            {totalPages}
+          </button>
+        </>
+      )}
+
+      {/* Next button */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+        title="Next page"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+};
+
+//=================================================================
+// PAGINATION INFO COMPONENT
+//=================================================================
+
+const PaginationInfo = ({ currentPage, totalPages, totalItems, itemsPerPage }) => {
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  return (
+    <div className="text-center text-sm text-purple-light/80 mb-6">
+      Showing {startItem}-{endItem} of {totalItems} rounds
+      {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+    </div>
+  );
 };
 
 //=================================================================
@@ -160,6 +269,8 @@ export default function CompetitionFixtures() {
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [roundsPerPage] = useState(6); // Number of rounds to show per page
 
  const fetchFixtures = useCallback(async () => {
   try {
@@ -270,6 +381,40 @@ export default function CompetitionFixtures() {
     return filtered;
   }, [fixturesByRound, searchTerm]);
 
+  // Pagination logic
+  const paginatedFixtures = useMemo(() => {
+    const rounds = Object.keys(filteredFixtures).sort((a, b) => a - b);
+    const totalRounds = rounds.length;
+    const totalPages = Math.ceil(totalRounds / roundsPerPage);
+    
+    const startIndex = (currentPage - 1) * roundsPerPage;
+    const endIndex = startIndex + roundsPerPage;
+    const currentRounds = rounds.slice(startIndex, endIndex);
+    
+    const paginatedData = {};
+    currentRounds.forEach(round => {
+      paginatedData[round] = filteredFixtures[round];
+    });
+    
+    return {
+      data: paginatedData,
+      totalPages,
+      totalRounds,
+      currentRounds: currentRounds.length
+    };
+  }, [filteredFixtures, currentPage, roundsPerPage]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <div className="modern-bg min-h-screen flex items-center justify-center">
@@ -314,8 +459,18 @@ export default function CompetitionFixtures() {
                 </div>
             </InteractiveCard>
 
+            {/* Pagination Info */}
+            {paginatedFixtures.totalRounds > 0 && (
+                <PaginationInfo 
+                    currentPage={currentPage}
+                    totalPages={paginatedFixtures.totalPages}
+                    totalItems={paginatedFixtures.totalRounds}
+                    itemsPerPage={roundsPerPage}
+                />
+            )}
+
             <div className="space-y-12">
-                {Object.keys(filteredFixtures).length === 0 ? (
+                {Object.keys(paginatedFixtures.data).length === 0 ? (
                     <InteractiveCard>
                         <div className="text-center py-16 modern-info-card">
                             <Info className="h-12 w-12 text-gold-main/50 mx-auto mb-4" />
@@ -326,7 +481,7 @@ export default function CompetitionFixtures() {
                         </div>
                     </InteractiveCard>
                 ) : (
-                    Object.keys(filteredFixtures).sort((a,b) => a - b).map(round => (
+                    Object.keys(paginatedFixtures.data).sort((a,b) => a - b).map(round => (
                         <InteractiveCard key={round} as="section">
                             <div className="modern-info-card p-6">
                                 <h3 className="flex items-center text-2xl font-bold mb-6 text-gold-main font-space-grotesk">
@@ -334,7 +489,7 @@ export default function CompetitionFixtures() {
                                     {round}
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                    {filteredFixtures[round].map(fixture => (
+                                    {paginatedFixtures.data[round].map(fixture => (
                                         <FixtureCard key={fixture._id} fixture={fixture} />
                                     ))}
                                 </div>
@@ -343,6 +498,13 @@ export default function CompetitionFixtures() {
                     ))
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            <PaginationControls
+                currentPage={currentPage}
+                totalPages={paginatedFixtures.totalPages}
+                onPageChange={handlePageChange}
+            />
         </main>
         
         {/* Global Styles */}
@@ -444,6 +606,53 @@ export default function CompetitionFixtures() {
                 border: 1px solid;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
+            }
+
+            /* Pagination Styles */
+            .pagination-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 40px;
+                height: 40px;
+                padding: 0 12px;
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: var(--purple-light);
+                background: rgba(44, 27, 75, 0.3);
+                border: 1px solid rgba(139, 123, 184, 0.25);
+                border-radius: 8px;
+                transition: all 0.3s ease;
+                backdrop-filter: blur(8px);
+                cursor: pointer;
+            }
+            .pagination-btn:hover:not(.disabled) {
+                background: rgba(44, 27, 75, 0.5);
+                border-color: var(--gold-main);
+                color: var(--gold-main);
+                transform: translateY(-1px);
+            }
+            .pagination-btn.active {
+                background: var(--gold-main);
+                color: #0a0510;
+                border-color: var(--gold-main);
+                font-weight: 600;
+            }
+            .pagination-btn.disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+                background: rgba(44, 27, 75, 0.2);
+                border-color: rgba(139, 123, 184, 0.1);
+            }
+            .pagination-ellipsis {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 40px;
+                height: 40px;
+                color: var(--purple-light);
+                font-weight: 500;
+                font-size: 0.875rem;
             }
         `}</style>
     </div>
