@@ -193,11 +193,11 @@ export default function CompetitionFixtures() {
     console.log("Fetched fixtures:", payload);
 
     const grouped = data.reduce((acc, fixture) => {
-      const round = fixture.round || "1";
-      if (!acc[round]) acc[round] = [];
-      acc[round].push(fixture);
-      return acc;
-    }, {});
+    const round = fixture.round || "Uncategorized"; // <-- CORRECTED LINE
+    if (!acc[round]) acc[round] = [];
+    acc[round].push(fixture);
+    return acc;
+}, {});
 
     for (const round in grouped) {
       grouped[round] = shuffleArray(grouped[round]);
