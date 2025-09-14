@@ -50,7 +50,7 @@ import Maintenance from './pages/maintenance';
 
 const App = () => {
   // 🔴 Toggle this to true when you want the whole site in maintenance mode
-  const isMaintenanceMode = true;
+  const isMaintenanceMode = false;
 
   return (
     <AuthProvider>

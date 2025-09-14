@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import fixtureService from '../services/fixtureService';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Search, Edit, AlertTriangle, Inbox } from 'lucide-react';
 import io from 'socket.io-client';
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import fixtureService from '../services/fixtureService';
+
+
+
 export default function CompetitionResults() {
   const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
   const { competitionId } = useParams();
+
+  // --- STATE MANAGEMENT ---
   const [fixtures, setFixtures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,8 +22,9 @@ export default function CompetitionResults() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
 
-  const fixturesPerPage = 6; // Number of fixtures per page
+  const fixturesPerPage = 6;
 
+  // --- DATA FETCHING & REAL-TIME UPDATES ---
   useEffect(() => {
     const fetchFixtures = async () => {
       try {
@@ -39,7 +44,7 @@ export default function CompetitionResults() {
 
     fetchFixtures();
 
-    // Set up socket listeners
+    // Socket listeners for real-time updates
     socket.on('playerNameUpdate', ({ playerId, newName }) => {
       setFixtures(prev => prev.map(f => ({
         ...f,
@@ -62,27 +67,24 @@ export default function CompetitionResults() {
     };
   }, [competitionId]);
 
+  // --- EVENT HANDLERS ---
   const handleResultSubmit = async (fixtureId) => {
     try {
       setSubmitting(true);
       setError(null);
 
-      // Validate scores
       const homeScore = Number(scores.home);
       const awayScore = Number(scores.away);
 
-      if (isNaN(homeScore)) throw new Error('Home score must be a number');
-      if (isNaN(awayScore)) throw new Error('Away score must be a number');
+      if (isNaN(homeScore) || isNaN(awayScore)) {
+        throw new Error('Scores must be valid numbers.');
+      }
 
-      await fixtureService.updateFixtureResult(fixtureId, {
-        homeScore,
-        awayScore
-      });
+      await fixtureService.updateFixtureResult(fixtureId, { homeScore, awayScore });
 
-      // Refresh fixtures after successful update
+      // Refresh data and reset state
       const response = await fixtureService.getCompetitionFixtures(competitionId);
-      const updatedFixtures = Array.isArray(response?.data?.data) ? response.data.data : [];
-      setFixtures(updatedFixtures);
+      setFixtures(Array.isArray(response?.data?.data) ? response.data.data : []);
       setEditingFixture(null);
       setScores({ home: 0, away: 0 });
       setShowConfirmModal(false);
@@ -90,7 +92,7 @@ export default function CompetitionResults() {
 
     } catch (err) {
       console.error('Failed to update result:', err);
-      setError(err.message || 'Failed to save result');
+      setError(err.message || 'Failed to save the result.');
     } finally {
       setSubmitting(false);
     }
@@ -99,22 +101,17 @@ export default function CompetitionResults() {
   const handleEditClick = (fixture) => {
     setEditingFixture(fixture._id);
     setScores({
-      home: fixture.homeScore || 0,
-      away: fixture.awayScore || 0
+      home: fixture.homeScore ?? 0,
+      away: fixture.awayScore ?? 0
     });
     setError(null);
   };
 
   const handleSubmitClick = (fixtureId) => {
-    // Validate scores first
-    const homeScore = Number(scores.home);
-    const awayScore = Number(scores.away);
-
-    if (isNaN(homeScore) || isNaN(awayScore)) {
-      setError('Please enter valid scores');
+    if (isNaN(Number(scores.home)) || isNaN(Number(scores.away))) {
+      setError('Please enter valid scores.');
       return;
     }
-
     setPendingSubmission(fixtureId);
     setShowConfirmModal(true);
   };
@@ -127,7 +124,6 @@ export default function CompetitionResults() {
 
   const handleCancelEdit = () => {
     setEditingFixture(null);
-    setScores({ home: 0, away: 0 });
     setError(null);
   };
 
@@ -136,18 +132,30 @@ export default function CompetitionResults() {
     setPendingSubmission(null);
   };
 
-  // Filter fixtures based on search term
+  // --- DATA PROCESSING & FILTERING ---
   const filteredFixtures = fixtures.filter(fixture => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     const homePlayerName = fixture.homePlayer?.name?.toLowerCase() || '';
     const awayPlayerName = fixture.awayPlayer?.name?.toLowerCase() || '';
     return homePlayerName.includes(searchLower) || awayPlayerName.includes(searchLower);
+  }).sort((a, b) => {
+    // If a search term is present, sort by status: pending first, then completed.
+    if (searchTerm) {
+      if (a.status === 'pending' && b.status !== 'pending') {
+        return -1; // a comes first
+      }
+      if (a.status !== 'pending' && b.status === 'pending') {
+        return 1; // b comes first
+      }
+    }
+    // If no search term or statuses are the same, maintain default order.
+    return 0;
   });
 
-  // Group fixtures by matchday/round
+
   const groupedFixtures = filteredFixtures.reduce((groups, fixture) => {
-    const matchday = fixture.round || 'Matchday 1';
+    const matchday = fixture.round || 'Unclassified';
     if (!groups[matchday]) {
       groups[matchday] = [];
     }
@@ -161,32 +169,9 @@ export default function CompetitionResults() {
     return aNum - bNum;
   });
 
-  // Pagination logic
-  const totalFixtures = filteredFixtures.length;
-  const totalPages = Math.ceil(totalFixtures / fixturesPerPage);
-  const startIndex = (currentPage - 1) * fixturesPerPage;
-  const endIndex = startIndex + fixturesPerPage;
-
-  // Get current page fixtures
-  const currentFixtures = filteredFixtures.slice(startIndex, endIndex);
-  const currentGroupedFixtures = currentFixtures.reduce((groups, fixture) => {
-    const matchday = fixture.round || 'Matchday 1';
-    if (!groups[matchday]) {
-      groups[matchday] = [];
-    }
-    groups[matchday].push(fixture);
-    return groups;
-  }, {});
-
-  const currentSortedMatchdays = Object.keys(currentGroupedFixtures).sort((a, b) => {
-    const aNum = parseInt(a.replace(/\D/g, '')) || 0;
-    const bNum = parseInt(b.replace(/\D/g, '')) || 0;
-    return aNum - bNum;
-  });
-
-  const renderPlayerName = (player, playerNameField) => {
-    return playerNameField || player?.name || 'TBD';
-  };
+  // --- PAGINATION LOGIC ---
+  const totalPages = Math.ceil(sortedMatchdays.length / fixturesPerPage); // Paginate by matchday groups
+  const paginatedMatchdays = sortedMatchdays.slice((currentPage - 1) * fixturesPerPage, currentPage * fixturesPerPage);
 
   const goToPage = (page) => {
     setCurrentPage(page);
@@ -195,324 +180,189 @@ export default function CompetitionResults() {
 
   const getPaginationRange = () => {
     const range = [];
-    const showRange = 5; // Show 5 page numbers at a time
-
+    const showRange = 5;
     let start = Math.max(1, currentPage - Math.floor(showRange / 2));
     let end = Math.min(totalPages, start + showRange - 1);
-
     if (end - start < showRange - 1) {
       start = Math.max(1, end - showRange + 1);
     }
-
     for (let i = start; i <= end; i++) {
       range.push(i);
     }
-
     return range;
   };
 
+  const renderPlayerName = (player, playerNameField) => playerNameField || player?.name || 'TBD';
+
+  // --- RENDER ---
   return (
-    <div className="min-h-screen bg-black">
-      <div className="mb-6">
-        <Link
-          to="/admin/dashboard"
-          className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-black to-[#1a1a1a] text-gray-200 font-sans">
+      <div className="container mx-auto px-4 py-8">
+        
+        {/* Back to Dashboard Link */}
+        <div className="mb-8">
+          <Link
+            to="/results"
+            className="group inline-flex items-center gap-2 text-yellow-400 border border-yellow-500/30 px-4 py-2 rounded-lg transition-all duration-300 hover:bg-yellow-500/10 hover:border-yellow-500/60 hover:shadow-lg hover:shadow-yellow-500/10"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Back to Dashboard
+          </Link>
+        </div>
 
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-xl border-2 border-yellow-500/30 shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Confirm Result Submission</h3>
-                <p className="text-gray-300 mb-4">
-                  Are you sure you want to submit this match result?
-                </p>
-                <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                  <div className="flex items-center justify-center space-x-4">
-                    <span className="text-2xl font-bold text-yellow-500">{scores.home}</span>
-                    <span className="text-xl text-gray-400">-</span>
-                    <span className="text-2xl font-bold text-yellow-500">{scores.away}</span>
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn">
+            <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-yellow-500/30 shadow-2xl shadow-yellow-500/5 max-w-md w-full animate-scaleIn">
+              <div className="p-8">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/30">
+                    <AlertTriangle className="w-8 h-8 text-yellow-400" />
                   </div>
-                  <p className="text-gray-400 text-sm mt-2">This action cannot be undone</p>
+                  <h3 className="text-2xl font-bold text-white mb-2">Confirm Submission</h3>
+                  <p className="text-gray-400 mb-6">Are you sure you want to submit this result? This action cannot be undone.</p>
+                  <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
+                    <div className="flex items-center justify-center space-x-4">
+                      <span className="text-3xl font-bold text-white">{scores.home}</span>
+                      <span className="text-2xl text-gray-500">-</span>
+                      <span className="text-3xl font-bold text-white">{scores.away}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={confirmSubmission}
-                  disabled={submitting}
-                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${submitting
-                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                      : 'bg-yellow-500 hover:bg-yellow-600 text-black'
-                    }`}
-                >
-                  {submitting ? (
-                    <span className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent mr-2"></div>
-                      Submitting...
-                    </span>
-                  ) : (
-                    'Confirm & Submit'
-                  )}
-                </button>
-                <button
-                  onClick={handleCancelConfirm}
-                  disabled={submitting}
-                  className="flex-1 py-3 px-4 rounded-lg font-semibold text-gray-300 border border-gray-600 hover:bg-gray-800 transition-all"
-                >
-                  Cancel
-                </button>
+                <div className="flex space-x-4">
+                  <button
+                    onClick={confirmSubmission}
+                    disabled={submitting}
+                    className="flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-300 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black hover:shadow-lg hover:shadow-yellow-500/20 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:text-gray-400"
+                  >
+                    {submitting ? 'Submitting...' : 'Confirm & Submit'}
+                  </button>
+                  <button
+                    onClick={handleCancelConfirm}
+                    disabled={submitting}
+                    className="flex-1 py-3 px-4 rounded-lg font-semibold text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Professional Header */}
-      <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-xl">
-        <div className="container mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold text-black text-center tracking-wide">
-            COMPETITION RESULTS
-          </h1>
-        </div>
-      </div>
+        {/* Page Header */}
+        <header className="text-center mb-12">
+            <h1 className="text-5xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-400 pb-2">
+                COMPETITION RESULTS
+            </h1>
+            <p className="text-gray-500 mt-2">Manage and view match outcomes in real-time.</p>
+        </header>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="max-w-md mx-auto">
+        {/* Search & Filters */}
+        <div className="mb-10">
+          <div className="max-w-xl mx-auto">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by player name..."
+                placeholder="Search for a player..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page when searching
+                  setCurrentPage(1);
                 }}
-                className="w-full px-4 py-3 pl-12 bg-gray-900 border border-yellow-500/30 rounded-lg text-white placeholder-gray-400 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20 transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-black/30 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/30 transition-all duration-300"
               />
-              <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+              <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                <Search className="w-5 h-5" />
               </div>
             </div>
           </div>
-          {searchTerm && (
-            <p className="text-center text-yellow-400 mt-2 text-sm">
-              Showing results for: <span className="font-semibold">"{searchTerm}"</span>
-            </p>
-          )}
         </div>
 
-        {/* Pagination Info */}
-        {!loading && totalFixtures > 0 && (
-          <div className="text-center mb-6">
-            <p className="text-gray-400 text-sm">
-              Showing {startIndex + 1}-{Math.min(endIndex, totalFixtures)} of {totalFixtures} fixtures
-            </p>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-16">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-yellow-500 border-t-transparent mb-4"></div>
-            <p className="text-yellow-500 font-medium">Loading fixtures...</p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="bg-red-900/50 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              {error}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && Object.keys(currentGroupedFixtures).length === 0 && (
-          <div className="text-center py-16">
-            <div className="bg-gray-900 rounded-lg p-8 border border-gray-700">
-              <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              <h3 className="text-xl font-semibold text-gray-400 mb-2">
-                {searchTerm ? 'No matches found' : 'No fixtures available'}
+        {/* Loading / Error / Empty States */}
+        {loading && <div className="text-center py-16 text-yellow-400">Loading fixtures...</div>}
+        {error && !loading && <div className="text-center py-16 text-red-400">{error}</div>}
+        {!loading && !error && filteredFixtures.length === 0 && (
+          <div className="text-center py-20">
+            <div className="bg-black/20 rounded-lg p-10 border border-gray-800 max-w-md mx-auto">
+              <Inbox className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-300">
+                {searchTerm ? 'No Matches Found' : 'No Fixtures Available'}
               </h3>
-              <p className="text-gray-500">
-                {searchTerm ? `No fixtures found for "${searchTerm}"` : 'No matches found for this competition'}
+              <p className="text-gray-500 mt-2">
+                {searchTerm ? `Your search for "${searchTerm}" did not return any results.` : 'Fixtures for this competition will appear here.'}
               </p>
             </div>
           </div>
         )}
 
-        {/* Fixtures by Matchday */}
-        {!loading && Object.keys(currentGroupedFixtures).length > 0 && (
-          <div className="space-y-8">
-            {currentSortedMatchdays.map(matchday => (
-              <div key={matchday} className="space-y-4">
-                {/* Matchday Header */}
-                <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg p-4">
-                  <h2 className="text-xl font-bold text-black text-center">
-                    {matchday.toUpperCase()}
-                  </h2>
-                </div>
-
-                {/* Fixtures for this matchday */}
-                <div className="grid gap-4">
-                  {currentGroupedFixtures[matchday].map((fixture) => (
-                    <div key={fixture._id} className="bg-gray-900 rounded-lg border border-gray-700 hover:border-yellow-500/50 transition-all duration-300 overflow-hidden">
-
-                      {/* Match Info Header */}
-                      <div className="bg-gray-800 px-6 py-3 border-b border-gray-700">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-yellow-500 font-medium">
+        {/* Fixtures List */}
+        {!loading && paginatedMatchdays.length > 0 && (
+          <div className="space-y-12">
+            {paginatedMatchdays.map(matchday => (
+              <div key={matchday}>
+                <h2 className="text-2xl font-bold text-center mb-6 border-b-2 border-yellow-500/20 pb-2 text-yellow-400">
+                  {matchday.toUpperCase()}
+                </h2>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedFixtures[matchday].map((fixture) => (
+                    <div 
+                      key={fixture._id} 
+                      className="bg-gradient-to-br from-gray-900/80 to-black/80 rounded-xl border border-gray-800 transition-all duration-300 hover:border-yellow-500/50 hover:shadow-2xl hover:shadow-yellow-500/10 hover:-translate-y-2"
+                    >
+                      <div className="p-6">
+                        <div className="flex items-center justify-between mb-6 text-sm">
+                          <span className="font-medium text-gray-400">
                             {fixture.matchDate ? new Date(fixture.matchDate).toLocaleDateString() : 'Date TBD'}
                           </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${fixture.status === 'completed'
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                              : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                            }`}>
-                            {fixture.status === 'completed' ? 'COMPLETED' : 'PENDING'}
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                            fixture.status === 'completed' 
+                            ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                            : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                          }`}>
+                            {fixture.status}
                           </span>
                         </div>
-                      </div>
-
-                      <div className="p-6">
-                        {/* Players Section */}
+                        
+                        {/* Player Names and Score */}
                         <div className="flex items-center justify-between mb-6">
-                          <div className="text-center flex-1">
-                            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                              <h3 className="text-white font-semibold text-lg mb-1">
-                                {renderPlayerName(fixture.homePlayer, fixture.homePlayerName)}
-                              </h3>
-                              <p className="text-yellow-500 text-sm font-medium">HOME</p>
-                            </div>
+                          <div className="text-center w-2/5">
+                            <p className="text-lg font-semibold truncate">{renderPlayerName(fixture.homePlayer, fixture.homePlayerName)}</p>
+                            <p className="text-xs text-gray-500 uppercase">HOME</p>
                           </div>
-
-                          <div className="mx-6 text-center">
-                            <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
-                              <span className="text-black font-bold">VS</span>
-                            </div>
-                          </div>
-
-                          <div className="text-center flex-1">
-                            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                              <h3 className="text-white font-semibold text-lg mb-1">
-                                {renderPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}
-                              </h3>
-                              <p className="text-yellow-500 text-sm font-medium">AWAY</p>
-                            </div>
+                          <div className="text-4xl font-black text-gray-600">VS</div>
+                          <div className="text-center w-2/5">
+                            <p className="text-lg font-semibold truncate">{renderPlayerName(fixture.awayPlayer, fixture.awayPlayerName)}</p>
+                             <p className="text-xs text-gray-500 uppercase">AWAY</p>
                           </div>
                         </div>
 
-                        {/* Match Result Section */}
+                        {/* Result / Edit Section */}
                         {editingFixture === fixture._id ? (
-                          // EDITING MODE (for both new and existing results)
-                          <div className="bg-blue-500/10 rounded-lg p-6 border border-blue-500/30">
-                            <h4 className="text-blue-400 font-semibold text-center mb-4">
-                              {fixture.status === 'completed'
-                                ? 'Update Match Result'
-                                : 'Enter Match Result'}
-                            </h4>
-                            <div className="flex items-center justify-center space-x-6 mb-6">
-                              <div className="text-center">
-                                <label className="block text-gray-300 text-sm font-medium mb-2">Home Score</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={scores.home}
-                                  onChange={(e) => setScores({ ...scores, home: e.target.value })}
-                                  className="w-16 h-12 text-center text-xl font-bold bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
-                                  disabled={submitting}
-                                />
-                              </div>
-
-                              <span className="text-2xl text-gray-400 font-bold">:</span>
-
-                              <div className="text-center">
-                                <label className="block text-gray-300 text-sm font-medium mb-2">Away Score</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={scores.away}
-                                  onChange={(e) => setScores({ ...scores, away: e.target.value })}
-                                  className="w-16 h-12 text-center text-xl font-bold bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
-                                  disabled={submitting}
-                                />
-                              </div>
+                          <div className="bg-black/30 p-4 rounded-lg border border-yellow-500/30">
+                            <div className="flex items-center justify-center space-x-4 mb-4">
+                              <input type="number" min="0" value={scores.home} onChange={(e) => setScores({ ...scores, home: e.target.value })} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
+                              <span className="text-2xl text-gray-500">:</span>
+                              <input type="number" min="0" value={scores.away} onChange={(e) => setScores({ ...scores, away: e.target.value })} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
                             </div>
-
-                            <div className="flex justify-center space-x-3">
-                              <button
-                                onClick={() => handleSubmitClick(fixture._id)}
-                                className="px-6 py-2 rounded-lg font-medium bg-yellow-500 hover:bg-yellow-600 text-black transition-all"
-                                disabled={submitting}
-                              >
-                                {fixture.status === 'completed'
-                                  ? 'Update Result'
-                                  : 'Submit Result'}
-                              </button>
-
-                              <button
-                                onClick={handleCancelEdit}
-                                className="px-6 py-2 rounded-lg font-medium text-gray-300 border border-gray-600 hover:bg-gray-800 transition-all"
-                                disabled={submitting}
-                              >
-                                Cancel
-                              </button>
+                            <div className="flex space-x-2">
+                              <button onClick={() => handleSubmitClick(fixture._id)} className="w-full py-2 rounded-lg font-semibold bg-gradient-to-r from-yellow-400 to-yellow-600 text-black hover:opacity-90">Submit</button>
+                              <button onClick={handleCancelEdit} className="w-full py-2 rounded-lg font-semibold border border-gray-600 text-gray-300 hover:bg-gray-800">Cancel</button>
                             </div>
                           </div>
                         ) : fixture.status === 'completed' ? (
-                          // COMPLETED MATCH WITH UPDATE OPTION
-                          <div className="space-y-4">
-                            <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
-                              <div className="text-center">
-                                <div className="flex items-center justify-center space-x-4 mb-2">
-                                  <span className="text-3xl font-bold text-white">{fixture.homeScore}</span>
-                                  <span className="text-xl text-gray-400">-</span>
-                                  <span className="text-3xl font-bold text-white">{fixture.awayScore}</span>
-                                </div>
-                                {fixture.result && (
-                                  <div className="inline-block bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm font-medium capitalize border border-yellow-500/30">
-                                    {fixture.result}
-                                  </div>
-                                )}
+                          <div className="text-center space-y-4">
+                              <div className="text-4xl font-bold">
+                                  <span>{fixture.homeScore}</span>
+                                  <span className="mx-4 text-gray-600">-</span>
+                                  <span>{fixture.awayScore}</span>
                               </div>
-                            </div>
-                            <button
-                              onClick={() => handleEditClick(fixture)}
-                              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 flex items-center justify-center"
-                            >
-                              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Update Result
-                            </button>
+                              <button onClick={() => handleEditClick(fixture)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10">
+                                <Edit size={16} /> Update Result
+                              </button>
                           </div>
                         ) : (
-                          // ADD RESULT BUTTON FOR PENDING MATCHES
-                          <button
-                            onClick={() => handleEditClick(fixture)}
-                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition-all duration-300"
-                          >
+                          <button onClick={() => handleEditClick(fixture)} className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-yellow-400 to-yellow-600 text-black transition-all hover:shadow-lg hover:shadow-yellow-500/20">
                             Add Result
                           </button>
                         )}
@@ -525,47 +375,21 @@ export default function CompetitionResults() {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination Controls */}
         {!loading && totalPages > 1 && (
-          <div className="mt-12 flex justify-center">
-            <div className="flex items-center space-x-2">
-              {/* Previous Button */}
-              <button
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${currentPage === 1
-                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-800 text-yellow-500 hover:bg-gray-700 border border-yellow-500/30'
-                  }`}
-              >
-                Previous
-              </button>
-
-              {/* Page Numbers */}
+          <div className="mt-16 flex justify-center">
+            <div className="flex items-center space-x-2 bg-black/30 border border-gray-800 p-2 rounded-lg">
+              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors">Prev</button>
               {getPaginationRange().map(page => (
                 <button
                   key={page}
                   onClick={() => goToPage(page)}
-                  className={`w-10 h-10 rounded-lg font-medium transition-all ${currentPage === page
-                      ? 'bg-yellow-500 text-black'
-                      : 'bg-gray-800 text-yellow-500 hover:bg-gray-700 border border-yellow-500/30'
-                    }`}
+                  className={`w-10 h-10 rounded-md font-medium transition-all ${currentPage === page ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black' : 'hover:bg-gray-800 text-gray-400'}`}
                 >
                   {page}
                 </button>
               ))}
-
-              {/* Next Button */}
-              <button
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${currentPage === totalPages
-                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-800 text-yellow-500 hover:bg-gray-700 border border-yellow-500/30'
-                  }`}
-              >
-                Next
-              </button>
+              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors">Next</button>
             </div>
           </div>
         )}
@@ -573,3 +397,4 @@ export default function CompetitionResults() {
     </div>
   );
 }
+

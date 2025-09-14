@@ -177,7 +177,7 @@ const Header = ({ onQuestClick }) => {
     { href: "#stats", label: "Legends", icon: Star, isScroll: true },
     { href: "/trophy-cabinet", label: "Trophy Cabinet", icon: Trophy },
     { href: "/login", label: "Admin", icon: UserCog },
-    { href: "#join", label: "Join Quest", icon: Shield, isSpecial: true, action: onQuestClick },
+    { href: "#join", label: "Join Arena", icon: Shield, isSpecial: true, action: onQuestClick },
   ];
 
   const NavItem = ({ item }) => {
@@ -393,7 +393,7 @@ const RegistrationFormModal = ({ isOpen, onClose }) => {
           {!submitted ? (
             <div className="relative z-10">
               <div className="text-center mb-4">
-                <h2 className="text-xl font-title font-black modern-gradient-text mb-2">⚔️ Join The Quest</h2>
+                <h2 className="text-xl font-title font-black modern-gradient-text mb-2">⚔️ Join The Arena</h2>
                 <p className="text-purple-200 text-sm leading-relaxed">Enter the arena and prove your worth</p>
               </div>
               <form onSubmit={handleSubmit} className="space-y-3">
