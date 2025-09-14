@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
-import { Loader2, AlertTriangle, Calendar, Users, ChevronLeft, ChevronRight, GitMerge, BarChart3, ChevronRight as ArrowRightIcon } from 'lucide-react';
+import { AlertTriangle, Calendar, Users, ChevronLeft, ChevronRight, GitMerge, BarChart3, ChevronRight as ArrowRightIcon, ShieldCheck } from 'lucide-react';
 import competitionService from '../services/competitionService';
 // This is a placeholder for your actual competition service.
 
 
 const ITEMS_PER_PAGE = 6;
 
-// Re-introducing the animated nebula background
+// Animated nebula background
 const ThreeNebula = () => {
   const mountRef = useRef(null);
   const mouse = useRef({ x: 0, y: 0 });
@@ -99,10 +99,34 @@ const ThreeNebula = () => {
 };
 
 
-// The new, re-themed CompetitionCard component
+// Updated CompetitionCard component
 const CompetitionCard = ({ competition }) => {
-    const isKnockout = competition.type === 'KO_REGULAR';
-    const isLeague = competition.type === 'LEAGUE';
+    
+    // Helper function to determine the correct link for the competition type
+    const getCompetitionLink = (comp) => {
+        switch (comp.type) {
+            case 'CLAN_WAR':
+                return `/clan-wars/${comp._id}`;
+            case 'KO_REGULAR':
+                return `/manage-ko/${comp._id}`;
+            case 'LEAGUE':
+            default:
+                return `/standings/${comp._id}`;
+        }
+    };
+
+    // Helper function to get the appropriate icon and button text
+    const getCompetitionTypeInfo = (type) => {
+        switch (type) {
+            case 'CLAN_WAR':
+                return { icon: <ShieldCheck size={14} className="mr-3 text-gold-400/70" />, text: 'CLAN WAR', button: 'View War' };
+            case 'KO_REGULAR':
+                return { icon: <GitMerge size={14} className="mr-3 text-gold-400/70" />, text: 'KNOCKOUT', button: 'View Bracket' };
+            case 'LEAGUE':
+            default:
+                return { icon: <BarChart3 size={14} className="mr-3 text-gold-400/70" />, text: 'LEAGUE', button: 'View Standings' };
+        }
+    };
 
     const getStatusInfo = (status) => {
         switch (status) {
@@ -114,6 +138,7 @@ const CompetitionCard = ({ competition }) => {
     };
 
     const statusInfo = getStatusInfo(competition.status);
+    const typeInfo = getCompetitionTypeInfo(competition.type);
 
     return (
         <motion.div
@@ -123,7 +148,7 @@ const CompetitionCard = ({ competition }) => {
             }}
             className="h-full"
         >
-            <Link to={isKnockout ? `/manage-ko/${competition._id}` : `/standings/${competition._id}`} className="modern-info-card h-full flex flex-col group">
+            <Link to={getCompetitionLink(competition)} className="modern-info-card h-full flex flex-col group">
                 <div className="flex-grow">
                     <div className="flex justify-between items-start mb-4">
                         <h3 className="modern-card-title text-xl pr-4">{competition.name}</h3>
@@ -131,7 +156,7 @@ const CompetitionCard = ({ competition }) => {
                             {statusInfo.label}
                         </span>
                     </div>
-                    <div className="space-y-3 text-sm text-purple-200 font-lora">
+                    <div className="space-y-3 text-sm text-purple-200 font-inter">
                         <div className="flex items-center">
                            <Calendar size={14} className="mr-3 text-gold-400/70" />
                            <span>{new Date(competition.createdAt).toLocaleDateString()}</span>
@@ -141,14 +166,14 @@ const CompetitionCard = ({ competition }) => {
                            <span>{competition.players?.length || 0} Teams</span>
                         </div>
                          <div className="flex items-center">
-                           {isLeague ? <BarChart3 size={14} className="mr-3 text-gold-400/70" /> : <GitMerge size={14} className="mr-3 text-gold-400/70" />}
-                           <span>{competition.type.replace('_', ' ')}</span>
-                        </div>
+                            {typeInfo.icon}
+                            <span>{typeInfo.text}</span>
+                         </div>
                     </div>
                 </div>
                 <div className="mt-6 pt-4 border-t border-purple-800/30 text-right">
                     <span className="modern-card-button">
-                        {isKnockout ? 'View Bracket' : 'View Standings'}
+                        {typeInfo.button}
                         <ArrowRightIcon size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
                     </span>
                 </div>
@@ -222,7 +247,7 @@ const Competitions = () => {
                  <div className="modern-info-card text-center max-w-lg mx-auto">
                     <h2 className="modern-card-title">No Competitions Found</h2>
                     <p className="modern-card-desc text-purple-300">Check back later for new tournaments!</p>
-                </div>
+                 </div>
             );
         }
 
@@ -237,7 +262,7 @@ const Competitions = () => {
                 {totalPages > 1 && (
                     <div className="flex justify-center items-center mt-12 space-x-2">
                         <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="modern-pagination-button disabled:opacity-50 disabled:cursor-not-allowed"><ChevronLeft size={20} /></motion.button>
-                        <span className="font-cinzel text-gold-300 text-sm">Page {currentPage} of {totalPages}</span>
+                        <span className="font-rajdhani text-gold-300 text-sm tracking-wider">Page {currentPage} of {totalPages}</span>
                         <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="modern-pagination-button disabled:opacity-50 disabled:cursor-not-allowed"><ChevronRight size={20} /></motion.button>
                     </div>
                 )}
@@ -246,24 +271,24 @@ const Competitions = () => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col modern-bg text-white font-serif overflow-x-hidden">
-              <header className="fixed top-0 left-0 w-full z-50 p-4">
-                         <Link to="/" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-300 transition-colors duration-300 group glass-header-light p-2 rounded-lg">
-                            <ChevronLeft size={20} className="transition-transform duration-300 group-hover:-translate-x-1" />
-                            <span className="font-cinzel font-bold text-sm">Back to Home</span>
-                        </Link>
-                    </header>
+        <div className="min-h-screen flex flex-col modern-bg text-white overflow-x-hidden">
+             <header className="fixed top-0 left-0 w-full z-50 p-4">
+                     <Link to="/" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-300 transition-colors duration-300 group glass-header-light p-2 rounded-lg">
+                         <ChevronLeft size={20} className="transition-transform duration-300 group-hover:-translate-x-1" />
+                         <span className="font-rajdhani font-bold text-sm tracking-wider">Back to Home</span>
+                     </Link>
+                 </header>
             <Suspense fallback={<div className="fixed inset-0 bg-purple-950" />}>
                 <ThreeNebula />
             </Suspense>
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-            <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+            <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
             
             <main className="flex-grow container mx-auto px-4 sm:px-6 py-24 md:py-32 relative z-10">
                 <header className="text-center mb-12 md:mb-16">
                     
-                    <motion.h1 initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="modern-hero-title" style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)' }}>Tournaments</motion.h1>
+                    <motion.h1 initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="modern-hero-title">Tournaments</motion.h1>
                     <motion.p initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="modern-hero-subtitle">Browse all available arenas of competition.</motion.p>
                 </header>
                 {renderContent()}
@@ -271,16 +296,20 @@ const Competitions = () => {
 
             <style jsx global>{`
                 :root { --purple-dark: #2c1b4b; --purple-mid: #4a2a6c; --purple-light: #8b7bb8; --gold-main: #ffdf80; --gold-dark: #e6b422; }
-                .font-cinzel { font-family: 'Cinzel', serif; } .font-lora { font-family: 'Lora', serif; }
-                .modern-bg { background-color: #0a0510; position: relative; overflow-x: hidden; font-family: 'Lora', serif; }
-                ::-webkit-scrollbar { width: 12px; } ::-webkit-scrollbar-track { background: linear-gradient(to bottom, #1a0f2e, #0a0510); border-radius: 6px; } ::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, var(--gold-main), var(--gold-dark)); border-radius: 6px; border: 2px solid #1a0f2e; } ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #fff8e7, var(--gold-main)); }
-                .modern-hero-title { font-size: clamp(3rem, 8vw, 7rem); font-family: 'Cinzel', serif; font-weight: 900; background: linear-gradient(135deg, #fff8e7 0%, var(--gold-main) 25%, var(--gold-dark) 50%, var(--gold-main) 75%, #fff8e7 100%); background-clip: text; -webkit-background-clip: text; color: transparent; margin-bottom: 1rem; line-height: 1.1; letter-spacing: -0.02em; }
-                .modern-hero-subtitle { font-size: clamp(1.125rem, 2.5vw, 1.5rem); color: var(--purple-light); font-weight: 400; line-height: 1.6; max-w: 42rem; margin: 0 auto; }
+                .font-rajdhani { font-family: 'Rajdhani', sans-serif; } 
+                .font-inter { font-family: 'Inter', sans-serif; }
+                .modern-bg { background-color: #0a0510; position: relative; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+                ::-webkit-scrollbar { width: 12px; } 
+                ::-webkit-scrollbar-track { background: linear-gradient(to bottom, #1a0f2e, #0a0510); border-radius: 6px; } 
+                ::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, var(--gold-main), var(--gold-dark)); border-radius: 6px; border: 2px solid #1a0f2e; } 
+                ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #fff8e7, var(--gold-main)); }
+                .modern-hero-title { font-size: clamp(3rem, 8vw, 7rem); font-family: 'Rajdhani', sans-serif; font-weight: 700; background: linear-gradient(135deg, #fff8e7 0%, var(--gold-main) 25%, var(--gold-dark) 50%, var(--gold-main) 75%, #fff8e7 100%); background-clip: text; -webkit-background-clip: text; color: transparent; margin-bottom: 1rem; line-height: 1.1; letter-spacing: 0.02em; text-transform: uppercase; }
+                .modern-hero-subtitle { font-size: clamp(1.125rem, 2.5vw, 1.5rem); color: var(--purple-light); font-weight: 400; line-height: 1.6; max-w: 42rem; margin: 0 auto; font-family: 'Inter', sans-serif; }
                 .modern-info-card { background: linear-gradient(135deg, rgba(44, 27, 75, 0.4) 0%, rgba(30, 42, 90, 0.3) 50%, rgba(44, 27, 75, 0.4) 100%); backdrop-filter: blur(20px); border: 1px solid rgba(255, 223, 128, 0.1); border-radius: 24px; padding: 1.5rem; text-decoration: none; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); }
                 .modern-info-card:hover { transform: translateY(-8px); border-color: rgba(255, 223, 128, 0.3); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), 0 0 40px rgba(255, 223, 128, 0.1); }
-                .modern-card-title { font-family: 'Cinzel', serif; font-size: 1.75rem; font-weight: 700; color: var(--gold-main); line-height: 1.3; }
+                .modern-card-title { font-family: 'Rajdhani', sans-serif; font-size: 1.75rem; font-weight: 600; color: var(--gold-main); line-height: 1.3; text-transform: uppercase; letter-spacing: 0.05em; }
                 .modern-card-desc { color: var(--purple-light); line-height: 1.6; font-size: 1rem; }
-                .modern-card-button { display: inline-flex; align-items: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.875rem; color: var(--gold-main); transition: color 0.3s ease; }
+                .modern-card-button { display: inline-flex; align-items: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.875rem; color: var(--gold-main); transition: color 0.3s ease; text-transform: uppercase; letter-spacing: 0.05em; }
                 .modern-info-card:hover .modern-card-button { color: #fff; }
                 .modern-pagination-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(44, 27, 75, 0.5); border: 1px solid rgba(255, 223, 128, 0.2); color: var(--gold-main); transition: all 0.3s ease; }
                 .modern-pagination-button:not(:disabled):hover { background: rgba(255, 223, 128, 0.15); }

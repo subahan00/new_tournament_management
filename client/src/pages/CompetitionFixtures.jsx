@@ -61,15 +61,15 @@ const shuffleArray = (array) => {
 };
 
 const getStatusInfo = (status) => {
-    switch (status) {
-        case 'Live':
+    switch (status?.toLowerCase()) {
         case 'live':
             return { text: 'LIVE', className: 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse' };
-        case 'Finished':
+        case 'completed':
         case 'finished':
             return { text: 'Finished', className: 'bg-green-500/10 text-green-400 border-green-500/20' };
+        case 'pending':
         default:
-            return { text: 'Upcoming', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+            return { text: 'pending', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
     }
 };
 
@@ -85,10 +85,32 @@ const FixtureCard = memo(({ fixture }) => {
     const timeOptions = { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true };
     const dateOptions = { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' };
 
+    // Check if it's a BYE match
+    const isByeMatch = fixture.awayPlayer === null || fixture.awayPlayerName === 'BYE';
+
+    // Determine what to show in the middle section
+    const renderMiddleSection = () => {
+        if (isByeMatch) {
+            return <span className="bye-text">BYE</span>;
+        }
+        
+        if (fixture.status === 'completed' && 
+            fixture.homeScore !== null && 
+            fixture.awayScore !== null) {
+            return (
+                <span className="score-display">
+                    {fixture.homeScore} : {fixture.awayScore}
+                </span>
+            );
+        }
+        
+        return <span className="vs-text">vs</span>;
+    };
+
     return (
         <div className="fixture-card group">
             <div className="flex justify-between items-start text-xs mb-3">
-                 <div className="flex items-center space-x-2 text-purple-light/80">
+                <div className="flex items-center space-x-2 text-purple-light/80">
                     <CalendarDays size={14} />
                     <span>{matchDate.toLocaleDateString('en-IN', dateOptions)}</span>
                 </div>
@@ -99,18 +121,29 @@ const FixtureCard = memo(({ fixture }) => {
 
             <div className="flex items-center justify-between my-4">
                 <span className="player-name">{fixture.homePlayerName || 'TBD'}</span>
-                {fixture.status === 'Finished' ? (
-                    <span className="score-display">{fixture.homeScore ?? '-'} : {fixture.awayScore ?? '-'}</span>
-                ) : (
-                    <span className="vs-text">vs</span>
-                )}
-                <span className="player-name">{fixture.awayPlayerName || 'TBD'}</span>
+                {renderMiddleSection()}
+                <span className="player-name">
+                    {isByeMatch ? '---' : (fixture.awayPlayerName || 'TBD')}
+                </span>
             </div>
 
             <div className="flex items-center justify-center text-xs text-purple-light/80 space-x-2 mt-3">
                 <Clock size={14} />
                 <span>{matchDate.toLocaleTimeString('en-IN', timeOptions)}</span>
             </div>
+
+            {/* Show additional match info for completed matches */}
+            {fixture.status === 'completed' && fixture.result && (
+                <div className="mt-3 pt-3 border-t border-purple-light/20">
+                    <div className="text-center text-xs">
+                        <span className="text-gold-main font-medium">
+                            Winner: {fixture.result === 'home' ? fixture.homePlayerName : 
+                                    fixture.result === 'away' ? fixture.awayPlayerName : 
+                                    'Draw'}
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 });
@@ -298,7 +331,7 @@ export default function CompetitionFixtures() {
                             <div className="modern-info-card p-6">
                                 <h3 className="flex items-center text-2xl font-bold mb-6 text-gold-main font-space-grotesk">
                                     <Swords className="w-6 h-6 mr-3 text-gold-main/80" />
-                                    Round {round}
+                                    {round}
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                                     {filteredFixtures[round].map(fixture => (
@@ -393,6 +426,15 @@ export default function CompetitionFixtures() {
                 font-weight: 500;
                 color: var(--purple-light);
                 margin: 0 1rem;
+            }
+            .bye-text {
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 1rem;
+                font-weight: 500;
+                color: var(--purple-light);
+                margin: 0 1rem;
+                opacity: 0.7;
+                font-style: italic;
             }
             .status-badge {
                 font-size: 0.7rem;

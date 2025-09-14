@@ -27,11 +27,12 @@ const AuctionPlayer = require('./models/AuctionPlayer');
 const Bidder = require('./models/Bidder');
 const Bid = require('./models/Bid');
 const ChatMessage = require('./models/ChatMessage');
-const plainPassword = 'Pratham@3623';
+// const plainPassword = 'Pratham@3623';
 const auctionRoutes = require('./routes/auctionRoutes');
 const clanWarRoutes = require('./routes/clanWarRoutes');
 const auctionHandler = require('./socketHandlers/auctionHandler');
-// Hash the passwor
+// Hash the passwords
+const plainPassword='Majid@7200'
 bcrypt.genSalt(10, (err, salt) => {
   if (err) throw err;
 
