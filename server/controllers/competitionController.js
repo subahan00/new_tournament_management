@@ -102,6 +102,140 @@ const competitionController = {
     });
   }
   },
+  // controllers/competitionController.js
+// Add this new method
+
+createClanWarCompetitionWithExistingClans: async (req, res) => {
+  try {
+    const { name, numberOfClans, clanIds } = req.body;
+
+    // Validate input
+    if (!name || !numberOfClans || !clanIds || !Array.isArray(clanIds)) {
+      return res.status(400).json({ 
+        message: 'Name, numberOfClans, and clanIds array are required' 
+      });
+    }
+
+    if (clanIds.length !== numberOfClans) {
+      return res.status(400).json({ 
+        message: `Expected ${numberOfClans} clans, but received ${clanIds.length}` 
+      });
+    }
+
+    // Validate numberOfClans is power of 2
+    if (numberOfClans > 0 && (numberOfClans & (numberOfClans - 1)) !== 0) {
+      return res.status(400).json({ 
+        message: 'Number of clans must be a power of 2 (2, 4, 8, 16, etc.)' 
+      });
+    }
+
+    // Check if clans exist and fetch them with populated members
+    const clans = await Clan.find({ _id: { $in: clanIds } })
+      .populate('members', 'name');
+    
+    if (clans.length !== numberOfClans) {
+      return res.status(404).json({ 
+        message: 'One or more selected clans not found' 
+      });
+    }
+
+    // Verify each clan has exactly 5 members
+    for (const clan of clans) {
+      if (clan.members.length !== 5) {
+        return res.status(400).json({ 
+          message: `Clan "${clan.name}" must have exactly 5 members. Currently has ${clan.members.length} members.` 
+        });
+      }
+    }
+
+    // Check if clan names are unique
+    const clanNames = clans.map(c => c.name.toLowerCase().trim());
+    if (new Set(clanNames).size !== clanNames.length) {
+      return res.status(400).json({ 
+        message: 'Selected clans must have unique names' 
+      });
+    }
+
+    // Check if any clan is already in an active competition
+    const clansInActiveCompetitions = await Clan.find({
+      _id: { $in: clanIds },
+      competitionId: { $exists: true }
+    }).populate('competitionId', 'name status');
+
+    const activeClans = clansInActiveCompetitions.filter(
+      clan => clan.competitionId && 
+      (clan.competitionId.status === 'upcoming' || clan.competitionId.status === 'ongoing')
+    );
+
+    if (activeClans.length > 0) {
+      return res.status(400).json({
+        message: `Some clans are already in active competitions: ${activeClans.map(c => `${c.name} (in ${c.competitionId.name})`).join(', ')}`
+      });
+    }
+
+    // Get all player IDs from all clans
+    const allPlayerIds = clans.flatMap(clan => clan.members.map(m => m._id));
+
+    // Check for duplicate players across clans
+    const uniquePlayerIds = new Set(allPlayerIds.map(id => id.toString()));
+    if (uniquePlayerIds.size !== allPlayerIds.length) {
+      return res.status(400).json({
+        message: 'A player cannot be in multiple clans'
+      });
+    }
+
+    // Create the competition
+    const competition = new Competition({
+      name,
+      type: 'CLAN_WAR',
+      numberOfClans,
+      numberOfPlayers: allPlayerIds.length,
+      players: allPlayerIds,
+      clans: clanIds,
+      status: 'upcoming'
+    });
+
+    await competition.save();
+
+    // Update all clans to reference this competition and reset their stats
+    await Clan.updateMany(
+      { _id: { $in: clanIds } },
+      { 
+        $set: { 
+          competitionId: competition._id,
+          points: 0,
+          matchesWon: 0,
+          matchesDrawn: 0,
+          matchesLost: 0,
+          isEliminated: false
+        } 
+      }
+    );
+
+    // Generate first round fixtures
+    await generateClanWarRound(competition._id, clanIds, 'Round 1');
+
+    // Populate the response
+    const populatedCompetition = await Competition.findById(competition._id)
+      .populate('players', 'name')
+      .populate({
+        path: 'clans',
+        populate: { path: 'members', select: 'name' }
+      });
+
+    res.status(201).json({
+      message: 'Clan War competition created successfully with existing clans',
+      competition: populatedCompetition
+    });
+
+  } catch (error) {
+    console.error('Error creating clan war competition with existing clans:', error);
+    res.status(500).json({ 
+      message: 'Failed to create clan war competition',
+      error: error.message 
+    });
+  }
+},
   updateClanWarResult: async (req, res) => {
      try {
     const { fixtureId, matchIndex } = req.params;

@@ -1,12 +1,13 @@
+// CompetitionManagement.jsx
 import competitionService from '../services/competitionService';
+import clanService from '../services/clanService';
 import { useEffect, useState, useCallback } from 'react';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Search, Plus, Minus, Users, Trophy, UserPlus } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus, Users, Trophy, UserPlus, AlertTriangle } from 'lucide-react';
 import axios from '../services/api';
 
 const CompetitionManagement = () => {
-  const [competitions, setCompetitions] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     type: 'KO_REGULAR',
@@ -15,15 +16,15 @@ const CompetitionManagement = () => {
     rounds: 3,
     // Clan War specific
     numberOfClans: 2,
-    clans: []
+    selectedClans: [] // Changed from 'clans' to 'selectedClans' for existing clans
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedCompetition, setSelectedCompetition] = useState(null);
   const [existingPlayers, setExistingPlayers] = useState([]);
+  const [existingClans, setExistingClans] = useState([]);
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
+  const [clanSearchTerm, setClanSearchTerm] = useState('');
 
   // Create Player Modal State
   const [showCreatePlayerModal, setShowCreatePlayerModal] = useState(false);
@@ -31,51 +32,21 @@ const CompetitionManagement = () => {
   const [selectedCompetitionId, setSelectedCompetitionId] = useState('');
   const [createPlayerLoading, setCreatePlayerLoading] = useState(false);
 
-  // Form persistence key
-  const FORM_STORAGE_KEY = 'competition_form_data';
-
-  // Load form data from localStorage on component mount
-  useEffect(() => {
-    const savedFormData = localStorage.getItem(FORM_STORAGE_KEY);
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData);
-        setFormData(parsedData);
-        if (parsedData.playerSearchTerm) {
-          setPlayerSearchTerm(parsedData.playerSearchTerm);
-        }
-      } catch (error) {
-        console.error('Error parsing saved form data:', error);
-      }
-    }
-  }, []);
-
-  // Save form data to localStorage whenever formData changes
-  useEffect(() => {
-    const dataToSave = { ...formData, playerSearchTerm };
-    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(dataToSave));
-  }, [formData, playerSearchTerm]);
-
-  // Clear form data from localStorage when form is successfully submitted
-  const clearFormPersistence = () => {
-    localStorage.removeItem(FORM_STORAGE_KEY);
-  };
+  // Warning Modal State
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const players = await competitionService.getAllPlayers();
-        setExistingPlayers(players);
+        const [players, clans] = await Promise.all([
+          competitionService.getAllPlayers(),
+          clanService.getAllClans()
+        ]);
         
-        const competitionsData = await competitionService.getAllCompetitions();
-        if (Array.isArray(competitionsData)) {
-          setCompetitions(competitionsData);
-        } else {
-          console.warn('Unexpected competitions format:', competitionsData);
-          setCompetitions([]);
-        }
+        setExistingPlayers(players);
+        setExistingClans(clans);
       } catch (err) {
         console.error('Fetch initial data error:', err);
         setError(err.message || 'Failed to fetch data. Please try again.');
@@ -86,23 +57,6 @@ const CompetitionManagement = () => {
 
     fetchInitialData();
   }, []);
-
-  const fetchCompetitions = async () => {
-    try {
-      setLoading(true);
-      const competitionsData = await competitionService.getAllCompetitions();
-      if (Array.isArray(competitionsData)) {
-        setCompetitions(competitionsData);
-      } else {
-        console.warn('Unexpected competitions format:', competitionsData);
-        setCompetitions([]);
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to fetch competitions.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Create Player Handler
   const handleCreatePlayer = useCallback(async (e) => {
@@ -121,7 +75,6 @@ const CompetitionManagement = () => {
         competitionId: selectedCompetitionId,
       });
       
-      // Update existing players list without page refresh
       setExistingPlayers(prev => [...prev, res.data]);
       setNewPlayerName('');
       setSelectedCompetitionId('');
@@ -139,21 +92,15 @@ const CompetitionManagement = () => {
     const { name, value } = e.target;
     
     if (name === 'type' && value === 'CLAN_WAR') {
-      // Initialize clan war setup
       setFormData(prev => ({
         ...prev,
         [name]: value,
         numberOfClans: 2,
-        numberOfPlayers: 10, // 2 clans * 5 members each
-        clans: Array(2).fill().map(() => ({
-          name: '',
-          members: ['', '', '', '', '']
-        })),
+        selectedClans: [],
         players: []
       }));
     } else if (name === 'numberOfClans') {
       const clanCount = Math.max(2, parseInt(value) || 2);
-      // Ensure power of 2
       let validClanCount = 2;
       while (validClanCount < clanCount && validClanCount < 32) {
         validClanCount *= 2;
@@ -162,11 +109,7 @@ const CompetitionManagement = () => {
       setFormData(prev => ({
         ...prev,
         [name]: validClanCount,
-        numberOfPlayers: validClanCount * 5,
-        clans: Array(validClanCount).fill().map(() => ({
-          name: '',
-          members: ['', '', '', '', '']
-        }))
+        selectedClans: prev.selectedClans.slice(0, validClanCount)
       }));
     } else {
       setFormData(prev => ({
@@ -178,35 +121,36 @@ const CompetitionManagement = () => {
     }
   };
 
-  const handleClanChange = (clanIndex, field, value) => {
+  const handleToggleClan = (clanId) => {
+    if (formData.selectedClans.includes(clanId)) {
+      setFormData(prev => ({
+        ...prev,
+        selectedClans: prev.selectedClans.filter(id => id !== clanId)
+      }));
+      setError(null);
+      return;
+    }
+
+    if (formData.selectedClans.length >= formData.numberOfClans) {
+      setError(`Cannot add more than ${formData.numberOfClans} clans`);
+      return;
+    }
+
+    setError(null);
     setFormData(prev => ({
       ...prev,
-      clans: prev.clans.map((clan, index) => 
-        index === clanIndex 
-          ? { ...clan, [field]: value }
-          : clan
-      )
+      selectedClans: [...prev.selectedClans, clanId]
     }));
   };
 
-  const handleClanMemberChange = (clanIndex, memberIndex, value) => {
+  const handleRemoveClan = (clanId) => {
     setFormData(prev => ({
       ...prev,
-      clans: prev.clans.map((clan, index) => 
-        index === clanIndex 
-          ? {
-              ...clan,
-              members: clan.members.map((member, mIndex) => 
-                mIndex === memberIndex ? value : member
-              )
-            }
-          : clan
-      )
+      selectedClans: prev.selectedClans.filter(id => id !== clanId)
     }));
   };
 
   const handleTogglePlayer = (playerId) => {
-    // If player is already selected, remove them
     if (formData.players.includes(playerId)) {
       setFormData(prev => ({
         ...prev,
@@ -216,13 +160,11 @@ const CompetitionManagement = () => {
       return;
     }
 
-    // If trying to add but already at capacity
     if (formData.players.length >= formData.numberOfPlayers) {
       setError(`Cannot add more than ${formData.numberOfPlayers} players`);
       return;
     }
 
-    // Add the player
     setError(null);
     setFormData(prev => ({
       ...prev,
@@ -244,44 +186,16 @@ const CompetitionManagement = () => {
     }
 
     if (formData.type === 'CLAN_WAR') {
-      // Validate clan war
       if (formData.numberOfClans < 2) {
         setError('At least 2 clans are required');
         return false;
       }
 
-      for (let i = 0; i < formData.clans.length; i++) {
-        const clan = formData.clans[i];
-        if (!clan.name.trim()) {
-          setError(`Clan ${i + 1} name is required`);
-          return false;
-        }
-        
-        for (let j = 0; j < clan.members.length; j++) {
-          if (!clan.members[j].trim()) {
-            setError(`All members of ${clan.name} must have names`);
-            return false;
-          }
-        }
-      }
-
-      // Check for duplicate clan names
-      const clanNames = formData.clans.map(clan => clan.name.toLowerCase().trim());
-      if (new Set(clanNames).size !== clanNames.length) {
-        setError('Clan names must be unique');
-        return false;
-      }
-
-      // Check for duplicate member names
-      const allMemberNames = formData.clans.flatMap(clan => 
-        clan.members.map(member => member.toLowerCase().trim())
-      );
-      if (new Set(allMemberNames).size !== allMemberNames.length) {
-        setError('All player names must be unique across all clans');
+      if (formData.selectedClans.length !== formData.numberOfClans) {
+        setError(`Please select exactly ${formData.numberOfClans} clans`);
         return false;
       }
     } else {
-      // Validate regular competitions
       if (formData.numberOfPlayers <= 0) {
         setError('Number of players must be greater than 0');
         return false;
@@ -301,22 +215,30 @@ const CompetitionManagement = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
     if (!validateForm()) return;
 
+    // Show warning modal before proceeding
+    setShowWarningModal(true);
+  };
+
+  const proceedWithCreation = async () => {
+    setShowWarningModal(false);
     setLoading(true);
+    
     try {
       if (formData.type === 'CLAN_WAR') {
         const payload = {
           name: formData.name,
           numberOfClans: formData.numberOfClans,
-          clans: formData.clans
+          clanIds: formData.selectedClans // Send clan IDs
         };
-        await competitionService.createClanWarCompetition(payload);
+        // Use the new method for existing clans
+        await competitionService.createClanWarCompetitionWithExistingClans(payload);
       } else {
         const payload = {
           ...formData,
@@ -326,9 +248,8 @@ const CompetitionManagement = () => {
       }
       
       setSuccess('Competition created successfully!');
-      await fetchCompetitions();
       
-      // Reset form and clear persistence
+      // Reset form
       const resetFormData = {
         name: '',
         type: 'KO_REGULAR',
@@ -336,48 +257,17 @@ const CompetitionManagement = () => {
         players: [],
         rounds: 3,
         numberOfClans: 2,
-        clans: []
+        selectedClans: []
       };
       setFormData(resetFormData);
       setPlayerSearchTerm('');
-      clearFormPersistence();
+      setClanSearchTerm('');
     } catch (err) {
       console.error('Create competition error:', err);
       setError(err.response?.data?.message || 'Failed to create competition.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this competition? This action cannot be undone.')) {
-      return;
-    }
-    setLoading(true);
-    try {
-      const result = await competitionService.deleteCompetition(id);
-      if (result.success) {
-        setSuccess(result.message);
-        await fetchCompetitions();
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (err) {
-      console.error('Delete competition error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleViewDetails = (competition) => {
-    setSelectedCompetition(competition);
-    setShowDetailsModal(true);
-  };
-
-  const closeModal = () => {
-    setShowDetailsModal(false);
-    setSelectedCompetition(null);
   };
 
   const closeCreatePlayerModal = () => {
@@ -390,6 +280,12 @@ const CompetitionManagement = () => {
   const filteredPlayers = existingPlayers
     .filter(player =>
       player.name.toLowerCase().includes(playerSearchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredClans = existingClans
+    .filter(clan =>
+      clan.name.toLowerCase().includes(clanSearchTerm.toLowerCase())
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -413,46 +309,106 @@ const CompetitionManagement = () => {
           <option value={8}>8 Clans</option>
           <option value={16}>16 Clans</option>
         </select>
-        <p className="text-sm text-gold-500 mt-1">Each clan will have exactly 5 members</p>
+        <p className="text-sm text-gold-500 mt-1">Select existing clans to participate</p>
       </div>
 
-      {formData.clans.map((clan, clanIndex) => (
-        <div key={clanIndex} className="bg-gray-800/30 border border-gold-700/20 rounded-lg p-4">
-          <div className="flex items-center mb-4">
-            <Users className="w-5 h-5 text-gold-400 mr-2" />
-            <h4 className="text-lg font-medium text-gold-300">Clan {clanIndex + 1}</h4>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-gold-300 mb-2 font-medium">Clan Name</label>
-            <input
-              type="text"
-              value={clan.name}
-              onChange={(e) => handleClanChange(clanIndex, 'name', e.target.value)}
-              placeholder={`Enter name for Clan ${clanIndex + 1}`}
-              required
-              className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white placeholder-gold-500/70"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gold-300 mb-2 font-medium">Clan Members</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {clan.members.map((member, memberIndex) => (
-                <input
-                  key={memberIndex}
-                  type="text"
-                  value={member}
-                  onChange={(e) => handleClanMemberChange(clanIndex, memberIndex, e.target.value)}
-                  placeholder={`Member ${memberIndex + 1} name`}
-                  required
-                  className="bg-gray-700 border border-gold-700/30 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded px-3 py-2 text-white placeholder-gold-500/70 text-sm"
-                />
-              ))}
-            </div>
-          </div>
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-gold-300 font-medium">
+            Select Clans <span className="text-gold-400">({formData.selectedClans.length}/{formData.numberOfClans})</span>
+          </label>
         </div>
-      ))}
+        <div className="relative mb-4">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <Search className="h-5 w-5 text-gold-500" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search for clans..."
+            value={clanSearchTerm}
+            onChange={(e) => setClanSearchTerm(e.target.value)}
+            className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gold-500/70"
+          />
+        </div>
+        <div className="max-h-60 overflow-y-auto space-y-2 p-2 bg-gray-800/20 rounded-lg border border-gold-800/50">
+          {filteredClans.length > 0 ? (
+            filteredClans.map(clan => {
+              const isSelected = formData.selectedClans.includes(clan._id);
+              const isAtCapacity = formData.selectedClans.length >= formData.numberOfClans;
+              const isDisabled = !isSelected && isAtCapacity;
+              
+              return (
+                <button
+                  type="button"
+                  key={clan._id}
+                  onClick={() => handleToggleClan(clan._id)}
+                  disabled={isDisabled}
+                  className={`w-full text-left p-3 rounded-lg transition-all duration-200 relative ${
+                    isSelected
+                      ? 'bg-gold-600 text-black font-medium shadow-lg'
+                      : 'bg-gray-800 hover:bg-gray-700 border border-gold-700/50 text-gold-200 hover:text-gold-100'
+                  } ${
+                    isDisabled
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:shadow-md cursor-pointer'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4" />
+                    <span className="font-medium">{clan.name}</span>
+                  </div>
+                  <div className="text-xs opacity-80">
+                    {clan.members?.length || 0} members
+                    {clan.members && clan.members.length > 0 && (
+                      <span className="ml-2">
+                        ({clan.members.map(m => m.name).join(', ')})
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          ) : (
+            <p className="text-center text-gold-400 py-4">No clans found matching your search.</p>
+          )}
+        </div>
+      </div>
+
+      {formData.selectedClans.length > 0 && (
+        <div className="bg-gray-800/50 border border-gold-700/30 rounded-lg p-4">
+          <h4 className="text-gold-300 font-medium mb-3">Selected Clans</h4>
+          <ul className="space-y-2">
+            {formData.selectedClans
+              .map(id => existingClans.find(c => c._id === id))
+              .filter(Boolean)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(clan => (
+                <li key={clan._id} className="flex justify-between items-center bg-gray-700/50 px-3 py-2 rounded">
+                  <div>
+                    <span className="text-gold-200 font-medium">{clan.name}</span>
+                    <div className="text-xs text-gold-400 mt-1">
+                      {clan.members?.map(m => m.name).join(', ')}
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveClan(clan._id)} 
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 
@@ -588,8 +544,7 @@ const CompetitionManagement = () => {
         <Link
           to="/admin/dashboard"
           className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
+        ><ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
       </div>
@@ -666,79 +621,136 @@ const CompetitionManagement = () => {
             </button>
           </form>
         </div>
-
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-gold-700/30 rounded-xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-6 border-b border-gold-800 pb-3">
-            <h3 className="text-2xl font-semibold text-gold-300">Existing Competitions</h3>
-            <button onClick={fetchCompetitions} className="text-gold-300 hover:text-gold-200 flex items-center text-sm">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
-
-          {loading && competitions.length === 0 ? (
-            <div className="flex justify-center items-center py-10">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gold-500"></div>
-            </div>
-          ) : competitions.length === 0 ? (
-            <div className="text-center py-10">
-              <h4 className="mt-2 text-lg font-medium text-gold-300">No competitions found</h4>
-              <p className="mt-1 text-gold-500">Create your first competition to get started</p>
-            </div>
-          ) : (
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {competitions.map(c => (
-                <div key={c._id} className="bg-gray-800/50 border border-gold-700/30 rounded-lg p-5 hover:border-gold-500/50 transition-all duration-200 group">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      {getCompetitionIcon(c.type)}
-                      <h4 className="text-xl font-bold text-gold-300 group-hover:text-gold-200">{c.name}</h4>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      c.type === 'CLAN_WAR' 
-                        ? 'bg-purple-900/50 text-purple-300' 
-                        : 'bg-gold-900/50 text-gold-300'
-                    }`}>
-                      {c.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center text-gold-400 mb-4">
-                    {c.type === 'CLAN_WAR' ? (
-                      <>
-                        <Users className="w-4 h-4 mr-1" />
-                        <span>{c.numberOfClans || 0} Clans ({c.players?.length || 0} Players)</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                        <span>{c.players?.length || 0} Players</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleDelete(c._id)} 
-                      className="flex-1 bg-red-900/50 hover:bg-red-800/70 text-red-300 hover:text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center transition-all"
-                    >
-                      Delete
-                    </button>
-                    <button 
-                      onClick={() => handleViewDetails(c)} 
-                      className="flex-1 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 hover:text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center transition-all"
-                    >
-                      Details
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Warning Modal */}
+      {showWarningModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 border-2 border-yellow-600/50 rounded-xl w-full max-w-lg shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="w-12 h-12 text-yellow-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-yellow-400 mb-2">Important Warning</h3>
+                  {formData.type === 'CLAN_WAR' ? (
+                    <div className="space-y-3 text-gold-200">
+                      <p className="text-base">
+                        Please verify the following before proceeding:
+                      </p>
+                      <ul className="list-disc list-inside space-y-2 text-sm">
+                        <li>All clan names are correct</li>
+                        <li>All clan members are accurate</li>
+                        <li>You have selected the right clans for this tournament</li>
+                      </ul>
+                      <div className="mt-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
+                        <p className="text-red-300 font-semibold text-sm">
+                          ⚠️ Once the competition is created, clan details and participants cannot be changed!
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 text-gold-200">
+                      <p className="text-base">
+                        Please verify the following before proceeding:
+                      </p>
+                      <ul className="list-disc list-inside space-y-2 text-sm">
+                        <li>All player names are correct</li>
+                        <li>You have selected the right players</li>
+                        <li>Competition settings are configured properly</li>
+                      </ul>
+                      <div className="mt-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
+                        <p className="text-red-300 font-semibold text-sm">
+                          ⚠️ Once the competition is created, participants cannot be changed!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gray-800/50 border border-gold-700/30 rounded-lg p-4 mb-6">
+                <h4 className="text-gold-300 font-semibold mb-3">Competition Summary:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gold-400">Name:</span>
+                    <span className="text-gold-200 font-medium">{formData.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gold-400">Type:</span>
+                    <span className="text-gold-200">{formData.type}</span>
+                  </div>
+                  {formData.type === 'CLAN_WAR' ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gold-400">Number of Clans:</span>
+                        <span className="text-gold-200">{formData.numberOfClans}</span>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gold-700/30">
+                        <p className="text-gold-400 mb-2">Selected Clans:</p>
+                        <ul className="space-y-1">
+                          {formData.selectedClans
+                            .map(id => existingClans.find(c => c._id === id))
+                            .filter(Boolean)
+                            .map(clan => (
+                              <li key={clan._id} className="text-gold-200 text-xs">
+                                • {clan.name} ({clan.members?.length || 0} members)
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gold-400">Number of Players:</span>
+                        <span className="text-gold-200">{formData.numberOfPlayers}</span>
+                      </div>
+                      {formData.type === 'LEAGUE' && (
+                        <div className="flex justify-between">
+                          <span className="text-gold-400">Rounds:</span>
+                          <span className="text-gold-200">{formData.rounds}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowWarningModal(false)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={proceedWithCreation}
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 disabled:opacity-50 text-black font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-black" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      Continue & Create
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Player Modal */}
       {showCreatePlayerModal && (
@@ -775,11 +787,6 @@ const CompetitionManagement = () => {
                     className="w-full bg-gray-800 border border-gold-700/50 focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 rounded-lg px-4 py-3 text-white appearance-none"
                   >
                     <option value="">No specific competition</option>
-                    {competitions.map(comp => (
-                      <option key={comp._id} value={comp._id}>
-                        {comp.name} ({comp.type})
-                      </option>
-                    ))}
                   </select>
                 </div>
 
@@ -813,121 +820,6 @@ const CompetitionManagement = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Competition Details Modal */}
-      {showDetailsModal && selectedCompetition && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-gray-900 border border-gold-700/50 rounded-lg sm:rounded-xl w-full max-w-md sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6">
-              <div className="flex justify-between items-start mb-3 sm:mb-4">
-                <div className="flex items-center gap-3">
-                  {getCompetitionIcon(selectedCompetition.type)}
-                  <h3 className="text-xl sm:text-2xl font-bold text-gold-300 break-words">
-                    {selectedCompetition.name}
-                  </h3>
-                </div>
-                <button onClick={closeModal} className="text-gold-500 hover:text-gold-300 ml-2">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
-                  <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Competition Info</h4>
-                  <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gold-300">Type:</span>
-                      <span className="text-gold-200">{selectedCompetition.type}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gold-300">Status:</span>
-                      <span className={`font-medium ${
-                        selectedCompetition.status === 'completed' ? 'text-green-400' : 
-                        selectedCompetition.status === 'ongoing' ? 'text-yellow-400' : 'text-blue-400'
-                      }`}>
-                        {selectedCompetition.status?.toUpperCase() || 'NOT STARTED'}
-                      </span>
-                    </div>
-                    {selectedCompetition.type === 'CLAN_WAR' && (
-                      <div className="flex justify-between">
-                        <span className="text-gold-300">Clans:</span>
-                        <span className="text-gold-200">{selectedCompetition.numberOfClans || 0}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-gold-300">Created:</span>
-                      <span className="text-gold-200">
-                        {new Date(selectedCompetition.createdAt.$date || selectedCompetition.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedCompetition.status === 'completed' && (selectedCompetition.winner || selectedCompetition.winnerClan) && (
-                  <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30">
-                    <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">Winner</h4>
-                    <div className="text-center">
-                      <h5 className="text-lg sm:text-xl font-bold text-gold-300 break-words">
-                        {selectedCompetition.type === 'CLAN_WAR' 
-                          ? selectedCompetition.winnerClan?.name || 'Winner Clan'
-                          : selectedCompetition.winner?.name || 'Winner'
-                        }
-                      </h5>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {selectedCompetition.type === 'CLAN_WAR' ? (
-                <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30 mb-4 sm:mb-6">
-                  <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">
-                    Clans ({selectedCompetition.clans?.length || 0})
-                  </h4>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {selectedCompetition.clans?.map((clan, index) => (
-                      <div key={index} className="bg-gray-700/50 rounded-lg p-3">
-                        <div className="flex items-center mb-2">
-                          <Users className="w-4 h-4 text-gold-400 mr-2" />
-                          <h5 className="text-sm sm:text-base text-gold-300 font-medium">
-                            {clan.name || `Clan ${index + 1}`}
-                          </h5>
-                        </div>
-                        <div className="grid grid-cols-1 gap-1">
-                          {clan.members?.map((member, memberIndex) => (
-                            <div key={memberIndex} className="text-xs sm:text-sm text-gold-200 px-2 py-1 bg-gray-600/30 rounded">
-                              {member.name || `Member ${memberIndex + 1}`}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gray-800/50 p-3 sm:p-4 rounded-lg border border-gold-700/30 mb-4 sm:mb-6">
-                  <h4 className="text-sm sm:text-base text-gold-400 font-medium mb-2 sm:mb-3">
-                    Players ({selectedCompetition.players?.length || 0})
-                  </h4>
-                  <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                    {selectedCompetition.players?.map((player, index) => {
-                      const playerName = player.name || `Player ${index + 1}`;
-                      return (
-                        <div key={index} className="flex items-center p-2 sm:p-3 rounded-lg bg-gray-700/50">
-                          <h5 className="text-xs sm:text-sm text-gold-200 font-medium truncate">
-                            {playerName}
-                          </h5>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>  
       )}
     </div>
   );

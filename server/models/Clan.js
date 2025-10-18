@@ -10,7 +10,8 @@ const clanSchema = new mongoose.Schema({
   competitionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Competition',
-    required: true
+    required: false, // Changed to false to allow clans without competitions
+    default: null
   },
   members: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -55,5 +56,6 @@ clanSchema.pre('save', function(next) {
 clanSchema.index({ competitionId: 1 });
 clanSchema.index({ competitionId: 1, isEliminated: 1 });
 clanSchema.index({ points: -1 }); // For sorting by points
+clanSchema.index({ name: 1 }); // For unique clan names
 
 module.exports = mongoose.model('Clan', clanSchema);

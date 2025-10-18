@@ -31,6 +31,8 @@ const ChatMessage = require('./models/ChatMessage');
 const auctionRoutes = require('./routes/auctionRoutes');
 const clanWarRoutes = require('./routes/clanWarRoutes');
 const auctionHandler = require('./socketHandlers/auctionHandler');
+const clanRoutes = require('./routes/clanRoutes');
+
 // Hash the passwords
 const plainPassword='Majid@7200'
 bcrypt.genSalt(10, (err, salt) => {
@@ -113,6 +115,9 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/clan-wars', clanWarRoutes);
 app.use('/api/auctions', auctionRoutes);
 app.use('/api/livelinks', liveLinkRoutes);
+app.use('/api/clans', clanRoutes);
+app.use('/api/clans', clanRoutes);
+
 auctionHandler(io);
 
 // ✅ Password Reset Route

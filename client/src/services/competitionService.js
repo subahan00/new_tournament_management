@@ -199,6 +199,25 @@ export const progressClanWarToNextRound = async (competitionId) => {
     throw error;
   }
 };
+// services/competitionService.js
+// Add this new method alongside your existing createClanWarCompetition
+
+export const createClanWarCompetitionWithExistingClans = async (competitionData) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Unauthorized: No token found');
+
+    const response = await axios.post(
+      `${BASE_URL}/competitions/create-clan-war-existing`,
+      competitionData,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error creating clan war competition with existing clans:', error.response?.data || error.message);
+    throw error;
+  }
+};
 //
 export default {
   createCompetition,
@@ -211,4 +230,8 @@ export default {
   getClanWarFixtures,
   updateClanWarMatch,
   progressClanWarToNextRound,
+  createClanWarCompetitionWithExistingClans,
+  replacePlayerInCompetition,
+  updatePlayerNameInCompetition,
+  updateCompetitionStatus
 };
