@@ -1,4 +1,4 @@
-// CompetitionManagement.jsx
+
 import competitionService from '../services/competitionService';
 import clanService from '../services/clanService';
 import { useEffect, useState, useCallback } from 'react';
@@ -14,9 +14,9 @@ const CompetitionManagement = () => {
     numberOfPlayers: 0,
     players: [],
     rounds: 3,
-    // Clan War specific
+    
     numberOfClans: 2,
-    selectedClans: [] // Changed from 'clans' to 'selectedClans' for existing clans
+    selectedClans: [] 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,16 +26,16 @@ const CompetitionManagement = () => {
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [clanSearchTerm, setClanSearchTerm] = useState('');
 
-  // Create Player Modal State
+  
   const [showCreatePlayerModal, setShowCreatePlayerModal] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [selectedCompetitionId, setSelectedCompetitionId] = useState('');
   const [createPlayerLoading, setCreatePlayerLoading] = useState(false);
 
-  // Warning Modal State
+  
   const [showWarningModal, setShowWarningModal] = useState(false);
 
-  // Fetch initial data
+  
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
@@ -58,7 +58,7 @@ const CompetitionManagement = () => {
     fetchInitialData();
   }, []);
 
-  // Create Player Handler
+  
   const handleCreatePlayer = useCallback(async (e) => {
     e.preventDefault();
     if (!newPlayerName.trim()) {
@@ -222,7 +222,7 @@ const CompetitionManagement = () => {
 
     if (!validateForm()) return;
 
-    // Show warning modal before proceeding
+    
     setShowWarningModal(true);
   };
 
@@ -235,9 +235,9 @@ const CompetitionManagement = () => {
         const payload = {
           name: formData.name,
           numberOfClans: formData.numberOfClans,
-          clanIds: formData.selectedClans // Send clan IDs
+          clanIds: formData.selectedClans 
         };
-        // Use the new method for existing clans
+        
         await competitionService.createClanWarCompetitionWithExistingClans(payload);
       } else {
         const payload = {
@@ -249,7 +249,7 @@ const CompetitionManagement = () => {
       
       setSuccess('Competition created successfully!');
       
-      // Reset form
+      
       const resetFormData = {
         name: '',
         type: 'KO_REGULAR',

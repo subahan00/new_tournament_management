@@ -45,7 +45,6 @@ bcrypt.genSalt(10, (err, salt) => {
   });
 });
 
-// ✅ Allow both localhost and deployed frontend
 const allowedOrigins = [
   'http://localhost:3000',
   'https://official90.onrender.com',
@@ -53,7 +52,6 @@ const allowedOrigins = [
   'https://official90.vercel.app'
 ];
 
-// ✅ Updated Middleware for CORS
 app.set('trust proxy', true);
 app.use(cors({
   origin: function (origin, callback) {
@@ -70,7 +68,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ Updated Socket.IO config for CORS
 const io = new Server(server, {
   cors: {
     origin: function (origin, callback) {
@@ -95,7 +92,6 @@ io.on('connection', (socket) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ✅ MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -103,7 +99,6 @@ mongoose.connect(process.env.MONGO_URI, {
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// ✅ API Routes
 app.use('/api/competitions', competitionRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/players', playerRoutes);
@@ -120,7 +115,6 @@ app.use('/api/clans', clanRoutes);
 
 auctionHandler(io);
 
-// ✅ Password Reset Route
 app.post('/api/auth/reset-password', async (req, res) => {
   const { username, oldPassword, newPassword } = req.body;
 
@@ -177,18 +171,16 @@ app.delete('/admin/applicants/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-// ✅ Serve Frontend
+
 app.use(express.static(path.join(__dirname, '../client/build')));
 app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
 });
 
-// ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Internal Server Error:', err.stack);
   res.status(500).json({ message: 'Internal server error' });
 });
-// Error handling middleware
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
@@ -199,7 +191,6 @@ app.use((error, req, res, next) => {
 });
 app.get('/api/ping', (req, res) => res.status(200).send('pong'));
 
-// ✅ Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

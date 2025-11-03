@@ -16,21 +16,21 @@ const loginAdmin = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     
-    // Create user object to send to frontend
+    
     const user = {
       id: admin._id,
       username: admin.username,
-      role: 'admin'// Make sure your Admin model has a role field
+      role: 'admin'
     };
 
-    // Generate JWT token with user data
+    
     const token = jwt.sign(
-      { user }, // Include user data in the token
+      { user }, 
       process.env.JWT_SECRET,
       { expiresIn: '4h' }
     );
 
-    // Return both token and user data
+    
     res.status(200).json({ token, user });
   } catch (err) {
     console.error(err);

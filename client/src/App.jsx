@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Import all pages
+
 import Home from './pages/Home';
 import AdminDashboard from './pages/AdminDashboard';
 import CreatePlayerForm from './pages/CreatePlayerForm';
@@ -47,11 +47,11 @@ import ClanWarView from './pages/ClanWarView';
 import ClanManagement from './pages/clanmanagement';
 
 
-// Maintenance page
+
 import Maintenance from './pages/maintenance';
 
 const App = () => {
-  // 🔴 Toggle this to true when you want the whole site in maintenance mode
+  
   const isMaintenanceMode = false;
 
   return (
@@ -60,11 +60,11 @@ const App = () => {
         <ScrollToTop />
         <Routes>
           {isMaintenanceMode ? (
-            // If maintenance mode is ON → All routes show Maintenance
+            
             <Route path="*" element={<Maintenance />} />
           ) : (
             <>
-              {/* Public routes */}
+              {}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/hall-of-fame" element={<HallOfFame />} />
@@ -92,7 +92,7 @@ const App = () => {
               <Route path="/admin/clans" element={<ClanManagement />} />
 
 
-              {/* Admin protected routes */}
+              {}
               <Route
                 path="/admin/dashboard"
                 element={
@@ -118,7 +118,7 @@ const App = () => {
                 }
               />
 
-              {/* Mapped admin routes */}
+              {}
               {[
                 { path: "/admin/create-competition", component: <CreateCompetition /> },
                 { path: "/admin/manage-competitions", component: <ManageCompetitions /> },

@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Search, Edit, AlertTriangle, Inbox, Check, X, ListChecks } from 'lucide-react';
 import io from 'socket.io-client';
 
- import fixtureService from '../services/fixtureService';
+import fixtureService from '../services/fixtureService';
 
 
 export default function CompetitionResults() {
@@ -15,11 +15,11 @@ export default function CompetitionResults() {
     const [fixtures, setFixtures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     // State for single fixture editing
     const [editingFixture, setEditingFixture] = useState(null);
     const [scores, setScores] = useState({ home: 0, away: 0 });
-    
+
     // State for bulk fixture editing
     const [isBulkEditMode, setIsBulkEditMode] = useState(false);
     const [bulkScores, setBulkScores] = useState({});
@@ -64,11 +64,11 @@ export default function CompetitionResults() {
         };
 
         mockSocket.on('playerNameUpdate', (/*{ playerId, newName }*/) => {
-             // Your existing logic here
+            // Your existing logic here
         });
 
         mockSocket.on('fixtureUpdate', (/*updatedFixture*/) => {
-             // Your existing logic here
+            // Your existing logic here
         });
 
         return () => {
@@ -109,7 +109,7 @@ export default function CompetitionResults() {
             setSubmitting(false);
         }
     };
-    
+
     const handleEditClick = (fixture) => {
         setIsBulkEditMode(false); // Ensure bulk mode is off
         setEditingFixture(fixture._id);
@@ -134,7 +134,7 @@ export default function CompetitionResults() {
             handleResultSubmit(pendingSubmission);
         }
     };
-    
+
     const handleCancelEdit = () => {
         setEditingFixture(null);
         setError(null);
@@ -164,7 +164,7 @@ export default function CompetitionResults() {
         }
         setIsBulkEditMode(!isBulkEditMode);
     };
-    
+
     const handleBulkScoreChange = (fixtureId, field, value) => {
         setBulkScores(prev => ({
             ...prev,
@@ -180,7 +180,7 @@ export default function CompetitionResults() {
         setError(null);
         try {
             const originalFixturesMap = new Map(fixtures.map(f => [f._id, f]));
-            
+
             const updatesToSubmit = Object.entries(bulkScores)
                 .map(([fixtureId, newScores]) => {
                     const originalFixture = originalFixturesMap.get(fixtureId);
@@ -195,7 +195,7 @@ export default function CompetitionResults() {
                     // Check if there's an actual change
                     if (homeScore !== originalHomeScore || awayScore !== originalAwayScore) {
                         if ((homeScore === null && awayScore !== null) || (homeScore !== null && awayScore === null)) {
-                           // Optional: Add validation for partial scores if needed
+                            // Optional: Add validation for partial scores if needed
                         }
                         return { fixtureId, homeScore, awayScore };
                     }
@@ -305,31 +305,52 @@ export default function CompetitionResults() {
 
                 {/* Confirmation Modal (for single edit) */}
                 {showConfirmModal && (
-                    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn">
-                        {/* Modal Content... (existing code) */}
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+                        <div className="bg-gray-900 p-6 rounded-lg border border-yellow-500 max-w-sm w-full">
+                            <h3 className="text-xl font-bold text-yellow-400 mb-2">Confirm Submission</h3>
+                            <p className="text-gray-300 mb-4">Are you sure you want to update this fixture?</p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={confirmSubmission}
+                                    disabled={submitting}
+                                    className="flex-1 py-2 bg-yellow-500 text-black font-bold rounded hover:bg-yellow-600 transition"
+                                >
+                                    {submitting ? 'Saving...' : 'Yes, Update'}
+                                </button>
+
+                                <button
+                                    onClick={handleCancelConfirm}
+                                    className="flex-1 py-2 bg-gray-700 text-gray-300 font-bold rounded hover:bg-gray-600 transition"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
-                
+
+
                 <header className="text-center mb-6">
-                     <h1 className="text-5xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-400 pb-2">
-                         COMPETITION RESULTS
-                     </h1>
-                     <p className="text-gray-500 mt-2">Manage and view match outcomes in real-time.</p>
+                    <h1 className="text-5xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-400 pb-2">
+                        COMPETITION RESULTS
+                    </h1>
+                    <p className="text-gray-500 mt-2">Manage and view match outcomes in real-time.</p>
                 </header>
 
                 {/* Search & Bulk Edit Controls */}
                 <div className="mb-10 sticky top-4 z-40 bg-[#1a1a1a]/80 backdrop-blur-sm py-4 rounded-xl">
                     <div className="max-w-xl mx-auto flex gap-4 items-center">
-                         <div className="relative flex-grow">
-                             <input type="text" placeholder="Search for a player..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full pl-12 pr-4 py-3 bg-black/30 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/30 transition-all duration-300"/>
-                             <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                 <Search className="w-5 h-5" />
-                             </div>
-                         </div>
-                         <button onClick={handleToggleBulkEdit} className={`flex items-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap ${isBulkEditMode ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20'}`}>
+                        <div className="relative flex-grow">
+                            <input type="text" placeholder="Search for a player..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full pl-12 pr-4 py-3 bg-black/30 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/30 transition-all duration-300" />
+                            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                <Search className="w-5 h-5" />
+                            </div>
+                        </div>
+                        <button onClick={handleToggleBulkEdit} className={`flex items-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap ${isBulkEditMode ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20'}`}>
                             {isBulkEditMode ? <X size={18} /> : <ListChecks size={18} />}
                             {isBulkEditMode ? 'Cancel Bulk Edit' : 'Bulk Edit'}
-                         </button>
+                        </button>
                     </div>
                     {isBulkEditMode && (
                         <div className="max-w-xl mx-auto mt-4 flex gap-4">
@@ -345,17 +366,17 @@ export default function CompetitionResults() {
                 {loading && <div className="text-center py-16 text-yellow-400">Loading fixtures...</div>}
                 {error && !loading && <div className="text-center py-16 text-red-400">{error}</div>}
                 {!loading && !error && filteredFixtures.length === 0 && (
-                     <div className="text-center py-20">
-                         <div className="bg-black/20 rounded-lg p-10 border border-gray-800 max-w-md mx-auto">
-                             <Inbox className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                             <h3 className="text-xl font-semibold text-gray-300">
-                                 {searchTerm ? 'No Matches Found' : 'No Fixtures Available'}
-                             </h3>
-                             <p className="text-gray-500 mt-2">
-                                 {searchTerm ? `Your search for "${searchTerm}" did not return any results.` : 'Fixtures for this competition will appear here.'}
-                             </p>
-                         </div>
-                     </div>
+                    <div className="text-center py-20">
+                        <div className="bg-black/20 rounded-lg p-10 border border-gray-800 max-w-md mx-auto">
+                            <Inbox className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                            <h3 className="text-xl font-semibold text-gray-300">
+                                {searchTerm ? 'No Matches Found' : 'No Fixtures Available'}
+                            </h3>
+                            <p className="text-gray-500 mt-2">
+                                {searchTerm ? `Your search for "${searchTerm}" did not return any results.` : 'Fixtures for this competition will appear here.'}
+                            </p>
+                        </div>
+                    </div>
                 )}
 
                 {/* Fixtures List */}
@@ -375,11 +396,11 @@ export default function CompetitionResults() {
                                                     <span className="font-medium text-gray-400">
                                                         {fixture.matchDate ? new Date(fixture.matchDate).toLocaleDateString() : 'Date TBD'}
                                                     </span>
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${ fixture.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'}`}>
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${fixture.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'}`}>
                                                         {fixture.status}
                                                     </span>
                                                 </div>
-                                                
+
                                                 {/* Player Names */}
                                                 <div className="flex items-center justify-between mb-6">
                                                     <div className="text-center w-2/5">
@@ -397,15 +418,15 @@ export default function CompetitionResults() {
 
                                                 {/* BULK EDIT MODE */}
                                                 {isBulkEditMode ? (
-                                                     <div className="bg-black/30 p-4 rounded-lg border border-yellow-500/30">
-                                                         <div className="flex items-center justify-center space-x-4">
-                                                             <input type="number" min="0" value={bulkScores[fixture._id]?.home ?? ''} onChange={(e) => handleBulkScoreChange(fixture._id, 'home', e.target.value)} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
-                                                             <span className="text-2xl text-gray-500">:</span>
-                                                             <input type="number" min="0" value={bulkScores[fixture._id]?.away ?? ''} onChange={(e) => handleBulkScoreChange(fixture._id, 'away', e.target.value)} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
-                                                         </div>
-                                                     </div>
+                                                    <div className="bg-black/30 p-4 rounded-lg border border-yellow-500/30">
+                                                        <div className="flex items-center justify-center space-x-4">
+                                                            <input type="number" min="0" value={bulkScores[fixture._id]?.home ?? ''} onChange={(e) => handleBulkScoreChange(fixture._id, 'home', e.target.value)} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
+                                                            <span className="text-2xl text-gray-500">:</span>
+                                                            <input type="number" min="0" value={bulkScores[fixture._id]?.away ?? ''} onChange={(e) => handleBulkScoreChange(fixture._id, 'away', e.target.value)} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
+                                                        </div>
+                                                    </div>
                                                 ) : editingFixture === fixture._id ? (
-                                                /* SINGLE EDIT MODE */
+                                                    /* SINGLE EDIT MODE */
                                                     <div className="bg-black/30 p-4 rounded-lg border border-yellow-500/30">
                                                         <div className="flex items-center justify-center space-x-4 mb-4">
                                                             <input type="number" min="0" value={scores.home} onChange={(e) => setScores({ ...scores, home: e.target.value })} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
@@ -418,7 +439,7 @@ export default function CompetitionResults() {
                                                         </div>
                                                     </div>
                                                 ) : fixture.status === 'completed' ? (
-                                                /* DISPLAY COMPLETED RESULT */
+                                                    /* DISPLAY COMPLETED RESULT */
                                                     <div className="text-center space-y-4">
                                                         <div className="text-4xl font-bold">
                                                             <span>{fixture.homeScore}</span>
@@ -430,7 +451,7 @@ export default function CompetitionResults() {
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                /* DISPLAY PENDING RESULT */
+                                                    /* DISPLAY PENDING RESULT */
                                                     <button onClick={() => handleEditClick(fixture)} className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-yellow-400 to-yellow-600 text-black transition-all hover:shadow-lg hover:shadow-yellow-500/20">
                                                         Add Result
                                                     </button>
@@ -447,17 +468,17 @@ export default function CompetitionResults() {
 
                 {/* Pagination Controls */}
                 {!loading && totalPages > 1 && (
-                     <div className="mt-16 flex justify-center">
-                         <div className="flex items-center space-x-2 bg-black/30 border border-gray-800 p-2 rounded-lg">
-                             <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors">Prev</button>
-                             {getPaginationRange().map(page => (
-                                 <button key={page} onClick={() => goToPage(page)} className={`w-10 h-10 rounded-md font-medium transition-all ${currentPage === page ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                     {page}
-                                 </button>
-                             ))}
-                             <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors">Next</button>
-                         </div>
-                     </div>
+                    <div className="mt-16 flex justify-center">
+                        <div className="flex items-center space-x-2 bg-black/30 border border-gray-800 p-2 rounded-lg">
+                            <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors">Prev</button>
+                            {getPaginationRange().map(page => (
+                                <button key={page} onClick={() => goToPage(page)} className={`w-10 h-10 rounded-md font-medium transition-all ${currentPage === page ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black' : 'hover:bg-gray-800 text-gray-400'}`}>
+                                    {page}
+                                </button>
+                            ))}
+                            <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors">Next</button>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>

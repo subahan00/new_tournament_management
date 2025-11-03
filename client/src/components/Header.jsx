@@ -9,7 +9,7 @@ const Header = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Close menu when clicking outside
+  
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuOpen && !e.target.closest('.mobile-menu-container')) {
@@ -24,7 +24,7 @@ const Header = () => {
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-[#0d1b2a]/75 backdrop-blur-xl border-b border-[#1a237e]/50 shadow-lg">
       <div className="relative px-6 py-4 flex justify-between items-center max-w-screen-xl mx-auto">
-        {/* Site Logo/Title */}
+        {}
         <Link to="/" className="flex items-center space-x-3 group">
           <div className="relative">
             <Trophy size={32} className="text-[#ffc107] group-hover:scale-110 transition-transform duration-300" />
@@ -36,7 +36,7 @@ const Header = () => {
           </div>
         </Link>
 
-        {/* Mobile menu button */}
+        {}
         <button
           className="md:hidden focus:outline-none text-gray-300 hover:text-[#ffc107] p-2 rounded-lg transition-colors duration-300"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -45,7 +45,7 @@ const Header = () => {
           {menuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
 
-        {/* Desktop Navigation */}
+        {}
         <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
           {[
             { to: "/", label: "Home" },
@@ -77,7 +77,7 @@ const Header = () => {
         </nav>
       </div>
 
-      {/* Mobile Navigation Menu */}
+      {}
       <div
         className={`mobile-menu-container md:hidden bg-[#0d1b2a]/90 backdrop-blur-lg border-t border-[#1a237e]/30 transition-all duration-300 ease-in-out ${
           menuOpen ? 'block' : 'hidden'

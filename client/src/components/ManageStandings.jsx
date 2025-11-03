@@ -13,7 +13,7 @@ export default function ManageStandings() {
       try {
         const response = await standingService.getOngoingCompetitions();
         
-        // Validate response structure
+        
         if (!response.data || !Array.isArray(response.data.data)) {
           throw new Error('Invalid server response format');
         }

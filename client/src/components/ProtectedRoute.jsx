@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, isAdmin, loading } = useAuth();
 
-  // Debug logging for Vercel
+  
   console.log('ProtectedRoute Debug:', {
     loading,
     user: user ? 'User exists' : 'No user',
@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     localStorage_user: localStorage.getItem('user') ? 'User data exists' : 'No user data'
   });
 
-  // Show loading spinner/component while authentication is being initialized
+  
   if (loading) {
     console.log('ProtectedRoute: Showing loading state');
     return (
@@ -33,20 +33,20 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     );
   }
 
-  // If no user is authenticated, redirect to login
+  
   if (!user) {
     console.log('ProtectedRoute: No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
-  // If admin-only route but user is not admin, redirect to home
+  
   if (adminOnly && !isAdmin) {
     console.log('ProtectedRoute: User is not admin, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
   console.log('ProtectedRoute: All checks passed, rendering protected component');
-  // If all checks pass, render the protected component
+  
   return children;
 };
 

@@ -20,7 +20,7 @@ const CompetitionEdit = () => {
           getAllPlayers()
         ]);
         
-        // Store original values with player IDs
+        
         setOriginalCompetition({
           ...compData,
           players: compData.players.map(p => p._id)
@@ -53,13 +53,13 @@ const CompetitionEdit = () => {
     setIsSubmitting(true);
     
     try {
-      // 1. Update basic competition info
+      
       const updatedCompetition = await updateCompetition(id, {
         name: competition.name,
         status: competition.status
       });
 
-      // 2. Calculate and update player changes
+      
       const originalPlayers = originalCompetition.players;
       const currentPlayers = competition.players;
       

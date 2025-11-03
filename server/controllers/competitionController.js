@@ -10,7 +10,7 @@ const competitionController = {
       try {
     const { name, numberOfClans, clans } = req.body;
 
-    // Validate input
+    
     if (!name || !numberOfClans || !clans || !Array.isArray(clans)) {
       return res.status(400).json({ 
         message: 'Name, numberOfClans, and clans array are required' 
@@ -23,14 +23,14 @@ const competitionController = {
       });
     }
 
-    // Validate numberOfClans is power of 2
+    
     if (numberOfClans > 0 && (numberOfClans & (numberOfClans - 1)) !== 0) {
       return res.status(400).json({ 
         message: 'Number of clans must be a power of 2 (2, 4, 8, 16, etc.)' 
       });
     }
 
-    // Create competition
+    
     const competition = new Competition({
       name,
       type: 'CLAN_WAR',
@@ -45,17 +45,17 @@ const competitionController = {
     const createdClans = [];
     const allPlayers = [];
 
-    // Create clans and their players
+    
     for (const clanData of clans) {
       if (!clanData.name || !clanData.members || clanData.members.length !== 5) {
-        // Cleanup: delete already created competition
+        
         await Competition.findByIdAndDelete(competition._id);
         return res.status(400).json({ 
           message: `Each clan must have a name and exactly 5 members. Clan "${clanData.name || 'Unknown'}" has ${clanData.members?.length || 0} members` 
         });
       }
 
-      // Create players for this clan
+      
       const clanPlayers = [];
       for (const memberName of clanData.members) {
         const player = new Player({
@@ -67,7 +67,7 @@ const competitionController = {
         allPlayers.push(player._id);
       }
 
-      // Create clan
+      
       const clan = new Clan({
         name: clanData.name.trim(),
         competitionId: competition._id,
@@ -77,12 +77,12 @@ const competitionController = {
       createdClans.push(clan._id);
     }
 
-    // Update competition with players and clans
+    
     competition.players = allPlayers;
     competition.clans = createdClans;
     await competition.save();
 
-    // Generate first round fixtures
+    
     await generateClanWarRound(competition._id, createdClans, 'Round 1');
 
     res.status(201).json({
@@ -102,14 +102,14 @@ const competitionController = {
     });
   }
   },
-  // controllers/competitionController.js
-// Add this new method
+  
+
 
 createClanWarCompetitionWithExistingClans: async (req, res) => {
   try {
     const { name, numberOfClans, clanIds } = req.body;
 
-    // Validate input
+    
     if (!name || !numberOfClans || !clanIds || !Array.isArray(clanIds)) {
       return res.status(400).json({ 
         message: 'Name, numberOfClans, and clanIds array are required' 
@@ -122,14 +122,14 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Validate numberOfClans is power of 2
+    
     if (numberOfClans > 0 && (numberOfClans & (numberOfClans - 1)) !== 0) {
       return res.status(400).json({ 
         message: 'Number of clans must be a power of 2 (2, 4, 8, 16, etc.)' 
       });
     }
 
-    // Check if clans exist and fetch them with populated members
+    
     const clans = await Clan.find({ _id: { $in: clanIds } })
       .populate('members', 'name');
     
@@ -139,7 +139,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Verify each clan has exactly 5 members
+    
     for (const clan of clans) {
       if (clan.members.length !== 5) {
         return res.status(400).json({ 
@@ -148,7 +148,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       }
     }
 
-    // Check if clan names are unique
+    
     const clanNames = clans.map(c => c.name.toLowerCase().trim());
     if (new Set(clanNames).size !== clanNames.length) {
       return res.status(400).json({ 
@@ -156,7 +156,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Check if any clan is already in an active competition
+    
     const clansInActiveCompetitions = await Clan.find({
       _id: { $in: clanIds },
       competitionId: { $exists: true }
@@ -173,10 +173,10 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Get all player IDs from all clans
+    
     const allPlayerIds = clans.flatMap(clan => clan.members.map(m => m._id));
 
-    // Check for duplicate players across clans
+    
     const uniquePlayerIds = new Set(allPlayerIds.map(id => id.toString()));
     if (uniquePlayerIds.size !== allPlayerIds.length) {
       return res.status(400).json({
@@ -184,7 +184,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Create the competition
+    
     const competition = new Competition({
       name,
       type: 'CLAN_WAR',
@@ -197,7 +197,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
 
     await competition.save();
 
-    // Update all clans to reference this competition and reset their stats
+    
     await Clan.updateMany(
       { _id: { $in: clanIds } },
       { 
@@ -212,10 +212,10 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       }
     );
 
-    // Generate first round fixtures
+    
     await generateClanWarRound(competition._id, clanIds, 'Round 1');
 
-    // Populate the response
+    
     const populatedCompetition = await Competition.findById(competition._id)
       .populate('players', 'name')
       .populate({
@@ -251,13 +251,13 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       return res.status(400).json({ message: 'Invalid match index' });
     }
     
-    // Update the specific match
+    
     const match = fixture.individualMatches[matchIdx];
     match.homeScore = homeScore;
     match.awayScore = awayScore;
     match.status = 'completed';
 
-    // Determine match result
+    
     if (homeScore > awayScore) {
       match.result = 'home';
     } else if (awayScore > homeScore) {
@@ -266,7 +266,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       match.result = 'draw';
     }
 
-    await fixture.save(); // This will trigger the pre-save hook to calculate clan points
+    await fixture.save(); 
 
     res.json({
       message: 'Match result updated successfully',
@@ -320,7 +320,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       return res.status(404).json({ message: 'Clan war competition not found' });
     }
 
-    // Get current round fixtures
+    
     const currentRound = competition.currentRound.index || 0;
     const currentRoundName = `Round ${currentRound + 1}`;
     
@@ -335,7 +335,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       return res.status(400).json({ message: 'No completed fixtures found for current round' });
     }
 
-    // Check if all fixtures in current round are completed
+    
     const allFixtures = await Fixture.find({
       competitionId,
       round: currentRoundName,
@@ -349,7 +349,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Get winning clans
+    
     const winningClans = [];
     for (const fixture of fixtures) {
       let winnerClan;
@@ -358,14 +358,14 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       } else if (fixture.result === 'away') {
         winnerClan = fixture.awayClan;
       } else {
-        // Handle draw - you might want to implement a tiebreaker system
-        // For now, let's randomly pick a winner
+        
+        
         winnerClan = Math.random() > 0.5 ? fixture.homeClan : fixture.awayClan;
       }
       winningClans.push(winnerClan._id);
     }
 
-    // Update eliminated clans
+    
     const allClanIds = await Clan.find({ competitionId }).select('_id');
     const eliminatedClans = allClanIds.filter(clan => 
       !winningClans.some(winner => winner.equals(clan._id))
@@ -376,7 +376,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       { isEliminated: true }
     );
 
-    // Check if we have a winner (only 1 clan left)
+    
     if (winningClans.length === 1) {
       competition.status = 'completed';
       competition.isCompleted = true;
@@ -389,11 +389,11 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
 
-    // Generate next round
+    
     const nextRoundName = `Round ${currentRound + 2}`;
     await generateClanWarRound(competitionId, winningClans, nextRoundName);
 
-    // Update competition round info
+    
     competition.currentRound.index = currentRound + 1;
     competition.currentRound.name = nextRoundName;
     await competition.save();
@@ -415,7 +415,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
     try {
       const { name, type, numberOfPlayers, players, knockoutQualifiedCount,rounds } = req.body;
 
-      // Basic validation
+      
       if (!name || !type) {
         return res.status(400).json({
           success: false,
@@ -423,7 +423,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
         });
       }
 
-      // Initialize competition parameters
+      
       const competitionData = {
         name,
         type,
@@ -432,7 +432,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
         rounds
       };
 
-      // Competition type configuration
+      
       const COMPETITION_CONFIG = {
         KO: {
           types: ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'],
@@ -448,16 +448,16 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
         }
       };
 
-      // Handle competition type-specific logic
+      
       if (COMPETITION_CONFIG.KO.types.includes(type)) {
-        // Knockout tournament validation
+        
         
       } else if (COMPETITION_CONFIG.LEAGUE.types.includes(type)) {
-        // League tournament defaults
+        
         competitionData.numberOfPlayers = numberOfPlayers || COMPETITION_CONFIG.LEAGUE.defaultSize;
         competitionData.rounds=rounds || 3;
       } else if (type === COMPETITION_CONFIG.GNG.type) {
-        // GNG validation
+        
         competitionData.numberOfPlayers = COMPETITION_CONFIG.GNG.fixedSize;
         competitionData.knockoutQualifiedCount = knockoutQualifiedCount;
 
@@ -476,9 +476,9 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
         }
       }
 
-      // Player validation
+      
       if (players && Array.isArray(players)) {
-        // Validate ObjectIDs
+        
         const invalidIds = players.filter(id => !mongoose.Types.ObjectId.isValid(id));
         if (invalidIds.length > 0) {
           return res.status(400).json({
@@ -487,7 +487,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
           });
         }
 
-        // Check player count match
+        
         if (players.length !== competitionData.numberOfPlayers) {
           return res.status(400).json({
             success: false,
@@ -495,7 +495,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
           });
         }
 
-        // Verify player existence
+        
         const existingPlayers = await Player.find({ _id: { $in: players } });
         if (existingPlayers.length !== players.length) {
           const missingCount = players.length - existingPlayers.length;
@@ -508,11 +508,11 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
         competitionData.players = players;
       }
       console.log('Competition data:', competitionData);
-      // Create and save competition
+      
       const competition = new Competition(competitionData);
       await competition.save();
 
-      // Return populated response
+      
       const populatedCompetition = await Competition.findById(competition._id)
         .populate('players', 'name _id createdAt')
         .lean();
@@ -530,19 +530,19 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       });
     }
   },
-// controllers/competitionController.js
+
 updatePlayerNameInCompetition : async (req, res) => {
   const { competitionId } = req.params;
   const { playerId, newName } = req.body;
 
   try {
-    // Validate competition exists
+    
     const competition = await Competition.findById(competitionId);
     if (!competition) {
       return res.status(404).json({ success: false, message: 'Competition not found' });
     }
 
-    // Validate player is part of the competition
+    
     if (!competition.players.includes(playerId)) {
       return res.status(400).json({ 
         success: false, 
@@ -550,7 +550,7 @@ updatePlayerNameInCompetition : async (req, res) => {
       });
     }
 
-    // Update competition-specific fixtures
+    
     const [homeUpdates, awayUpdates] = await Promise.all([
       Fixture.updateMany(
         { competitionId, homePlayer: playerId },
@@ -562,7 +562,7 @@ updatePlayerNameInCompetition : async (req, res) => {
       )
     ]);
 
-    // Update competition-specific standings
+    
     const standingsUpdate = await Standing.updateMany(
       { competition: competitionId, player: playerId },
       { $set: { playerName: newName } }
@@ -623,13 +623,13 @@ replacePlayerInCompetition: async (req, res) => {
       return res.status(404).json({ message: 'Old player not found' });
     }
 
-    // Replace old player with new player in competition
+    
     competition.players = competition.players.map(playerId =>
       playerId.toString() === oldPlayerId ? newPlayerId : playerId
     );
     await competition.save();
 
-    // Update fixtures
+    
     await Promise.all([
       Fixture.updateMany(
         { competitionId: id, homePlayer: oldPlayerId },
@@ -650,11 +650,11 @@ replacePlayerInCompetition: async (req, res) => {
         playerName: newPlayer.name
       }
     );
-    // Optional: update standings if you have them
-    // await Standing.updateMany(
-    //   { competition: id, player: oldPlayerId },
-    //   { player: newPlayerId, playerName: newPlayer.name }
-    // );
+    
+    
+    
+    
+    
 
     res.json({
       message: `Player ${oldPlayer.name} successfully replaced with ${newPlayer.name}`,
@@ -675,7 +675,7 @@ replacePlayerInCompetition: async (req, res) => {
   try {
     const { competitionId } = req.params;
     
-    // Validate competition ID format if needed
+    
     if (!isValidId(competitionId)) {
       throw httpError(400, 'Invalid competition ID');
     }
@@ -787,7 +787,7 @@ replacePlayerInCompetition: async (req, res) => {
 
       if (!competition) throw new Error('Competition not found', 404);
 
-      // Archive affected fixtures instead of matches
+      
       await Fixture.updateMany(
         { 
           competitionId: id,
@@ -830,26 +830,26 @@ deleteCompetition: async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validate competition ID format
+    
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid competition ID format' });
     }
         console.log('Deleting competition with ID:', id);
 
-    // 1. Delete related fixtures and standings
+    
     const [fixturesResult, standingsResult] = await Promise.all([
       Fixture.deleteMany({ competitionId: id }),
       Standing.deleteMany({ competition: id })
     ]);
 
-    // 2. Remove competition from players
+    
     const playersUpdate = await Player.updateMany(
       { competitions: id },
       { $pull: { competitions: id } }
     );
 console.log('Fixtures deleted:', fixturesResult.deletedCount);
 console.log('Standings deleted:', standingsResult.deletedCount);
-    // 3. Delete competition itself
+    
     const competition = await Competition.findByIdAndDelete(id);
 
     if (!competition) {

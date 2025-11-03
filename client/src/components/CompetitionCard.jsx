@@ -33,7 +33,7 @@ const CompetitionCard = ({ competition }) => {
           </span>
         </div>
 
-        {/* Tournament Information Section */}
+        {}
         <div className="mb-6 space-y-4">
           {isKnockout && (
             <div className="space-y-2">
@@ -72,7 +72,7 @@ const CompetitionCard = ({ competition }) => {
           )}
         </div>
 
-        {/* Stats & Navigation Section */}
+        {}
         <div className="flex justify-between items-center border-t border-yellow-500/20 pt-4">
           <div className="text-yellow-300/80 text-sm flex items-center gap-4">
             <div className="flex items-center gap-1">
