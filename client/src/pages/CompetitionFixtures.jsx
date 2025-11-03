@@ -8,8 +8,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Loader,
   Search,
@@ -71,62 +69,76 @@ const getStatusInfo = (status) => {
 const generateMatchdaySchedule = (fixtures) => {
   if (!fixtures || fixtures.length === 0) return [];
 
-  // Sort fixtures by match date first
-  const sortedFixtures = [...fixtures].sort((a, b) =>
-    new Date(a.matchDate) - new Date(b.matchDate)
-  );
+  // Extract and normalize player IDs
+  const getPlayerId = (player) => {
+    if (!player) return null;
+    return typeof player === 'object' && player !== null ? player._id : player;
+  };
+
+  // Group fixtures by unique player pairs to detect duplicates
+  const fixtureMap = new Map();
+  const processedFixtures = [];
+
+  for (const fixture of fixtures) {
+    const homeId = getPlayerId(fixture.homePlayer);
+    const awayId = getPlayerId(fixture.awayPlayer);
+    
+    if (!homeId || !awayId) continue;
+
+    // Create a consistent key for this matchup (smaller ID first to handle both directions)
+    const key = [homeId, awayId].sort().join('-');
+    
+    // Only keep the first occurrence of each unique matchup
+    if (!fixtureMap.has(key)) {
+      fixtureMap.set(key, fixture);
+      processedFixtures.push({
+        ...fixture,
+        homeId,
+        awayId
+      });
+    }
+  }
+
+  // Sort by match date to respect scheduling order
+  processedFixtures.sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
 
   const matchdays = [];
   const assignedFixtures = new Set();
 
-  // Keep assigning fixtures to matchdays until all are assigned
-  while (assignedFixtures.size < sortedFixtures.length) {
+  // Greedy algorithm: keep creating matchdays until all fixtures are assigned
+  while (assignedFixtures.size < processedFixtures.length) {
     const currentMatchday = [];
-    const teamsInMatchday = new Set();
+    const playersInMatchday = new Set();
 
-    // Try to assign fixtures to current matchday
-    for (const fixture of sortedFixtures) {
+    // Try to assign as many fixtures as possible to this matchday
+    for (const fixture of processedFixtures) {
       // Skip if already assigned
       if (assignedFixtures.has(fixture._id)) continue;
 
-      // ==========================================================
-      // START FIX: Robustly get the string ID
-      // ==========================================================
+      const { homeId, awayId } = fixture;
 
-      // If homePlayer is an object, get its _id. Otherwise, use it as-is (assuming it's already an ID string).
-      const homeId = (typeof fixture.homePlayer === 'object' && fixture.homePlayer !== null)
-        ? fixture.homePlayer._id
-        : fixture.homePlayer;
-
-      const awayId = (typeof fixture.awayPlayer === 'object' && fixture.awayPlayer !== null)
-        ? fixture.awayPlayer._id
-        : fixture.awayPlayer;
-
-      // ==========================================================
-      // END FIX
-      // ==========================================================
-
-
-      // Check if both teams are available (not playing in this matchday)
-      if (!teamsInMatchday.has(homeId) && !teamsInMatchday.has(awayId)) {
+      // Check if both players are available (not already playing in this matchday)
+      if (!playersInMatchday.has(homeId) && !playersInMatchday.has(awayId)) {
         currentMatchday.push(fixture);
         assignedFixtures.add(fixture._id);
-
-        // Only add non-null/undefined IDs to the set
-        if (homeId) teamsInMatchday.add(homeId);
-        if (awayId) teamsInMatchday.add(awayId);
+        playersInMatchday.add(homeId);
+        playersInMatchday.add(awayId);
       }
     }
 
     // Add the matchday if it has fixtures
     if (currentMatchday.length > 0) {
       matchdays.push(currentMatchday);
-    } else if (assignedFixtures.size < sortedFixtures.length) {
-      // Safety break to prevent infinite loops if some fixtures are impossible to assign
-      console.error("Could not assign all fixtures. Breaking loop. Check remaining fixtures:", sortedFixtures.filter(f => !assignedFixtures.has(f._id)));
+    } else {
+      // Safety break: if we can't assign any more fixtures, stop
+      console.warn('Could not assign remaining fixtures:', 
+        processedFixtures.filter(f => !assignedFixtures.has(f._id)).length);
       break;
     }
   }
+
+  console.log(`Generated ${matchdays.length} matchdays from ${processedFixtures.length} fixtures`);
+  console.log('Fixtures per matchday:', matchdays.map(md => md.length));
 
   return matchdays;
 };
@@ -300,9 +312,7 @@ const MatchdaySection = memo(({ matchdayNumber, fixtures }) => {
 
   return (
     <div className="matchday-container">
-      <div
-        className="matchday-header"
-      >
+      <div className="matchday-header">
         <div className="flex items-center space-x-3">
           <Swords size={20} className="text-gold-main" />
           <h3 className="matchday-title">Matchday {matchdayNumber}</h3>
@@ -321,8 +331,6 @@ const MatchdaySection = memo(({ matchdayNumber, fixtures }) => {
               <span className="stat-badge completed">{completedCount} Finished</span>
             )}
           </div>
-
-
         </div>
       </div>
 
@@ -392,6 +400,7 @@ export default function CompetitionFixtures() {
         }
         return newFixtures;
       });
+      
     };
 
     const handlePlayerUpdate = ({ playerId, newName }) => {
@@ -416,42 +425,74 @@ export default function CompetitionFixtures() {
   // Generate matchday schedule
   const matchdaySchedule = useMemo(() => {
     const schedule = generateMatchdaySchedule(fixtures);
+    
+    // Calculate statistics
+    const totalPlayers = new Set();
+    fixtures.forEach(f => {
+      const homeId = typeof f.homePlayer === 'object' ? f.homePlayer?._id : f.homePlayer;
+      const awayId = typeof f.awayPlayer === 'object' ? f.awayPlayer?._id : f.awayPlayer;
+      if (homeId) totalPlayers.add(homeId);
+      if (awayId) totalPlayers.add(awayId);
+    });
+    
+    const expectedMatchdays = totalPlayers.size > 0 ? totalPlayers.size - 1 : 0;
+    const expectedFixturesPerMatchday = totalPlayers.size > 0 ? totalPlayers.size / 2 : 0;
+    
+    console.log('=== MATCHDAY GENERATION STATS ===');
+    console.log('Total players:', totalPlayers.size);
     console.log('Total fixtures:', fixtures.length);
-    console.log('Generated schedule:', schedule);
-    console.log('Number of matchdays:', schedule.length);
+    console.log('Expected matchdays:', expectedMatchdays);
+    console.log('Expected fixtures per matchday:', expectedFixturesPerMatchday);
+    console.log('Generated matchdays:', schedule.length);
+    console.log('Fixtures per matchday:', schedule.map(md => md.length));
+    console.log('================================');
+    
     return schedule;
   }, [fixtures]);
 
   // Filter matchdays based on search
-  // Filter matchdays based on search
   const filteredMatchdays = useMemo(() => {
     const term = searchTerm.toLowerCase();
 
-    // ALWAYS map to create the correct object structure
-    return matchdaySchedule.map((matchdayFixtures, index) => {
-
-      // Conditionally filter the fixtures *inside* the map
+    // Map through all matchdays and filter/sort fixtures
+    const processedMatchdays = matchdaySchedule.map((matchdayFixtures, index) => {
+      // Filter fixtures based on search term
       const filtered = !term
-        ? matchdayFixtures // If no search term, use all fixtures
-        : matchdayFixtures.filter(f => { // If search term, filter them
+        ? matchdayFixtures
+        : matchdayFixtures.filter(f => {
           const homePlayerName = (f.homePlayerName || 'tbd').toLowerCase();
           const awayPlayerName = (f.awayPlayerName || 'tbd').toLowerCase();
           return homePlayerName.includes(term) || awayPlayerName.includes(term);
         });
 
-      // Sort the (potentially filtered) list
+      // Sort fixtures within matchday: pending first, then live, then completed
       const sorted = filtered.sort((a, b) => {
         const aStatus = a.status === 'pending' ? 0 : a.status === 'live' ? 1 : 2;
         const bStatus = b.status === 'pending' ? 0 : b.status === 'live' ? 1 : 2;
         return aStatus - bStatus;
       });
 
-      // Always return the objec  t
       return {
         matchdayNumber: index + 1,
-        fixtures: sorted
+        fixtures: sorted,
+        pendingCount: sorted.filter(f => f.status === 'pending').length
       };
-    }).filter(md => md.fixtures.length > 0); // This filter also runs always, which is correct
+    }).filter(md => md.fixtures.length > 0);
+
+    // When searching, sort matchdays by pending count (most pending first)
+    if (term) {
+      return processedMatchdays.sort((a, b) => {
+        // First, sort by number of pending fixtures (descending)
+        if (b.pendingCount !== a.pendingCount) {
+          return b.pendingCount - a.pendingCount;
+        }
+        // If same pending count, maintain original matchday order
+        return a.matchdayNumber - b.matchdayNumber;
+      });
+    }
+
+    // When not searching, keep original matchday order
+    return processedMatchdays;
   }, [matchdaySchedule, searchTerm]);
 
   // Pagination
@@ -478,10 +519,6 @@ export default function CompetitionFixtures() {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-
-
-
 
   if (loading) {
     return (
@@ -535,20 +572,12 @@ export default function CompetitionFixtures() {
         </InteractiveCard>
 
         {paginatedMatchdays.totalMatchdays > 0 && (
-          <div className="flex justify-between items-center mb-6">
-            <PaginationInfo
-              currentPage={currentPage}
-              totalPages={paginatedMatchdays.totalPages}
-              totalItems={paginatedMatchdays.totalMatchdays}
-              itemsPerPage={matchdaysPerPage}
-            />
-            <button
-              
-              className="expand-all-btn"
-            >
-             
-            </button>
-          </div>
+          <PaginationInfo
+            currentPage={currentPage}
+            totalPages={paginatedMatchdays.totalPages}
+            totalItems={paginatedMatchdays.totalMatchdays}
+            itemsPerPage={matchdaysPerPage}
+          />
         )}
 
         <div className="space-y-6">
@@ -639,7 +668,6 @@ export default function CompetitionFixtures() {
                 padding: 1.5rem;
                 background: rgba(44, 27, 75, 0.3);
                 backdrop-filter: blur(8px);
-                cursor: pointer;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
