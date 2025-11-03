@@ -31,34 +31,91 @@ exports.getOngoingCompetitions = async (req, res) => {
   }
 };
 
+// Optimized Backend Controller
 exports.getStandings = async (req, res) => {
   try {
     const competitionId = req.params.competitionId;
     
-    const competition = await Competition.findById(competitionId);
-    if (!competition) throw new Error('Competition not found');
+    const competition = await Competition.findById(competitionId).select('type').lean();
+    if (!competition) {
+      return res.status(404).json({
+        success: false,
+        message: 'Competition not found'
+      });
+    }
     
-    await calculateStandings(competitionId);
-    
+    // DON'T recalculate - just fetch existing standings
     const standings = await Standing.find({ competition: competitionId })
-      .select('-__v -_id')
-      .sort({ points: -1, goalsFor: -1 })
+      .select('-__v')
       .lean();
     
-    const formattedStandings = standings.map(standing => ({
-      ...standing,
-      playerName: standing.playerName || 'Unknown Player',
-      playerId: standing.player
-    }));
+    if (standings.length === 0) {
+      // Only calculate if no standings exist yet
+      await calculateStandings(competitionId);
+      const newStandings = await Standing.find({ competition: competitionId })
+        .select('-__v')
+        .lean();
+      return res.json(formatStandingsResponse(newStandings, competition.type));
+    }
 
-    res.json(formattedStandings);
+    res.json(formatStandingsResponse(standings, competition.type));
   } catch (err) {
     console.error('Standings error:', err);
     res.status(500).json({
       success: false,
-      message: err.message.includes('Competition') 
-        ? err.message 
-        : 'Failed to retrieve standings'
+      message: 'Failed to retrieve standings'
     });
   }
 };
+
+// Helper function to format response with proper sorting
+function formatStandingsResponse(standings, competitionType) {
+  const sortStandings = (a, b) => {
+    // Sort by points first
+    if (b.points !== a.points) return b.points - a.points;
+    
+    // Then by goal difference
+    const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
+    const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
+    if (bGD !== aGD) return bGD - aGD;
+    
+    // Finally by goals scored
+    return (b.goalsFor || 0) - (a.goalsFor || 0);
+  };
+
+  if (competitionType === 'GROUP_STAGE') {
+    // Group by group name and sort each group
+    const grouped = standings.reduce((acc, standing) => {
+      const group = standing.group || 'Unknown Group';
+      if (!acc[group]) acc[group] = [];
+      acc[group].push({
+        ...standing,
+        playerName: standing.playerName || 'Unknown Player',
+        playerId: standing.player
+      });
+      return acc;
+    }, {});
+
+    // Sort each group
+    Object.keys(grouped).forEach(groupName => {
+      grouped[groupName].sort(sortStandings);
+    });
+
+    return {
+      competitionType: 'GROUP_STAGE',
+      groups: grouped,
+      standings: grouped
+    };
+  } else {
+    // League format - simple sorted array
+    const sorted = standings
+      .map(standing => ({
+        ...standing,
+        playerName: standing.playerName || 'Unknown Player',
+        playerId: standing.player
+      }))
+      .sort(sortStandings);
+
+    return sorted;
+  }
+}

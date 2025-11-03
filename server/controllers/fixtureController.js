@@ -823,53 +823,86 @@ exports.updateFixtureResult = async (req, res) => {
       });
     }
 
-    // 2. Find and update fixture
-    const result = home > away ? 'home' : away > home ? 'away' : 'draw';
-    
-    const updatedFixture = await Fixture.findByIdAndUpdate(
-      fixtureId,
-      {
-        homeScore: home,
-        awayScore: away,
-        status: 'completed',
-        result,
-        completedAt: new Date()
-      },
-      { new: true, runValidators: true }
-    ).populate('homePlayer awayPlayer', 'name _id');
+    if (home < 0 || away < 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Scores cannot be negative' 
+      });
+    }
 
-    if (!updatedFixture) {
+    // 2. Find fixture first to get competitionId
+    const fixture = await Fixture.findById(fixtureId);
+    
+    if (!fixture) {
       return res.status(404).json({ 
         success: false,
         error: 'Fixture not found' 
       });
     }
 
-    // 3. Prepare response
-    const response = {
-      success: true,
-      data: updatedFixture
-    };
+    // 3. Determine result
+    const result = home > away ? 'home' : away > home ? 'away' : 'draw';
+    
+    // 4. Update fixture
+    fixture.homeScore = home;
+    fixture.awayScore = away;
+    fixture.status = 'completed';
+    fixture.result = result;
+    fixture.completedAt = new Date();
+    
+    await fixture.save();
 
-    // 4. Handle competition updates if needed
-    if (updatedFixture.competition) {
-      const competition = await Competition.findById(updatedFixture.competition);
-      
-      if (competition?.type === 'LEAGUE') {
-        response.standings = await calculateStandings(competition._id);
+    // 5. Populate fixture data for response
+    const populatedFixture = await Fixture.findById(fixtureId)
+      .populate('homePlayer awayPlayer', 'name _id')
+      .lean();
+
+    // 6. Recalculate standings (CRITICAL - moved before response)
+    const competitionId = fixture.competitionId || fixture.competition;
+    
+    if (competitionId) {
+      try {
+        // Recalculate standings immediately
+        await calculateStandings(competitionId);
         
-        // Real-time update if using Socket.io
-        if (ioInstance) {
-          ioInstance.emit('standings_update', {
-            competitionId: competition._id,
-            standings: response.standings
+        // Emit real-time update if Socket.io is available
+        if (global.io || req.app.get('io')) {
+          const io = global.io || req.app.get('io');
+          
+          // Fetch updated standings to broadcast
+          const updatedStandings = await Standing.find({ 
+            competition: competitionId 
+          }).lean();
+          
+          const competition = await Competition.findById(competitionId)
+            .select('type')
+            .lean();
+          
+          io.emit('standings_update', {
+            competitionId: competitionId.toString(),
+            competitionType: competition?.type || 'LEAGUE',
+            standings: updatedStandings,
+            timestamp: new Date()
+          });
+          
+          io.emit('fixture_update', {
+            competitionId: competitionId.toString(),
+            fixture: populatedFixture,
+            timestamp: new Date()
           });
         }
+      } catch (standingsError) {
+        console.error('Standings calculation error:', standingsError);
+        // Don't fail the request if standings calculation fails
       }
     }
-    
 
-    res.json(response);
+    // 7. Send response
+    res.json({
+      success: true,
+      data: populatedFixture,
+      message: 'Fixture result updated successfully'
+    });
 
   } catch (err) {
     console.error('Result Update Error:', err);
@@ -893,6 +926,7 @@ exports.updateFixtureResult = async (req, res) => {
     });
   }
 };
+
 
 // Additional Methods
 exports.getOngoingCompetitions = async (req, res) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // <-- Added useMemo
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Search, Edit, AlertTriangle, Inbox, Check, X, ListChecks } from 'lucide-react';
 import io from 'socket.io-client';
@@ -54,27 +54,27 @@ export default function CompetitionResults() {
 
         // --- MOCK SOCKET.IO FOR DEMONSTRATION ---
         // In your actual app, you would have real socket listeners.
-        const mockSocket = {
-            on: (event, callback) => {
-                console.log(`Mock socket listening for: ${event}`);
-            },
-            off: (event) => {
-                console.log(`Mock socket stopped listening for: ${event}`);
-            }
-        };
+        // const mockSocket = {
+        //     on: (event, callback) => {
+        //         console.log(`Mock socket listening for: ${event}`);
+        //     },
+        //     off: (event) => {
+        //         console.log(`Mock socket stopped listening for: ${event}`);
+        //     }
+        // };
 
-        mockSocket.on('playerNameUpdate', (/*{ playerId, newName }*/) => {
-            // Your existing logic here
-        });
+        // mockSocket.on('playerNameUpdate', (/*{ playerId, newName }*/) => {
+        //     // Your existing logic here
+        // });
 
-        mockSocket.on('fixtureUpdate', (/*updatedFixture*/) => {
-            // Your existing logic here
-        });
+        // mockSocket.on('fixtureUpdate', (/*updatedFixture*/) => {
+        //     // Your existing logic here
+        // });
 
-        return () => {
-            mockSocket.off('playerNameUpdate');
-            mockSocket.off('fixtureUpdate');
-        };
+        // return () => {
+        //     mockSocket.off('playerNameUpdate');
+        //     mockSocket.off('fixtureUpdate');
+        // };
         // --- END MOCK SOCKET.IO ---
 
     }, [competitionId]);
@@ -237,19 +237,78 @@ export default function CompetitionResults() {
 
 
     // --- DATA PROCESSING & FILTERING ---
-    const filteredFixtures = fixtures.filter(fixture => {
-        if (!searchTerm) return true;
-        const searchLower = searchTerm.toLowerCase();
-        const homePlayerName = fixture.homePlayer?.name?.toLowerCase() || '';
-        const awayPlayerName = fixture.awayPlayer?.name?.toLowerCase() || '';
-        return homePlayerName.includes(searchLower) || awayPlayerName.includes(searchLower);
-    }).sort((a, b) => {
-        if (searchTerm) {
-            if (a.status === 'pending' && b.status !== 'pending') return -1;
-            if (a.status !== 'pending' && b.status === 'pending') return 1;
+    
+    // [MODIFIED BLOCK]
+    // Replaced the old `.filter().sort()` chain with a `useMemo` hook
+    // to implement the new advanced search and sorting logic efficiently.
+    const filteredFixtures = useMemo(() => {
+        const searchLower = searchTerm.toLowerCase().trim();
+
+        // Helper function to get standardized lowercase player names from a fixture
+        const getPlayerNames = (fixture) => {
+            const homeName = (fixture.homePlayer?.name || fixture.homePlayerName || '').toLowerCase();
+            const awayName = (fixture.awayPlayer?.name || fixture.awayPlayerName || '').toLowerCase();
+            return { homeName, awayName };
+        };
+
+        // Case 0: No search term. Return all fixtures.
+        if (!searchLower) {
+            return fixtures;
         }
-        return 0;
-    });
+
+        const searchTerms = searchLower.split(/\s+/).filter(Boolean);
+        const [term1, term2] = searchTerms;
+
+        // Case 1: Single Player Search (e.g., "Subahan")
+        if (searchTerms.length === 1) {
+            const singlePlayerName = term1;
+            
+            const matchingFixtures = fixtures.filter(fixture => {
+                const { homeName, awayName } = getPlayerNames(fixture);
+                // Find all fixtures involving this player
+                return homeName.includes(singlePlayerName) || awayName.includes(singlePlayerName);
+            });
+
+            // Sort by opponent's name alphabetically (as requested)
+            return matchingFixtures.sort((a, b) => {
+                const { homeName: aHome, awayName: aAway } = getPlayerNames(a);
+                const { homeName: bHome, awayName: bAway } = getPlayerNames(b);
+
+                // Find the opponent's name for fixture 'a'
+                const aOpponent = aHome.includes(singlePlayerName) ? aAway : aHome;
+                // Find the opponent's name for fixture 'b'
+                const bOpponent = bHome.includes(singlePlayerName) ? bAway : bHome;
+                
+                // Compare the opponent names
+                return aOpponent.localeCompare(bOpponent);
+            });
+        }
+
+        // Case 2: Multi-Player Search (e.g., "Subahan Arbaj")
+        if (searchTerms.length >= 2) {
+            const multiPlayerFixtures = fixtures.filter(fixture => {
+                const { homeName, awayName } = getPlayerNames(fixture);
+
+                // Check for (term1 vs term2) OR (term2 vs term1)
+                const match1 = homeName.includes(term1) && awayName.includes(term2);
+                const match2 = homeName.includes(term2) && awayName.includes(term1);
+                
+                return match1 || match2;
+            });
+
+            // Apply the original "pending" sort to this smaller list
+            return multiPlayerFixtures.sort((a, b) => {
+                if (a.status === 'pending' && b.status !== 'pending') return -1;
+                if (a.status !== 'pending' && b.status === 'pending') return 1;
+                return 0;
+            });
+        }
+
+        // Fallback for any other case (should be unreachable)
+        return fixtures;
+    }, [fixtures, searchTerm]);
+    // [END OF MODIFIED BLOCK]
+
 
     const groupedFixtures = filteredFixtures.reduce((groups, fixture) => {
         const matchday = fixture.round || 'Unclassified';
@@ -342,7 +401,7 @@ export default function CompetitionResults() {
                 <div className="mb-10 sticky top-4 z-40 bg-[#1a1a1a]/80 backdrop-blur-sm py-4 rounded-xl">
                     <div className="max-w-xl mx-auto flex gap-4 items-center">
                         <div className="relative flex-grow">
-                            <input type="text" placeholder="Search for a player..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full pl-12 pr-4 py-3 bg-black/30 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/30 transition-all duration-300" />
+                            <input type="text" placeholder="Search for player(s)..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full pl-12 pr-4 py-3 bg-black/30 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/30 transition-all duration-300" />
                             <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
                                 <Search className="w-5 h-5" />
                             </div>

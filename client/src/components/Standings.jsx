@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
-import io from 'socket.io-client';
 
 // Import icons from lucide-react
 import { 
@@ -74,7 +73,7 @@ const InteractiveCard = ({ children, className = "", animationDelay = '0ms', as:
 // STATS SECTION COMPONENT
 //=================================================================
 
-const StatsSection = memo(({ standings, groupName = null, competitionType }) => {
+const StatsSection = memo(({ standings, groupName = null }) => {
   const stats = useMemo(() => {
     const safeStandings = Array.isArray(standings) ? standings : [];
     if (safeStandings.length === 0) return null;
@@ -121,7 +120,7 @@ const StatsSection = memo(({ standings, groupName = null, competitionType }) => 
             </div>
             <div className="space-y-2">
               {stats.qualifying.map((team, index) => (
-                <div key={team._id || index} className="flex items-center text-sm">
+                <div key={team.player || index} className="flex items-center text-sm">
                   <span className="w-6 h-6 rounded-full bg-gold-main/20 text-gold-main flex items-center justify-center text-xs mr-2">
                     {index + 1}
                   </span>
@@ -219,10 +218,10 @@ const StandingsTable = memo(({ standings, title = null, showGroupHeader = false,
             <tbody className="divide-y divide-gold-main/10">
               {safeStandings.map((standing, index) => {
                 const goalDifference = (standing.goalsFor || 0) - (standing.goalsAgainst || 0);
-                const position = standing.position || (index + 1);
+                const position = index + 1;
 
                 return (
-                  <tr key={standing._id || `${standing.player}-${index}`}
+                  <tr key={standing.player || `standing-${index}`}
                       className={`transition-all duration-300 hover:bg-purple-dark/50 text-purple-light/90 
                         ${position <= 4 ? 'promotion-glow' : ''}`}>
                     <td className="px-3 py-3 font-bold text-gold-main text-base flex items-center">
@@ -277,13 +276,6 @@ StandingsTable.displayName = 'StandingsTable';
 // MAIN STANDINGS COMPONENT
 //=================================================================
 
-// Initialize Socket.IO connection
-const socket = io(`${process.env.REACT_APP_BACKEND_URL}`, {
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-});
-
 export default function Standings() {
     const { competitionId } = useParams();
     const [state, setState] = useState({
@@ -292,14 +284,30 @@ export default function Standings() {
         error: null, 
         competitionName: 'Competition',
         competitionType: 'LEAGUE', 
-        activeGroup: null, 
-        loadingGroups: new Set()
+        activeGroup: null
     });
-    const socketListenersSet = useRef(false);
+
+    // Sort standings properly with goal difference
+    const sortStandings = (standings) => {
+      return [...standings].sort((a, b) => {
+        // First compare points
+        if (b.points !== a.points) return b.points - a.points;
+        
+        // Then compare goal difference
+        const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
+        const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
+        if (bGD !== aGD) return bGD - aGD;
+        
+        // Finally compare goals scored
+        return (b.goalsFor || 0) - (a.goalsFor || 0);
+      });
+    };
 
     // Memoized data processing
     const processedGroupData = useMemo(() => {
-        if (state.competitionType !== 'GROUP_STAGE' || !state.standingsData) return { groups: [], groupData: {} };
+        if (state.competitionType !== 'GROUP_STAGE' || !state.standingsData) {
+          return { groups: [], groupData: {} };
+        }
         
         let groupData = {};
         if (typeof state.standingsData === 'object' && !Array.isArray(state.standingsData)) {
@@ -315,26 +323,23 @@ export default function Standings() {
         
         const groups = Object.keys(groupData).sort();
         const sortedGroupData = {};
+        
+        // Sort each group properly
         groups.forEach(groupName => {
             if (groupData[groupName]) {
-                sortedGroupData[groupName] = [...groupData[groupName]].sort((a, b) => {
-                    if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
-                    const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
-                    const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
-                    if (bGD !== aGD) return bGD - aGD;
-                    return (b.goalsFor || 0) - (a.goalsFor || 0);
-                });
+                sortedGroupData[groupName] = sortStandings(groupData[groupName]);
             }
         });
         
         return { groups, groupData: sortedGroupData };
     }, [state.standingsData, state.competitionType]);
   
-    // Data fetching and socket logic
-    const fetchStandings = useCallback(async () => {
+    // Data fetching
+    const fetchStandings = async () => {
         try {
             setState(prev => ({ ...prev, loading: true, error: null }));
             const { data } = await standingService.getStandings(competitionId);
+            
             if (!data) throw new Error('No data received');
             
             const updates = { loading: false, error: null };
@@ -351,9 +356,11 @@ export default function Standings() {
                 updates.activeGroup = firstGroup || null;
             } else {
                 updates.competitionType = 'LEAGUE';
-                updates.standingsData = data?.standings || data || [];
+                // Sort league standings on frontend
+                updates.standingsData = sortStandings(data?.standings || data || []);
                 updates.competitionName = data?.competitionName || 'League Competition';
             }
+            
             setState(prev => ({ ...prev, ...updates }));
         } catch (err) {
             console.error('Failed to load standings:', err);
@@ -363,44 +370,11 @@ export default function Standings() {
                 error: 'Failed to load standings. Please try again.'
             }));
         }
-    }, [competitionId]);
-
-    const handleStandingsUpdate = useCallback((update) => {
-        if (update.competitionId === competitionId) {
-            setState(prev => {
-                const newState = { ...prev };
-                const isGroupData = update.competitionType === 'GROUP_STAGE' || update.type === 'GROUP_STAGE';
-                
-                if (isGroupData) {
-                    newState.standingsData = update.standings || update.groups || update;
-                    newState.competitionType = 'GROUP_STAGE';
-                    const availableGroups = Object.keys(newState.standingsData);
-                    if (!availableGroups.includes(prev.activeGroup)) {
-                        newState.activeGroup = availableGroups[0] || null;
-                    }
-                } else {
-                    newState.standingsData = Array.isArray(update.standings) ? update.standings : update;
-                    newState.competitionType = 'LEAGUE';
-                }
-                return newState;
-            });
-        }
-    }, [competitionId]);
-
-    useEffect(() => {
-        if (!socketListenersSet.current) {
-            socket.on('standings_update', handleStandingsUpdate);
-            socketListenersSet.current = true;
-        }
-        return () => {
-            socket.off('standings_update', handleStandingsUpdate);
-            socketListenersSet.current = false;
-        };
-    }, [handleStandingsUpdate]);
+    };
 
     useEffect(() => {
         fetchStandings();
-    }, [fetchStandings]);
+    }, [competitionId]);
 
     // Loading state
     if (state.loading) {
@@ -435,10 +409,9 @@ export default function Standings() {
         }
         
         if (state.activeGroup === 'all') {
-            return null; // Will show all groups
+            return null;
         }
         
-        // Fix: Use activeGroup correctly to get specific group data
         return processedGroupData.groupData[state.activeGroup] || [];
     };
 
@@ -491,14 +464,13 @@ export default function Standings() {
                 
                 {/* Stats Section */}
                 {state.competitionType === 'LEAGUE' && currentGroupData && (
-                    <StatsSection standings={currentGroupData} competitionType={state.competitionType} />
+                    <StatsSection standings={currentGroupData} />
                 )}
                 
                 {state.competitionType === 'GROUP_STAGE' && state.activeGroup && state.activeGroup !== 'all' && currentGroupData && (
                     <StatsSection 
                         standings={currentGroupData} 
                         groupName={state.activeGroup} 
-                        competitionType={state.competitionType} 
                     />
                 )}
                 
@@ -508,18 +480,16 @@ export default function Standings() {
                 ) : state.competitionType === 'GROUP_STAGE' && state.standingsData ? (
                     state.activeGroup === 'all' ? (
                         <div className="space-y-10">
-                            {processedGroupData.groups.map((groupName, index) => (
+                            {processedGroupData.groups.map((groupName) => (
                                 <div key={groupName}>
                                     <StatsSection 
                                         standings={processedGroupData.groupData[groupName] || []} 
                                         groupName={groupName} 
-                                        competitionType={state.competitionType} 
                                     />
                                     <StandingsTable 
                                         standings={processedGroupData.groupData[groupName] || []}
                                         title={groupName} 
                                         showGroupHeader={true} 
-                                        isLoading={state.loadingGroups.has(groupName)} 
                                     />
                                 </div>
                             ))}
@@ -529,7 +499,6 @@ export default function Standings() {
                             standings={currentGroupData}
                             title={state.activeGroup} 
                             showGroupHeader={true} 
-                            isLoading={state.loadingGroups.has(state.activeGroup)} 
                         />
                     ) : (
                          <div className="text-center p-8">
@@ -545,7 +514,7 @@ export default function Standings() {
                 )}
             </main>
             
-            {/* Updated Global Styles */}
+            {/* Global Styles */}
             <style jsx global>{`
                 :root { 
                     --purple-dark: #2c1b4b; 
