@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'; // <-- Added useMemo
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Search, Edit, AlertTriangle, Inbox, Check, X, ListChecks } from 'lucide-react';
 import io from 'socket.io-client';
@@ -7,20 +7,20 @@ import fixtureService from '../services/fixtureService';
 
 
 export default function CompetitionResults() {
-    // In a real app, you might get the backend URL from environment variables
-    // const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
+
+
     const { competitionId } = useParams();
 
-    // --- STATE MANAGEMENT ---
+
     const [fixtures, setFixtures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // State for single fixture editing
+
     const [editingFixture, setEditingFixture] = useState(null);
     const [scores, setScores] = useState({ home: 0, away: 0 });
 
-    // State for bulk fixture editing
+
     const [isBulkEditMode, setIsBulkEditMode] = useState(false);
     const [bulkScores, setBulkScores] = useState({});
 
@@ -32,7 +32,7 @@ export default function CompetitionResults() {
 
     const fixturesPerPage = 6;
 
-    // --- DATA FETCHING & REAL-TIME UPDATES ---
+
     useEffect(() => {
         const fetchFixtures = async () => {
             try {
@@ -52,34 +52,10 @@ export default function CompetitionResults() {
 
         fetchFixtures();
 
-        // --- MOCK SOCKET.IO FOR DEMONSTRATION ---
-        // In your actual app, you would have real socket listeners.
-        // const mockSocket = {
-        //     on: (event, callback) => {
-        //         console.log(`Mock socket listening for: ${event}`);
-        //     },
-        //     off: (event) => {
-        //         console.log(`Mock socket stopped listening for: ${event}`);
-        //     }
-        // };
-
-        // mockSocket.on('playerNameUpdate', (/*{ playerId, newName }*/) => {
-        //     // Your existing logic here
-        // });
-
-        // mockSocket.on('fixtureUpdate', (/*updatedFixture*/) => {
-        //     // Your existing logic here
-        // });
-
-        // return () => {
-        //     mockSocket.off('playerNameUpdate');
-        //     mockSocket.off('fixtureUpdate');
-        // };
-        // --- END MOCK SOCKET.IO ---
 
     }, [competitionId]);
 
-    // --- EVENT HANDLERS FOR SINGLE EDIT ---
+
     const handleResultSubmit = async (fixtureId) => {
         try {
             setSubmitting(true);
@@ -94,7 +70,7 @@ export default function CompetitionResults() {
 
             await fixtureService.updateFixtureResult(fixtureId, { homeScore, awayScore });
 
-            // Refresh data and reset state
+
             const response = await fixtureService.getCompetitionFixtures(competitionId);
             setFixtures(Array.isArray(response?.data?.data) ? response.data.data : []);
             setEditingFixture(null);
@@ -111,7 +87,7 @@ export default function CompetitionResults() {
     };
 
     const handleEditClick = (fixture) => {
-        setIsBulkEditMode(false); // Ensure bulk mode is off
+        setIsBulkEditMode(false);
         setEditingFixture(fixture._id);
         setScores({
             home: fixture.homeScore ?? 0,
@@ -145,11 +121,11 @@ export default function CompetitionResults() {
         setPendingSubmission(null);
     };
 
-    // --- EVENT HANDLERS FOR BULK EDIT ---
+
     const handleToggleBulkEdit = () => {
         if (!isBulkEditMode) {
-            // Entering bulk edit mode
-            setEditingFixture(null); // Exit single edit mode
+
+            setEditingFixture(null);
             const initialScores = fixtures.reduce((acc, fixture) => {
                 acc[fixture._id] = {
                     home: fixture.homeScore ?? '',
@@ -159,7 +135,7 @@ export default function CompetitionResults() {
             }, {});
             setBulkScores(initialScores);
         } else {
-            // Cancelling bulk edit mode
+
             setBulkScores({});
         }
         setIsBulkEditMode(!isBulkEditMode);
@@ -192,16 +168,16 @@ export default function CompetitionResults() {
                     const originalHomeScore = originalFixture.homeScore ?? null;
                     const originalAwayScore = originalFixture.awayScore ?? null;
 
-                    // Check if there's an actual change
+
                     if (homeScore !== originalHomeScore || awayScore !== originalAwayScore) {
                         if ((homeScore === null && awayScore !== null) || (homeScore !== null && awayScore === null)) {
-                            // Optional: Add validation for partial scores if needed
+
                         }
                         return { fixtureId, homeScore, awayScore };
                     }
                     return null;
                 })
-                .filter(Boolean); // Filter out nulls (unchanged fixtures)
+                .filter(Boolean);
 
             if (updatesToSubmit.length === 0) {
                 console.log("No changes to submit.");
@@ -211,7 +187,7 @@ export default function CompetitionResults() {
                 return;
             }
 
-            // Use Promise.all to send all update requests concurrently
+
             await Promise.all(
                 updatesToSubmit.map(update =>
                     fixtureService.updateFixtureResult(update.fixtureId, {
@@ -221,7 +197,7 @@ export default function CompetitionResults() {
                 )
             );
 
-            // Exit bulk edit mode and refresh data
+
             setIsBulkEditMode(false);
             setBulkScores({});
             const response = await fixtureService.getCompetitionFixtures(competitionId);
@@ -236,22 +212,22 @@ export default function CompetitionResults() {
     };
 
 
-    // --- DATA PROCESSING & FILTERING ---
-    
-    // [MODIFIED BLOCK]
-    // Replaced the old `.filter().sort()` chain with a `useMemo` hook
-    // to implement the new advanced search and sorting logic efficiently.
+
+
+
+
+
     const filteredFixtures = useMemo(() => {
         const searchLower = searchTerm.toLowerCase().trim();
 
-        // Helper function to get standardized lowercase player names from a fixture
+
         const getPlayerNames = (fixture) => {
             const homeName = (fixture.homePlayer?.name || fixture.homePlayerName || '').toLowerCase();
             const awayName = (fixture.awayPlayer?.name || fixture.awayPlayerName || '').toLowerCase();
             return { homeName, awayName };
         };
 
-        // Case 0: No search term. Return all fixtures.
+
         if (!searchLower) {
             return fixtures;
         }
@@ -259,44 +235,46 @@ export default function CompetitionResults() {
         const searchTerms = searchLower.split(/\s+/).filter(Boolean);
         const [term1, term2] = searchTerms;
 
-        // Case 1: Single Player Search (e.g., "Subahan")
+
         if (searchTerms.length === 1) {
             const singlePlayerName = term1;
-            
+
             const matchingFixtures = fixtures.filter(fixture => {
                 const { homeName, awayName } = getPlayerNames(fixture);
-                // Find all fixtures involving this player
+
                 return homeName.includes(singlePlayerName) || awayName.includes(singlePlayerName);
             });
 
-            // Sort by opponent's name alphabetically (as requested)
+
             return matchingFixtures.sort((a, b) => {
+                // First, sort by status (pending first)
+                if (a.status === 'pending' && b.status !== 'pending') return -1;
+                if (a.status !== 'pending' && b.status === 'pending') return 1;
+
+                // Then sort by opponent name
                 const { homeName: aHome, awayName: aAway } = getPlayerNames(a);
                 const { homeName: bHome, awayName: bAway } = getPlayerNames(b);
 
-                // Find the opponent's name for fixture 'a'
                 const aOpponent = aHome.includes(singlePlayerName) ? aAway : aHome;
-                // Find the opponent's name for fixture 'b'
                 const bOpponent = bHome.includes(singlePlayerName) ? bAway : bHome;
-                
-                // Compare the opponent names
+
                 return aOpponent.localeCompare(bOpponent);
             });
         }
 
-        // Case 2: Multi-Player Search (e.g., "Subahan Arbaj")
+
         if (searchTerms.length >= 2) {
             const multiPlayerFixtures = fixtures.filter(fixture => {
                 const { homeName, awayName } = getPlayerNames(fixture);
 
-                // Check for (term1 vs term2) OR (term2 vs term1)
+
                 const match1 = homeName.includes(term1) && awayName.includes(term2);
                 const match2 = homeName.includes(term2) && awayName.includes(term1);
-                
+
                 return match1 || match2;
             });
 
-            // Apply the original "pending" sort to this smaller list
+
             return multiPlayerFixtures.sort((a, b) => {
                 if (a.status === 'pending' && b.status !== 'pending') return -1;
                 if (a.status !== 'pending' && b.status === 'pending') return 1;
@@ -304,10 +282,10 @@ export default function CompetitionResults() {
             });
         }
 
-        // Fallback for any other case (should be unreachable)
+
         return fixtures;
     }, [fixtures, searchTerm]);
-    // [END OF MODIFIED BLOCK]
+
 
 
     const groupedFixtures = filteredFixtures.reduce((groups, fixture) => {
@@ -325,7 +303,7 @@ export default function CompetitionResults() {
         return aNum - bNum;
     });
 
-    // --- PAGINATION LOGIC ---
+
     const totalPages = Math.ceil(sortedMatchdays.length / fixturesPerPage);
     const paginatedMatchdays = sortedMatchdays.slice((currentPage - 1) * fixturesPerPage, currentPage * fixturesPerPage);
 
@@ -350,7 +328,7 @@ export default function CompetitionResults() {
 
     const renderPlayerName = (player, playerNameField) => playerNameField || player?.name || 'TBD';
 
-    // --- RENDER ---
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-black to-[#1a1a1a] text-gray-200 font-sans">
             <div className="container mx-auto px-4 py-8">
@@ -485,7 +463,7 @@ export default function CompetitionResults() {
                                                         </div>
                                                     </div>
                                                 ) : editingFixture === fixture._id ? (
-                                                    /* SINGLE EDIT MODE */
+
                                                     <div className="bg-black/30 p-4 rounded-lg border border-yellow-500/30">
                                                         <div className="flex items-center justify-center space-x-4 mb-4">
                                                             <input type="number" min="0" value={scores.home} onChange={(e) => setScores({ ...scores, home: e.target.value })} className="w-20 h-14 text-center text-2xl font-bold bg-gray-800 border border-gray-700 rounded-lg focus:border-yellow-500 focus:outline-none" />
@@ -498,7 +476,7 @@ export default function CompetitionResults() {
                                                         </div>
                                                     </div>
                                                 ) : fixture.status === 'completed' ? (
-                                                    /* DISPLAY COMPLETED RESULT */
+
                                                     <div className="text-center space-y-4">
                                                         <div className="text-4xl font-bold">
                                                             <span>{fixture.homeScore}</span>
@@ -510,7 +488,7 @@ export default function CompetitionResults() {
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    /* DISPLAY PENDING RESULT */
+
                                                     <button onClick={() => handleEditClick(fixture)} className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-yellow-400 to-yellow-600 text-black transition-all hover:shadow-lg hover:shadow-yellow-500/20">
                                                         Add Result
                                                     </button>
