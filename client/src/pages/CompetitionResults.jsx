@@ -1,38 +1,22 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Search, Edit, AlertTriangle, Inbox, Check, X, ListChecks } from 'lucide-react';
-import io from 'socket.io-client';
-
 import fixtureService from '../services/fixtureService';
-
-
 export default function CompetitionResults() {
-
-
     const { competitionId } = useParams();
-
-
-    const [fixtures, setFixtures] = useState([]);
+  const [fixtures, setFixtures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-
     const [editingFixture, setEditingFixture] = useState(null);
     const [scores, setScores] = useState({ home: 0, away: 0 });
-
-
     const [isBulkEditMode, setIsBulkEditMode] = useState(false);
     const [bulkScores, setBulkScores] = useState({});
-
     const [submitting, setSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingSubmission, setPendingSubmission] = useState(null);
-
     const fixturesPerPage = 6;
-
-
     useEffect(() => {
         const fetchFixtures = async () => {
             try {
@@ -51,11 +35,7 @@ export default function CompetitionResults() {
         };
 
         fetchFixtures();
-
-
     }, [competitionId]);
-
-
     const handleResultSubmit = async (fixtureId) => {
         try {
             setSubmitting(true);
@@ -67,10 +47,7 @@ export default function CompetitionResults() {
             if (isNaN(homeScore) || isNaN(awayScore)) {
                 throw new Error('Scores must be valid numbers.');
             }
-
             await fixtureService.updateFixtureResult(fixtureId, { homeScore, awayScore });
-
-
             const response = await fixtureService.getCompetitionFixtures(competitionId);
             setFixtures(Array.isArray(response?.data?.data) ? response.data.data : []);
             setEditingFixture(null);
@@ -267,14 +244,10 @@ export default function CompetitionResults() {
             const multiPlayerFixtures = fixtures.filter(fixture => {
                 const { homeName, awayName } = getPlayerNames(fixture);
 
-
                 const match1 = homeName.includes(term1) && awayName.includes(term2);
                 const match2 = homeName.includes(term2) && awayName.includes(term1);
-
                 return match1 || match2;
             });
-
-
             return multiPlayerFixtures.sort((a, b) => {
                 if (a.status === 'pending' && b.status !== 'pending') return -1;
                 if (a.status !== 'pending' && b.status === 'pending') return 1;

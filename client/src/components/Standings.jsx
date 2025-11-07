@@ -3,19 +3,19 @@ import { Link, useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
 
 // Import icons from lucide-react
-import { 
-    Trophy, 
-    Users, 
-    AlertTriangle, 
-    HelpCircle, 
-    ChevronLeft, 
-    Loader, 
-    BarChart3, 
-    Swords,
-    Target,
-    Crown,
-    Award,
-    TrendingUp
+import {
+  Trophy,
+  Users,
+  AlertTriangle,
+  HelpCircle,
+  ChevronLeft,
+  Loader,
+  BarChart3,
+  Swords,
+  Target,
+  Crown,
+  Award,
+  TrendingUp
 } from 'lucide-react';
 
 //=================================================================
@@ -26,11 +26,11 @@ const useScrollAnimation = () => {
   const ref = useRef(null);
   const [isInView, setIsInView] = useState(false);
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => { 
-      if (entry.isIntersecting) { 
-        setIsInView(true); 
-        observer.unobserve(entry.target); 
-      } 
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsInView(true);
+        observer.unobserve(entry.target);
+      }
     }, { threshold: 0.1 });
     if (ref.current) { observer.observe(ref.current); }
     return () => { if (ref.current) { observer.unobserve(ref.current); } };
@@ -47,19 +47,19 @@ const InteractiveCard = ({ children, className = "", animationDelay = '0ms', as:
     if (isMobile) return;
     const card = cardRef.current;
     if (!card) return;
-    const handleMouseMove = (e) => { 
-      const rect = card.getBoundingClientRect(); 
-      const x = e.clientX - rect.left; 
-      const y = e.clientY - rect.top; 
-      card.style.setProperty('--mouse-x', `${x}px`); 
-      card.style.setProperty('--mouse-y', `${y}px`); 
+    const handleMouseMove = (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty('--mouse-x', `${x}px`);
+      card.style.setProperty('--mouse-y', `${y}px`);
     };
     card.addEventListener('mousemove', handleMouseMove);
     return () => { card.removeEventListener('mousemove', handleMouseMove); };
   }, [isMobile]);
 
   return (
-    <Component ref={scrollRef} style={{ transitionDelay: animationDelay }} 
+    <Component ref={scrollRef} style={{ transitionDelay: animationDelay }}
       className={`modern-card-container transition-all duration-1000 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'} ${className}`}>
       <div ref={cardRef} className="h-full w-full modern-interactive-card">
         {children}
@@ -78,23 +78,31 @@ const StatsSection = memo(({ standings, groupName = null }) => {
     const safeStandings = Array.isArray(standings) ? standings : [];
     if (safeStandings.length === 0) return null;
 
+    // Filter out teams with no matches played
+    const teamsWithMatches = safeStandings.filter(team => (team.matchesPlayed || 0) > 0);
+    if (teamsWithMatches.length === 0) return null;
+
     // Qualifying teams (top 4)
     const qualifying = safeStandings.slice(0, 4);
-    
-    // Top scorer
-    const topScorer = safeStandings.reduce((prev, current) => 
-      (current.goalsFor || 0) > (prev.goalsFor || 0) ? current : prev
-    );
 
-    // Best defense (least goals conceded)
-    const bestDefense = safeStandings.reduce((prev, current) => 
-      (current.goalsAgainst || 0) < (prev.goalsAgainst || 0) ? current : prev
-    );
+    // Top scorer (goals per match)
+    const topScorer = teamsWithMatches.reduce((prev, current) => {
+      const currentAvg = (current.goalsFor || 0) / (current.matchesPlayed || 1);
+      const prevAvg = (prev.goalsFor || 0) / (prev.matchesPlayed || 1);
+      return currentAvg > prevAvg ? current : prev;
+    });
 
-    // Best goal difference
-    const bestGD = safeStandings.reduce((prev, current) => {
-      const currentGD = (current.goalsFor || 0) - (current.goalsAgainst || 0);
-      const prevGD = (prev.goalsFor || 0) - (prev.goalsAgainst || 0);
+    // Best defense (least goals conceded per match)
+    const bestDefense = teamsWithMatches.reduce((prev, current) => {
+      const currentAvg = (current.goalsAgainst || 0) / (current.matchesPlayed || 1);
+      const prevAvg = (prev.goalsAgainst || 0) / (prev.matchesPlayed || 1);
+      return currentAvg < prevAvg ? current : prev;
+    });
+
+    // Best goal difference (per match)
+    const bestGD = teamsWithMatches.reduce((prev, current) => {
+      const currentGD = ((current.goalsFor || 0) - (current.goalsAgainst || 0)) / (current.matchesPlayed || 1);
+      const prevGD = ((prev.goalsFor || 0) - (prev.goalsAgainst || 0)) / (prev.matchesPlayed || 1);
       return currentGD > prevGD ? current : prev;
     });
 
@@ -110,7 +118,7 @@ const StatsSection = memo(({ standings, groupName = null }) => {
           <BarChart3 className="w-6 h-6 mr-3 text-gold-main/80" />
           {groupName ? `${groupName} Statistics` : 'Competition Statistics'}
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Qualifying Teams */}
           <div className="stats-card">
@@ -222,7 +230,7 @@ const StandingsTable = memo(({ standings, title = null, showGroupHeader = false,
 
                 return (
                   <tr key={standing.player || `standing-${index}`}
-                      className={`transition-all duration-300 hover:bg-purple-dark/50 text-purple-light/90 
+                    className={`transition-all duration-300 hover:bg-purple-dark/50 text-purple-light/90 
                         ${position <= 4 ? 'promotion-glow' : ''}`}>
                     <td className="px-3 py-3 font-bold text-gold-main text-base flex items-center">
                       {position}
@@ -260,10 +268,10 @@ const StandingsTable = memo(({ standings, title = null, showGroupHeader = false,
             </tbody>
           </table>
           {safeStandings.length === 0 && (
-             <div className="p-8 text-center">
-                <p className="text-gold-main text-lg">No standings available yet.</p>
-                <p className="text-purple-light mt-2">Matches need to be played to generate standings.</p>
-             </div>
+            <div className="p-8 text-center">
+              <p className="text-gold-main text-lg">No standings available yet.</p>
+              <p className="text-purple-light mt-2">Matches need to be played to generate standings.</p>
+            </div>
           )}
         </div>
       </div>
@@ -277,245 +285,245 @@ StandingsTable.displayName = 'StandingsTable';
 //=================================================================
 
 export default function Standings() {
-    const { competitionId } = useParams();
-    const [state, setState] = useState({
-        standingsData: null, 
-        loading: true, 
-        error: null, 
-        competitionName: 'Competition',
-        competitionType: 'LEAGUE', 
-        activeGroup: null
+  const { competitionId } = useParams();
+  const [state, setState] = useState({
+    standingsData: null,
+    loading: true,
+    error: null,
+    competitionName: 'Competition',
+    competitionType: 'LEAGUE',
+    activeGroup: null
+  });
+
+  // Sort standings properly with goal difference
+  const sortStandings = (standings) => {
+    return [...standings].sort((a, b) => {
+      // First compare points
+      if (b.points !== a.points) return b.points - a.points;
+
+      // Then compare goal difference
+      const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
+      const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
+      if (bGD !== aGD) return bGD - aGD;
+
+      // Finally compare goals scored
+      return (b.goalsFor || 0) - (a.goalsFor || 0);
+    });
+  };
+
+  // Memoized data processing
+  const processedGroupData = useMemo(() => {
+    if (state.competitionType !== 'GROUP_STAGE' || !state.standingsData) {
+      return { groups: [], groupData: {} };
+    }
+
+    let groupData = {};
+    if (typeof state.standingsData === 'object' && !Array.isArray(state.standingsData)) {
+      groupData = state.standingsData;
+    } else if (Array.isArray(state.standingsData)) {
+      groupData = state.standingsData.reduce((acc, standing) => {
+        const groupName = standing.group || 'Unknown Group';
+        if (!acc[groupName]) acc[groupName] = [];
+        acc[groupName].push(standing);
+        return acc;
+      }, {});
+    }
+
+    const groups = Object.keys(groupData).sort();
+    const sortedGroupData = {};
+
+    // Sort each group properly
+    groups.forEach(groupName => {
+      if (groupData[groupName]) {
+        sortedGroupData[groupName] = sortStandings(groupData[groupName]);
+      }
     });
 
-    // Sort standings properly with goal difference
-    const sortStandings = (standings) => {
-      return [...standings].sort((a, b) => {
-        // First compare points
-        if (b.points !== a.points) return b.points - a.points;
-        
-        // Then compare goal difference
-        const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
-        const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
-        if (bGD !== aGD) return bGD - aGD;
-        
-        // Finally compare goals scored
-        return (b.goalsFor || 0) - (a.goalsFor || 0);
-      });
-    };
+    return { groups, groupData: sortedGroupData };
+  }, [state.standingsData, state.competitionType]);
 
-    // Memoized data processing
-    const processedGroupData = useMemo(() => {
-        if (state.competitionType !== 'GROUP_STAGE' || !state.standingsData) {
-          return { groups: [], groupData: {} };
-        }
-        
-        let groupData = {};
-        if (typeof state.standingsData === 'object' && !Array.isArray(state.standingsData)) {
-            groupData = state.standingsData;
-        } else if (Array.isArray(state.standingsData)) {
-            groupData = state.standingsData.reduce((acc, standing) => {
-                const groupName = standing.group || 'Unknown Group';
-                if (!acc[groupName]) acc[groupName] = [];
-                acc[groupName].push(standing);
-                return acc;
-            }, {});
-        }
-        
-        const groups = Object.keys(groupData).sort();
-        const sortedGroupData = {};
-        
-        // Sort each group properly
-        groups.forEach(groupName => {
-            if (groupData[groupName]) {
-                sortedGroupData[groupName] = sortStandings(groupData[groupName]);
-            }
-        });
-        
-        return { groups, groupData: sortedGroupData };
-    }, [state.standingsData, state.competitionType]);
-  
-    // Data fetching
-    const fetchStandings = async () => {
-        try {
-            setState(prev => ({ ...prev, loading: true, error: null }));
-            const { data } = await standingService.getStandings(competitionId);
-            
-            if (!data) throw new Error('No data received');
-            
-            const updates = { loading: false, error: null };
-            const isGroupData = data.competitionType === 'GROUP_STAGE' || 
-                               (Array.isArray(data) && data.length > 0 && data[0]?.group) || 
-                               (typeof data === 'object' && !Array.isArray(data) && 
-                                Object.keys(data).some(k => k.toLowerCase().startsWith('group')));
+  // Data fetching
+  const fetchStandings = async () => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      const { data } = await standingService.getStandings(competitionId);
 
-            if (isGroupData) {
-                updates.competitionType = 'GROUP_STAGE';
-                updates.standingsData = data.standings || data.groups || data;
-                updates.competitionName = data.competitionName || 'Group Stage Competition';
-                const firstGroup = Object.keys(updates.standingsData)[0];
-                updates.activeGroup = firstGroup || null;
-            } else {
-                updates.competitionType = 'LEAGUE';
-                // Sort league standings on frontend
-                updates.standingsData = sortStandings(data?.standings || data || []);
-                updates.competitionName = data?.competitionName || 'League Competition';
-            }
-            
-            setState(prev => ({ ...prev, ...updates }));
-        } catch (err) {
-            console.error('Failed to load standings:', err);
-            setState(prev => ({ 
-                ...prev, 
-                loading: false, 
-                error: 'Failed to load standings. Please try again.'
-            }));
-        }
-    };
+      if (!data) throw new Error('No data received');
 
-    useEffect(() => {
-        fetchStandings();
-    }, [competitionId]);
+      const updates = { loading: false, error: null };
+      const isGroupData = data.competitionType === 'GROUP_STAGE' ||
+        (Array.isArray(data) && data.length > 0 && data[0]?.group) ||
+        (typeof data === 'object' && !Array.isArray(data) &&
+          Object.keys(data).some(k => k.toLowerCase().startsWith('group')));
 
-    // Loading state
-    if (state.loading) {
-        return (
-            <div className="modern-bg min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <Loader className="h-12 w-12 text-gold-main animate-spin mx-auto" />
-                    <h1 className="modern-hero-subtitle text-xl mt-4">Loading standings...</h1>
-                </div>
-            </div>
-        );
+      if (isGroupData) {
+        updates.competitionType = 'GROUP_STAGE';
+        updates.standingsData = data.standings || data.groups || data;
+        updates.competitionName = data.competitionName || 'Group Stage Competition';
+        const firstGroup = Object.keys(updates.standingsData)[0];
+        updates.activeGroup = firstGroup || null;
+      } else {
+        updates.competitionType = 'LEAGUE';
+        // Sort league standings on frontend
+        updates.standingsData = sortStandings(data?.standings || data || []);
+        updates.competitionName = data?.competitionName || 'League Competition';
+      }
+
+      setState(prev => ({ ...prev, ...updates }));
+    } catch (err) {
+      console.error('Failed to load standings:', err);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load standings. Please try again.'
+      }));
     }
-    
-    // Error state
-    if (state.error) {
-        return (
-            <div className="modern-bg min-h-screen flex flex-col items-center justify-center text-center p-4">
-                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
-                <h1 className="modern-hero-title text-3xl mt-4">Error Loading Standings</h1>
-                <p className="modern-hero-subtitle mt-2">{state.error}</p>
-                <button onClick={fetchStandings} className="modern-cta-button mt-6">
-                    <span className="relative z-10">Try Again</span>
-                </button>
-            </div>
-        );
-    }
+  };
 
-    // Get current group data for display
-    const getCurrentGroupData = () => {
-        if (state.competitionType === 'LEAGUE') {
-            return state.standingsData;
-        }
-        
-        if (state.activeGroup === 'all') {
-            return null;
-        }
-        
-        return processedGroupData.groupData[state.activeGroup] || [];
-    };
+  useEffect(() => {
+    fetchStandings();
+  }, [competitionId]);
 
-    const currentGroupData = getCurrentGroupData();
-
-    // Main component render
+  // Loading state
+  if (state.loading) {
     return (
-        <div className="min-h-screen modern-bg text-white overflow-x-hidden">
-            <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <div className="modern-bg min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="h-12 w-12 text-gold-main animate-spin mx-auto" />
+          <h1 className="modern-hero-subtitle text-xl mt-4">Loading standings...</h1>
+        </div>
+      </div>
+    );
+  }
 
-            <header className="fixed top-0 left-0 w-full z-50 p-4">
-                <Link to="/view" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-main transition-colors duration-300 group glass-header-light p-2 rounded-lg">
-                    <ChevronLeft size={18} className="transition-transform duration-300 group-hover:-translate-x-1" />
-                    <span className="font-medium text-sm">Back to Dashboard</span>
-                </Link>
-            </header>
+  // Error state
+  if (state.error) {
+    return (
+      <div className="modern-bg min-h-screen flex flex-col items-center justify-center text-center p-4">
+        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
+        <h1 className="modern-hero-title text-3xl mt-4">Error Loading Standings</h1>
+        <p className="modern-hero-subtitle mt-2">{state.error}</p>
+        <button onClick={fetchStandings} className="modern-cta-button mt-6">
+          <span className="relative z-10">Try Again</span>
+        </button>
+      </div>
+    );
+  }
 
-            <main className="flex-grow container mx-auto px-4 sm:px-6 py-20 md:py-28 relative z-10 max-w-6xl">
-                <div className="text-center mb-10">
-                    <h1 className="modern-hero-title" style={{fontSize: 'clamp(2rem, 5vw, 3.5rem)'}}>
-                        {state.competitionName} <span className="modern-brand-accent">Standings</span>
-                    </h1>
-                    <div className="inline-flex items-center space-x-2 mt-3 glass-header-light px-3 py-2 rounded-full">
-                        {state.competitionType === 'GROUP_STAGE' ? 
-                          <Swords size={16} className="text-gold-main/80"/> : 
-                          <BarChart3 size={16} className="text-gold-main/80"/>
-                        }
-                        <span className="font-medium text-purple-light text-sm tracking-wide">
-                          {state.competitionType.replace('_', ' ')}
-                        </span>
-                    </div>
+  // Get current group data for display
+  const getCurrentGroupData = () => {
+    if (state.competitionType === 'LEAGUE') {
+      return state.standingsData;
+    }
+
+    if (state.activeGroup === 'all') {
+      return null;
+    }
+
+    return processedGroupData.groupData[state.activeGroup] || [];
+  };
+
+  const currentGroupData = getCurrentGroupData();
+
+  // Main component render
+  return (
+    <div className="min-h-screen modern-bg text-white overflow-x-hidden">
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+      <header className="fixed top-0 left-0 w-full z-50 p-4">
+        <Link to="/view" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-main transition-colors duration-300 group glass-header-light p-2 rounded-lg">
+          <ChevronLeft size={18} className="transition-transform duration-300 group-hover:-translate-x-1" />
+          <span className="font-medium text-sm">Back to Dashboard</span>
+        </Link>
+      </header>
+
+      <main className="flex-grow container mx-auto px-4 sm:px-6 py-20 md:py-28 relative z-10 max-w-6xl">
+        <div className="text-center mb-10">
+          <h1 className="modern-hero-title" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)' }}>
+            {state.competitionName} <span className="modern-brand-accent">Standings</span>
+          </h1>
+          <div className="inline-flex items-center space-x-2 mt-3 glass-header-light px-3 py-2 rounded-full">
+            {state.competitionType === 'GROUP_STAGE' ?
+              <Swords size={16} className="text-gold-main/80" /> :
+              <BarChart3 size={16} className="text-gold-main/80" />
+            }
+            <span className="font-medium text-purple-light text-sm tracking-wide">
+              {state.competitionType.replace('_', ' ')}
+            </span>
+          </div>
+        </div>
+
+        {state.competitionType === 'GROUP_STAGE' && processedGroupData.groups.length > 0 && (
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-2 justify-center">
+              {[...processedGroupData.groups, ...(processedGroupData.groups.length > 1 ? ['all'] : [])].map((groupName) => (
+                <button
+                  key={groupName}
+                  onClick={() => setState(prev => ({ ...prev, activeGroup: groupName }))}
+                  className={`group-nav-button ${state.activeGroup === groupName ? 'active' : ''}`}>
+                  {groupName === 'all' ? 'All Groups' : groupName}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stats Section */}
+        {state.competitionType === 'LEAGUE' && currentGroupData && (
+          <StatsSection standings={currentGroupData} />
+        )}
+
+        {state.competitionType === 'GROUP_STAGE' && state.activeGroup && state.activeGroup !== 'all' && currentGroupData && (
+          <StatsSection
+            standings={currentGroupData}
+            groupName={state.activeGroup}
+          />
+        )}
+
+        {/* Standings Content */}
+        {state.competitionType === 'LEAGUE' ? (
+          <StandingsTable standings={currentGroupData} />
+        ) : state.competitionType === 'GROUP_STAGE' && state.standingsData ? (
+          state.activeGroup === 'all' ? (
+            <div className="space-y-10">
+              {processedGroupData.groups.map((groupName) => (
+                <div key={groupName}>
+                  <StatsSection
+                    standings={processedGroupData.groupData[groupName] || []}
+                    groupName={groupName}
+                  />
+                  <StandingsTable
+                    standings={processedGroupData.groupData[groupName] || []}
+                    title={groupName}
+                    showGroupHeader={true}
+                  />
                 </div>
+              ))}
+            </div>
+          ) : state.activeGroup && currentGroupData ? (
+            <StandingsTable
+              standings={currentGroupData}
+              title={state.activeGroup}
+              showGroupHeader={true}
+            />
+          ) : (
+            <div className="text-center p-8">
+              <p className="text-gold-main text-xl">Select a Group</p>
+              <p className="text-purple-light mt-2">Choose a group to view its standings.</p>
+            </div>
+          )
+        ) : (
+          <div className="text-center p-8">
+            <p className="text-gold-main text-xl">No Data Available</p>
+            <p className="text-purple-light mt-2">Competition has not started yet.</p>
+          </div>
+        )}
+      </main>
 
-                {state.competitionType === 'GROUP_STAGE' && processedGroupData.groups.length > 0 && (
-                    <div className="mb-8">
-                        <div className="flex flex-wrap gap-2 justify-center">
-                           {[...processedGroupData.groups, ...(processedGroupData.groups.length > 1 ? ['all'] : [])].map((groupName) => (
-                                <button
-                                    key={groupName}
-                                    onClick={() => setState(prev => ({...prev, activeGroup: groupName}))}
-                                    className={`group-nav-button ${state.activeGroup === groupName ? 'active' : ''}`}>
-                                    {groupName === 'all' ? 'All Groups' : groupName}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                {/* Stats Section */}
-                {state.competitionType === 'LEAGUE' && currentGroupData && (
-                    <StatsSection standings={currentGroupData} />
-                )}
-                
-                {state.competitionType === 'GROUP_STAGE' && state.activeGroup && state.activeGroup !== 'all' && currentGroupData && (
-                    <StatsSection 
-                        standings={currentGroupData} 
-                        groupName={state.activeGroup} 
-                    />
-                )}
-                
-                {/* Standings Content */}
-                {state.competitionType === 'LEAGUE' ? (
-                    <StandingsTable standings={currentGroupData} />
-                ) : state.competitionType === 'GROUP_STAGE' && state.standingsData ? (
-                    state.activeGroup === 'all' ? (
-                        <div className="space-y-10">
-                            {processedGroupData.groups.map((groupName) => (
-                                <div key={groupName}>
-                                    <StatsSection 
-                                        standings={processedGroupData.groupData[groupName] || []} 
-                                        groupName={groupName} 
-                                    />
-                                    <StandingsTable 
-                                        standings={processedGroupData.groupData[groupName] || []}
-                                        title={groupName} 
-                                        showGroupHeader={true} 
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    ) : state.activeGroup && currentGroupData ? (
-                        <StandingsTable 
-                            standings={currentGroupData}
-                            title={state.activeGroup} 
-                            showGroupHeader={true} 
-                        />
-                    ) : (
-                         <div className="text-center p-8">
-                             <p className="text-gold-main text-xl">Select a Group</p>
-                             <p className="text-purple-light mt-2">Choose a group to view its standings.</p>
-                         </div>
-                    )
-                ) : (
-                     <div className="text-center p-8">
-                         <p className="text-gold-main text-xl">No Data Available</p>
-                         <p className="text-purple-light mt-2">Competition has not started yet.</p>
-                     </div>
-                )}
-            </main>
-            
-            {/* Global Styles */}
-            <style jsx global>{`
+      {/* Global Styles */}
+      <style jsx global>{`
                 :root { 
                     --purple-dark: #2c1b4b; 
                     --purple-mid: #4a2a6c; 
@@ -758,6 +766,6 @@ export default function Standings() {
                     border-top-right-radius: 8px;
                 }
             `}</style>
-        </div>
-    );
+    </div>
+  );
 }
