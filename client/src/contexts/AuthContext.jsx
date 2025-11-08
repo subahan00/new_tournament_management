@@ -19,35 +19,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Helper to get storage based on remember me preference
+  const getStorage = () => {
+    // Check localStorage first (remember me = true)
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    return rememberMe ? localStorage : sessionStorage;
+  };
+
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = () => {
       try {
-        const storedToken = localStorage.getItem('authToken');
-        const storedUser = localStorage.getItem('user');
+        // Check both storages (localStorage for remember me, sessionStorage for regular login)
+        let storedToken = localStorage.getItem('authToken');
+        let storedUser = localStorage.getItem('user');
+        let storage = localStorage;
+
+        // If not in localStorage, check sessionStorage
+        if (!storedToken) {
+          storedToken = sessionStorage.getItem('authToken');
+          storedUser = sessionStorage.getItem('user');
+          storage = sessionStorage;
+        }
 
         // Check if token exists and is valid
-       if (storedToken && !isTokenExpired(storedToken)) {
-  if (storedUser && storedUser !== "undefined") {
-    setUser(JSON.parse(storedUser));
-  } else {
-    setUser(null); // Add this!
-  }
-
-  setToken(storedToken);
-  axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-} else {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('user');
-  setUser(null); // Add this!
-  setToken(null); // Add this!
-}
-
+        if (storedToken && !isTokenExpired(storedToken)) {
+          if (storedUser && storedUser !== "undefined") {
+            setUser(JSON.parse(storedUser));
+            setToken(storedToken);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          } else {
+            // Clear invalid user data
+            storage.removeItem('authToken');
+            storage.removeItem('user');
+            setUser(null);
+            setToken(null);
+          }
+        } else {
+          // Token expired or doesn't exist, clear everything
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          localStorage.removeItem('rememberMe');
+          sessionStorage.removeItem('authToken');
+          sessionStorage.removeItem('user');
+          setUser(null);
+          setToken(null);
+        }
       } catch (error) {
         console.error("Failed to initialize auth state:", error);
-        // Clear invalid storage
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
+        // Clear all storage on error
+        localStorage.clear();
+        sessionStorage.clear();
+        setUser(null);
+        setToken(null);
       } finally {
         setLoading(false);
       }
@@ -56,7 +80,8 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = (newToken, userData) => {
+  // Modified login function with rememberMe parameter
+  const login = (newToken, userData, rememberMe = false) => {
     try {
       // Validate token before storing
       if (isTokenExpired(newToken)) {
@@ -64,8 +89,28 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
 
-      localStorage.setItem('authToken', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Choose storage based on rememberMe
+      const storage = rememberMe ? localStorage : sessionStorage;
+      
+      // Clear the other storage to avoid conflicts
+      if (rememberMe) {
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('user');
+      } else {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('rememberMe');
+      }
+
+      // Store credentials in chosen storage
+      storage.setItem('authToken', newToken);
+      storage.setItem('user', JSON.stringify(userData));
+      
+      // Store remember me preference in localStorage (always persistent)
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      }
+
       setToken(newToken);
       setUser(userData);
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
@@ -77,8 +122,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Clear both storages
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('rememberMe');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('user');
+    
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];

@@ -10,7 +10,11 @@ const api = axios.create({
 
 // Add request interceptor for dynamic token handling
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('authToken');
+  // Check both localStorage and sessionStorage for token
+  let token = localStorage.getItem('authToken');
+  if (!token) {
+    token = sessionStorage.getItem('authToken');
+  }
   
   // Only add Authorization header if token exists
   if (token) {
@@ -26,8 +30,18 @@ api.interceptors.response.use(
   error => {
     if (error.response?.status === 401) {
       // Handle unauthorized errors (token expired, invalid, etc.)
+      
+      // Clear both storages
       localStorage.removeItem('authToken');
-      window.location = '/login'; // Redirect to login
+      localStorage.removeItem('user');
+      localStorage.removeItem('rememberMe');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
+      
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location = '/login';
+      }
     }
     return Promise.reject(error);
   }

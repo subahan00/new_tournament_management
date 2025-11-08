@@ -5,10 +5,8 @@ import { toast } from 'react-toastify';
 import io from 'socket.io-client';
 import competitionService from '../services/competitionService';
 import {
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Loader,
   Search,
   Swords,
@@ -137,9 +135,6 @@ const generateMatchdaySchedule = (fixtures) => {
     }
   }
 
-  console.log(`Generated ${matchdays.length} matchdays from ${processedFixtures.length} fixtures`);
-  console.log('Fixtures per matchday:', matchdays.map(md => md.length));
-
   return matchdays;
 };
 
@@ -241,10 +236,6 @@ const PaginationInfo = ({ currentPage, totalPages, totalItems, itemsPerPage }) =
 
 const FixtureCard = memo(({ fixture }) => {
   const statusInfo = getStatusInfo(fixture.status);
-  const matchDate = new Date(fixture.matchDate);
-
-  const timeOptions = { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true };
-  const dateOptions = { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' };
 
   const renderMiddleSection = () => {
     if (fixture.status === 'completed' &&
@@ -262,34 +253,24 @@ const FixtureCard = memo(({ fixture }) => {
 
   return (
     <div className="fixture-card group">
-      <div className="flex justify-between items-start text-xs mb-3">
+      <div className="flex justify-between items-start mb-1.5">
         <div className={`status-badge ${statusInfo.className}`}>
           {statusInfo.text}
         </div>
       </div>
 
-      <div className="flex items-center justify-between my-4">
-        <span className="player-name">{fixture.homePlayerName || 'TBD'}</span>
+      <div className="flex items-center justify-between my-1.5">
+        <span className="player-name text-right">{fixture.homePlayerName || 'TBD'}</span>
         {renderMiddleSection()}
-        <span className="player-name">{fixture.awayPlayerName || 'TBD'}</span>
-      </div>
-
-      <div className="flex items-center justify-between text-xs text-purple-light/80 mt-3">
-        <div className="flex items-center space-x-1">
-          <CalendarDays size={12} />
-          <span>{matchDate.toLocaleDateString('en-IN', dateOptions)}</span>
-        </div>
-        <div className="flex items-center space-x-1">
-          <Clock size={12} />
-          <span>{matchDate.toLocaleTimeString('en-IN', timeOptions)}</span>
-        </div>
+        <span className="player-name text-left">{fixture.awayPlayerName || 'TBD'}</span>
       </div>
 
       {fixture.status === 'completed' && fixture.result && (
-        <div className="mt-3 pt-3 border-t border-purple-light/20">
-          <div className="text-center text-xs">
+        <div className="mt-1.5 pt-1.5 border-t border-purple-light/10">
+          <div className="text-center text-[10px] leading-tight">
+            <span className="text-purple-light/60 mr-1">Winner:</span>
             <span className="text-gold-main font-medium">
-              Winner: {fixture.result === 'home' ? fixture.homePlayerName :
+              {fixture.result === 'home' ? fixture.homePlayerName :
                 fixture.result === 'away' ? fixture.awayPlayerName :
                   'Draw'}
             </span>
@@ -313,13 +294,12 @@ const MatchdaySection = memo(({ matchdayNumber, fixtures }) => {
   return (
     <div className="matchday-container">
       <div className="matchday-header">
-        <div className="flex items-center space-x-3">
-          <Swords size={20} className="text-gold-main" />
-          <h3 className="matchday-title">Matchday {matchdayNumber}</h3>
-          <span className="matchday-count">{fixtures.length} Fixtures</span>
+        <div className="flex items-center space-x-2">
+          <Swords size={16} className="text-gold-main" />
+          <h3 className="matchday-title">MD {matchdayNumber}</h3>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
           <div className="matchday-stats">
             {liveCount > 0 && (
               <span className="stat-badge live">{liveCount} Live</span>
@@ -328,14 +308,14 @@ const MatchdaySection = memo(({ matchdayNumber, fixtures }) => {
               <span className="stat-badge pending">{pendingCount} Pending</span>
             )}
             {completedCount > 0 && (
-              <span className="stat-badge completed">{completedCount} Finished</span>
+              <span className="stat-badge completed">{completedCount} Done</span>
             )}
           </div>
         </div>
       </div>
 
       <div className="matchday-content">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
           {fixtures.map((fixture) => (
             <FixtureCard key={fixture._id} fixture={fixture} />
           ))}
@@ -424,30 +404,7 @@ export default function CompetitionFixtures() {
 
   // Generate matchday schedule
   const matchdaySchedule = useMemo(() => {
-    const schedule = generateMatchdaySchedule(fixtures);
-    
-    // Calculate statistics
-    const totalPlayers = new Set();
-    fixtures.forEach(f => {
-      const homeId = typeof f.homePlayer === 'object' ? f.homePlayer?._id : f.homePlayer;
-      const awayId = typeof f.awayPlayer === 'object' ? f.awayPlayer?._id : f.awayPlayer;
-      if (homeId) totalPlayers.add(homeId);
-      if (awayId) totalPlayers.add(awayId);
-    });
-    
-    const expectedMatchdays = totalPlayers.size > 0 ? totalPlayers.size - 1 : 0;
-    const expectedFixturesPerMatchday = totalPlayers.size > 0 ? totalPlayers.size / 2 : 0;
-    
-    console.log('=== MATCHDAY GENERATION STATS ===');
-    console.log('Total players:', totalPlayers.size);
-    console.log('Total fixtures:', fixtures.length);
-    console.log('Expected matchdays:', expectedMatchdays);
-    console.log('Expected fixtures per matchday:', expectedFixturesPerMatchday);
-    console.log('Generated matchdays:', schedule.length);
-    console.log('Fixtures per matchday:', schedule.map(md => md.length));
-    console.log('================================');
-    
-    return schedule;
+    return generateMatchdaySchedule(fixtures);
   }, [fixtures]);
 
   // Filter matchdays based on search
@@ -580,7 +537,7 @@ export default function CompetitionFixtures() {
           />
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {paginatedMatchdays.matchdays.length === 0 ? (
             <InteractiveCard>
               <div className="text-center py-16 modern-info-card">
@@ -656,7 +613,7 @@ export default function CompetitionFixtures() {
             .matchday-container {
                 background: rgba(10, 5, 16, 0.5);
                 border: 1px solid rgba(255, 223, 128, 0.1);
-                border-radius: 16px;
+                border-radius: 12px;
                 overflow: hidden;
                 transition: all 0.3s ease;
             }
@@ -665,7 +622,7 @@ export default function CompetitionFixtures() {
             }
 
             .matchday-header {
-                padding: 1.5rem;
+                padding: 0.6rem 1rem;
                 background: rgba(44, 27, 75, 0.3);
                 backdrop-filter: blur(8px);
                 display: flex;
@@ -679,28 +636,20 @@ export default function CompetitionFixtures() {
 
             .matchday-title {
                 font-family: 'Space Grotesk', sans-serif;
-                font-size: 1.5rem;
+                font-size: 1rem;
                 font-weight: 700;
                 color: var(--gold-main);
             }
 
-            .matchday-count {
-                font-size: 0.875rem;
-                color: var(--purple-light);
-                background: rgba(139, 123, 184, 0.2);
-                padding: 0.25rem 0.75rem;
-                border-radius: 9999px;
-            }
-
             .matchday-stats {
                 display: flex;
-                gap: 0.5rem;
+                gap: 0.35rem;
             }
 
             .stat-badge {
-                font-size: 0.75rem;
+                font-size: 0.65rem;
                 font-weight: 600;
-                padding: 0.25rem 0.75rem;
+                padding: 0.15rem 0.5rem;
                 border-radius: 9999px;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
@@ -722,7 +671,7 @@ export default function CompetitionFixtures() {
             }
 
             .matchday-content {
-                padding: 1.5rem;
+                padding: 0.75rem;
                 animation: slideDown 0.3s ease-out;
             }
 
@@ -737,65 +686,47 @@ export default function CompetitionFixtures() {
                 }
             }
 
-            .expand-all-btn {
-                font-size: 0.875rem;
-                font-weight: 500;
-                color: var(--purple-light);
-                background: rgba(44, 27, 75, 0.3);
-                border: 1px solid rgba(139, 123, 184, 0.25);
-                border-radius: 8px;
-                padding: 0.5rem 1rem;
-                transition: all 0.3s ease;
-                cursor: pointer;
-            }
-            .expand-all-btn:hover {
-                background: rgba(44, 27, 75, 0.5);
-                border-color: var(--gold-main);
-                color: var(--gold-main);
-            }
-
             .fixture-card {
                 background: rgba(10, 5, 16, 0.5);
                 border: 1px solid rgba(255, 223, 128, 0.1);
-                border-radius: 12px;
-                padding: 1rem;
+                border-radius: 8px;
+                padding: 0.5rem 0.75rem;
                 transition: all 0.3s ease;
             }
             .fixture-card:hover {
-                transform: translateY(-4px);
+                transform: translateY(-2px);
                 border-color: rgba(255, 223, 128, 0.3);
-                box-shadow: 0 8px 25px rgba(0,0,0, 0.2);
+                box-shadow: 0 4px 15px rgba(0,0,0, 0.2);
                 background: rgba(10, 5, 16, 0.7);
             }
             .player-name {
                 flex: 1;
-                text-align: center;
-                font-weight: 600;
-                font-size: 1rem;
+                font-weight: 500;
+                font-size: 0.875rem;
                 color: #e2dcf7;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                padding: 0 0.25rem;
             }
             .score-display {
                 font-family: 'Space Grotesk', sans-serif;
-                font-size: 1.75rem;
+                font-size: 1.1rem;
                 font-weight: 700;
                 color: var(--gold-main);
-                margin: 0 1rem;
+                margin: 0 0.75rem;
             }
             .vs-text {
                 font-family: 'Space Grotesk', sans-serif;
-                font-size: 1rem;
+                font-size: 0.8rem;
                 font-weight: 500;
                 color: var(--purple-light);
-                margin: 0 1rem;
+                margin: 0 0.75rem;
+                opacity: 0.6;
             }
             .status-badge {
-                font-size: 0.7rem;
+                font-size: 0.6rem;
                 font-weight: 600;
-                padding: 2px 8px;
+                padding: 1px 6px;
                 border-radius: 9999px;
                 border: 1px solid;
                 text-transform: uppercase;
