@@ -6,12 +6,11 @@ import io from 'socket.io-client';
 import competitionService from '../services/competitionService';
 import {
   ChevronLeft,
-  ChevronRight,
   Loader,
   Search,
   Swords,
   Info,
-} from 'lucide-react';
+} from 'lucide-react'; // Removed ChevronRight
 
 const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
 
@@ -148,7 +147,7 @@ const generateMatchdaySchedule = (fixtures) => {
       matchdays.push(currentMatchdayFixtures);
     }
 
-   
+    
     rotatingPlayers.unshift(rotatingPlayers.pop());
   }
 
@@ -158,96 +157,12 @@ const generateMatchdaySchedule = (fixtures) => {
 };
 
 //=================================================================
-// PAGINATION COMPONENT
+// PAGINATION COMPONENT - REMOVED
 //=================================================================
 
-const PaginationControls = ({ currentPage, totalPages, onPageChange }) => {
-  if (totalPages <= 1) return null;
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const showPages = 5;
-
-    let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
-    let endPage = Math.min(totalPages, startPage + showPages - 1);
-
-    if (endPage - startPage < showPages - 1) {
-      startPage = Math.max(1, endPage - showPages + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-
-    return pages;
-  };
-
-  return (
-    <div className="flex items-center justify-center space-x-2 mt-8">
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
-        title="Previous page"
-      >
-        <ChevronLeft size={16} />
-      </button>
-
-      {getPageNumbers()[0] > 1 && (
-        <>
-          <button onClick={() => onPageChange(1)} className="pagination-btn">1</button>
-          {getPageNumbers()[0] > 2 && <span className="pagination-ellipsis">...</span>}
-        </>
-      )}
-
-      {getPageNumbers().map(page => (
-        <button
-          key={page}
-          onClick={() => onPageChange(page)}
-          className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
-        >
-          {page}
-        </button>
-      ))}
-
-      {getPageNumbers()[getPageNumbers().length - 1] < totalPages && (
-        <>
-          {getPageNumbers()[getPageNumbers().length - 1] < totalPages - 1 && (
-            <span className="pagination-ellipsis">...</span>
-          )}
-          <button onClick={() => onPageChange(totalPages)} className="pagination-btn">
-            {totalPages}
-          </button>
-        </>
-      )}
-
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-        title="Next page"
-      >
-        <ChevronRight size={16} />
-      </button>
-    </div>
-  );
-};
-
 //=================================================================
-// PAGINATION INFO COMPONENT
+// PAGINATION INFO COMPONENT - REMOVED
 //=================================================================
-
-const PaginationInfo = ({ currentPage, totalPages, totalItems, itemsPerPage }) => {
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-
-  return (
-    <div className="text-center text-sm text-purple-light/80 mb-6">
-      Showing matchdays {startItem}-{endItem} of {totalItems}
-      {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
-    </div>
-  );
-};
 
 //=================================================================
 // FIXTURE CARD COMPONENT
@@ -355,8 +270,7 @@ export default function CompetitionFixtures() {
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [matchdaysPerPage] = useState(5);
+  // REMOVED: currentPage and matchdaysPerPage state
 
   const fetchFixtures = useCallback(async () => {
     try {
@@ -471,30 +385,9 @@ export default function CompetitionFixtures() {
     return processedMatchdays;
   }, [matchdaySchedule, searchTerm]);
 
-  // Pagination
-  const paginatedMatchdays = useMemo(() => {
-    const totalMatchdays = filteredMatchdays.length;
-    const totalPages = Math.ceil(totalMatchdays / matchdaysPerPage);
-
-    const startIndex = (currentPage - 1) * matchdaysPerPage;
-    const endIndex = startIndex + matchdaysPerPage;
-    const currentMatchdays = filteredMatchdays.slice(startIndex, endIndex);
-
-    return {
-      matchdays: currentMatchdays,
-      totalPages,
-      totalMatchdays
-    };
-  }, [filteredMatchdays, currentPage, matchdaysPerPage]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // REMOVED: paginatedMatchdays memo
+  // REMOVED: useEffect to reset page on search
+  // REMOVED: handlePageChange function
 
   if (loading) {
     return (
@@ -547,17 +440,11 @@ export default function CompetitionFixtures() {
           </div>
         </InteractiveCard>
 
-        {paginatedMatchdays.totalMatchdays > 0 && (
-          <PaginationInfo
-            currentPage={currentPage}
-            totalPages={paginatedMatchdays.totalPages}
-            totalItems={paginatedMatchdays.totalMatchdays}
-            itemsPerPage={matchdaysPerPage}
-          />
-        )}
+        {/* REMOVED: PaginationInfo component call */}
 
         <div className="space-y-4">
-          {paginatedMatchdays.matchdays.length === 0 ? (
+          {/* MODIFIED: Check filteredMatchdays.length */}
+          {filteredMatchdays.length === 0 ? (
             <InteractiveCard>
               <div className="text-center py-16 modern-info-card">
                 <Info className="h-12 w-12 text-gold-main/50 mx-auto mb-4" />
@@ -568,7 +455,8 @@ export default function CompetitionFixtures() {
               </div>
             </InteractiveCard>
           ) : (
-            paginatedMatchdays.matchdays.map((matchday) => (
+            // MODIFIED: Map over filteredMatchdays directly
+            filteredMatchdays.map((matchday) => (
               <InteractiveCard key={matchday.matchdayNumber}>
                 <MatchdaySection
                   matchdayNumber={matchday.matchdayNumber}
@@ -579,11 +467,7 @@ export default function CompetitionFixtures() {
           )}
         </div>
 
-        <PaginationControls
-          currentPage={currentPage}
-          totalPages={paginatedMatchdays.totalPages}
-          onPageChange={handlePageChange}
-        />
+        {/* REMOVED: PaginationControls component call */}
       </main>
 
       <style jsx global>{`
@@ -752,51 +636,8 @@ export default function CompetitionFixtures() {
                 letter-spacing: 0.05em;
             }
 
-            .pagination-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 40px;
-                height: 40px;
-                padding: 0 12px;
-                font-size: 0.875rem;
-                font-weight: 500;
-                color: var(--purple-light);
-                background: rgba(44, 27, 75, 0.3);
-                border: 1px solid rgba(139, 123, 184, 0.25);
-                border-radius: 8px;
-                transition: all 0.3s ease;
-                backdrop-filter: blur(8px);
-                cursor: pointer;
-            }
-            .pagination-btn:hover:not(.disabled) {
-                background: rgba(44, 27, 75, 0.5);
-                border-color: var(--gold-main);
-                color: var(--gold-main);
-                transform: translateY(-1px);
-            }
-            .pagination-btn.active {
-                background: var(--gold-main);
-                color: #0a0510;
-                border-color: var(--gold-main);
-                font-weight: 600;
-            }
-            .pagination-btn.disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-                background: rgba(44, 27, 75, 0.2);
-                border-color: rgba(139, 123, 184, 0.1);
-            }
-            .pagination-ellipsis {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 40px;
-                height: 40px;
-                color: var(--purple-light);
-                font-weight: 500;
-                font-size: 0.875rem;
-            }
+            /* REMOVED: All .pagination-btn and .pagination-ellipsis styles */
+            
         `}</style>
     </div>
   );
