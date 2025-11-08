@@ -64,76 +64,95 @@ const getStatusInfo = (status) => {
 // ROUND-ROBIN MATCHDAY GENERATOR
 //=================================================================
 
+
 const generateMatchdaySchedule = (fixtures) => {
   if (!fixtures || fixtures.length === 0) return [];
 
-  // Extract and normalize player IDs
+  // Helper to get consistent player IDs
   const getPlayerId = (player) => {
     if (!player) return null;
     return typeof player === 'object' && player !== null ? player._id : player;
   };
 
-  // Step 1: Deduplicate fixtures - keep only unique matchups
+  const playerIds = new Set();
   const fixtureMap = new Map();
 
+  // 1. Process all fixtures into a lookup map and find all unique players
   for (const fixture of fixtures) {
     const homeId = getPlayerId(fixture.homePlayer);
     const awayId = getPlayerId(fixture.awayPlayer);
-    
-    if (!homeId || !awayId) continue;
 
-    // Create a consistent key for this matchup (smaller ID first to handle both directions)
+    if (!homeId || !awayId || homeId === awayId) continue;
+
+    playerIds.add(homeId);
+    playerIds.add(awayId);
+
+    // Create a consistent key (smallerID-largerID) to handle (A vs B) and (B vs A)
     const key = [homeId, awayId].sort().join('-');
-    
+
     // Only keep the first occurrence of each unique matchup
     if (!fixtureMap.has(key)) {
-      fixtureMap.set(key, {
-        ...fixture,
-        homeId,
-        awayId
-      });
+      fixtureMap.set(key, fixture);
     }
   }
 
-  // Step 2: Convert map to array and sort by match date
-  const uniqueFixtures = Array.from(fixtureMap.values());
-  uniqueFixtures.sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
+  const players = Array.from(playerIds);
+  let numPlayers = players.length;
 
-  // Step 3: Apply round-robin scheduling algorithm
+  // 2. Handle odd number of players by adding a "dummy" player for byes
+  // The algorithm requires an even number of participants.
+  if (numPlayers % 2 !== 0) {
+    players.push(null); // 'null' represents the "bye"
+    numPlayers++;
+  }
+
+  // 3. Implement the Circle Method (Polygon Method) algorithm
   const matchdays = [];
-  const assignedFixtures = new Set();
+  const numRounds = numPlayers - 1; // For 32 players, this is 31 rounds
+  const halfSize = numPlayers / 2;   // For 32 players, this is 16 fixtures
 
-  // Greedy algorithm: keep creating matchdays until all fixtures are assigned
-  while (assignedFixtures.size < uniqueFixtures.length) {
-    const currentMatchday = [];
-    const playersInMatchday = new Set();
+  // Make a copy of the players array, remove the first player (who stays fixed)
+  const rotatingPlayers = players.slice(1);
 
-    // Try to assign as many fixtures as possible to this matchday
-    for (const fixture of uniqueFixtures) {
-      // Skip if already assigned
-      if (assignedFixtures.has(fixture._id)) continue;
+  for (let round = 0; round < numRounds; round++) {
+    const currentMatchdayFixtures = [];
+    
+    // Pair the fixed player (players[0]) with the first player in the rotating list
+    const p1 = players[0];
+    const p2 = rotatingPlayers[0];
 
-      const { homeId, awayId } = fixture;
-
-      // Check if both players are available (not already playing in this matchday)
-      if (!playersInMatchday.has(homeId) && !playersInMatchday.has(awayId)) {
-        currentMatchday.push(fixture);
-        assignedFixtures.add(fixture._id);
-        playersInMatchday.add(homeId);
-        playersInMatchday.add(awayId);
+    if (p1 !== null && p2 !== null) {
+      const key = [p1, p2].sort().join('-');
+      const fixture = fixtureMap.get(key);
+      if (fixture) {
+        currentMatchdayFixtures.push(fixture);
       }
     }
 
-    // Add the matchday if it has fixtures
-    if (currentMatchday.length > 0) {
-      matchdays.push(currentMatchday);
-    } else {
-      // Safety break: if we can't assign any more fixtures, stop
-      console.warn('Could not assign remaining fixtures:', 
-        uniqueFixtures.filter(f => !assignedFixtures.has(f._id)).length);
-      break;
+    // Pair the rest of the players
+    for (let i = 1; i < halfSize; i++) {
+      const home = rotatingPlayers[i];
+      const away = rotatingPlayers[rotatingPlayers.length - i];
+
+      if (home !== null && away !== null) {
+        const key = [home, away].sort().join('-');
+        const fixture = fixtureMap.get(key);
+        if (fixture) {
+          currentMatchdayFixtures.push(fixture);
+        }
+      }
     }
+
+    // Add the fully constructed matchday
+    if (currentMatchdayFixtures.length > 0) {
+      matchdays.push(currentMatchdayFixtures);
+    }
+
+   
+    rotatingPlayers.unshift(rotatingPlayers.pop());
   }
+
+
 
   return matchdays;
 };
