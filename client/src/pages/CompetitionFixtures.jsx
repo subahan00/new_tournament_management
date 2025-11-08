@@ -73,9 +73,8 @@ const generateMatchdaySchedule = (fixtures) => {
     return typeof player === 'object' && player !== null ? player._id : player;
   };
 
-  // Group fixtures by unique player pairs to detect duplicates
+  // Step 1: Deduplicate fixtures - keep only unique matchups
   const fixtureMap = new Map();
-  const processedFixtures = [];
 
   for (const fixture of fixtures) {
     const homeId = getPlayerId(fixture.homePlayer);
@@ -88,8 +87,7 @@ const generateMatchdaySchedule = (fixtures) => {
     
     // Only keep the first occurrence of each unique matchup
     if (!fixtureMap.has(key)) {
-      fixtureMap.set(key, fixture);
-      processedFixtures.push({
+      fixtureMap.set(key, {
         ...fixture,
         homeId,
         awayId
@@ -97,19 +95,21 @@ const generateMatchdaySchedule = (fixtures) => {
     }
   }
 
-  // Sort by match date to respect scheduling order
-  processedFixtures.sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
+  // Step 2: Convert map to array and sort by match date
+  const uniqueFixtures = Array.from(fixtureMap.values());
+  uniqueFixtures.sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
 
+  // Step 3: Apply round-robin scheduling algorithm
   const matchdays = [];
   const assignedFixtures = new Set();
 
   // Greedy algorithm: keep creating matchdays until all fixtures are assigned
-  while (assignedFixtures.size < processedFixtures.length) {
+  while (assignedFixtures.size < uniqueFixtures.length) {
     const currentMatchday = [];
     const playersInMatchday = new Set();
 
     // Try to assign as many fixtures as possible to this matchday
-    for (const fixture of processedFixtures) {
+    for (const fixture of uniqueFixtures) {
       // Skip if already assigned
       if (assignedFixtures.has(fixture._id)) continue;
 
@@ -130,7 +130,7 @@ const generateMatchdaySchedule = (fixtures) => {
     } else {
       // Safety break: if we can't assign any more fixtures, stop
       console.warn('Could not assign remaining fixtures:', 
-        processedFixtures.filter(f => !assignedFixtures.has(f._id)).length);
+        uniqueFixtures.filter(f => !assignedFixtures.has(f._id)).length);
       break;
     }
   }
