@@ -119,8 +119,10 @@ const AdminBatchUploadPage = () => {
   };
 
   const uploadWallpaper = async (wallpaperData) => {
-    const token = localStorage.getItem('authToken');
-    
+    let token = localStorage.getItem('authToken');
+    if (!token) {
+      token = sessionStorage.getItem('authToken');
+    }
     if (!token) {
       throw new Error('No authentication token found');
     }
@@ -174,12 +176,12 @@ const AdminBatchUploadPage = () => {
       const uploadPromises = selectedFiles.map(async (file, index) => {
         const formDataToSend = new FormData();
         formDataToSend.append('wallpaper', file);
-        
+
         // For batch upload, append index to title to make each unique
-        const uniqueTitle = uploadMode === 'batch' && selectedFiles.length > 1 
+        const uniqueTitle = uploadMode === 'batch' && selectedFiles.length > 1
           ? `${formData.title.trim()} ${index + 1}`
           : formData.title.trim();
-        
+
         formDataToSend.append('title', uniqueTitle);
         formDataToSend.append('description', formData.description.trim());
         formDataToSend.append('tags', formData.tags);
@@ -194,7 +196,7 @@ const AdminBatchUploadPage = () => {
 
         try {
           const result = await uploadWallpaper(formDataToSend);
-          
+
           setUploadProgress(prev => ({
             ...prev,
             [index]: { status: 'completed', progress: 100 }
@@ -212,13 +214,13 @@ const AdminBatchUploadPage = () => {
       });
 
       const results = await Promise.all(uploadPromises);
-      
+
       const successCount = results.filter(r => r.success).length;
       const errorCount = results.length - successCount;
 
       if (successCount > 0) {
         setUploadSuccess(true);
-        
+
         if (errorCount === 0) {
           // All succeeded - clear form
           setFormData({
@@ -239,7 +241,7 @@ const AdminBatchUploadPage = () => {
           .filter(r => !r.success)
           .map(r => `File ${r.index + 1}: ${r.error}`)
           .join('; ');
-        
+
         setError(`${errorCount} upload(s) failed: ${errorMessages}`);
       }
 
@@ -297,22 +299,20 @@ const AdminBatchUploadPage = () => {
                       setPreviews([previews[0]]);
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg transition-all ${
-                    uploadMode === 'single'
+                  className={`px-4 py-2 rounded-lg transition-all ${uploadMode === 'single'
                       ? 'bg-amber-500 text-white'
                       : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                  }`}
+                    }`}
                 >
                   Single Upload
                 </button>
                 <button
                   type="button"
                   onClick={() => setUploadMode('batch')}
-                  className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
-                    uploadMode === 'batch'
+                  className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${uploadMode === 'batch'
                       ? 'bg-amber-500 text-white'
                       : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                  }`}
+                    }`}
                 >
                   <Images className="w-4 h-4" />
                   Batch Upload
@@ -325,7 +325,7 @@ const AdminBatchUploadPage = () => {
               <div className="bg-emerald-900/50 border border-emerald-500/30 rounded-lg p-4 flex items-center gap-3 backdrop-blur-sm">
                 <Check className="w-5 h-5 text-emerald-400" />
                 <span className="text-emerald-100 font-medium">
-                  {selectedFiles.length > 1 
+                  {selectedFiles.length > 1
                     ? `Successfully uploaded ${Object.values(uploadProgress).filter(p => p.status === 'completed').length} wallpaper(s)!`
                     : 'Wallpaper uploaded successfully!'
                   }
@@ -361,13 +361,12 @@ const AdminBatchUploadPage = () => {
               </div>
 
               <div
-                className={`relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
-                  dragActive
+                className={`relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${dragActive
                     ? 'border-amber-500 bg-amber-900/20'
                     : selectedFiles.length > 0
                       ? 'border-emerald-500 bg-emerald-900/10'
                       : 'border-gray-600 hover:border-amber-500/50 bg-gray-700/50'
-                }`}
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -390,19 +389,18 @@ const AdminBatchUploadPage = () => {
                           >
                             <X className="w-4 h-4" />
                           </button>
-                          
+
                           {/* Upload Progress */}
                           {uploadProgress[index] && (
                             <div className="absolute bottom-0 left-0 right-0 bg-black/80 text-white p-2 rounded-b-lg">
                               <div className="flex items-center justify-between text-xs">
-                                <span className={`${
-                                  uploadProgress[index].status === 'completed' ? 'text-green-400' :
-                                  uploadProgress[index].status === 'error' ? 'text-red-400' :
-                                  'text-yellow-400'
-                                }`}>
+                                <span className={`${uploadProgress[index].status === 'completed' ? 'text-green-400' :
+                                    uploadProgress[index].status === 'error' ? 'text-red-400' :
+                                      'text-yellow-400'
+                                  }`}>
                                   {uploadProgress[index].status === 'completed' ? 'Completed' :
-                                   uploadProgress[index].status === 'error' ? 'Error' :
-                                   'Uploading...'}
+                                    uploadProgress[index].status === 'error' ? 'Error' :
+                                      'Uploading...'}
                                 </span>
                                 {uploadProgress[index].status === 'uploading' && (
                                   <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
@@ -410,7 +408,7 @@ const AdminBatchUploadPage = () => {
                               </div>
                             </div>
                           )}
-                          
+
                           <div className="mt-2 text-center">
                             <p className="text-xs text-gray-300 truncate">
                               {preview.name} ({(preview.size / (1024 * 1024)).toFixed(2)} MB)
@@ -419,7 +417,7 @@ const AdminBatchUploadPage = () => {
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="text-center text-sm text-gray-400">
                       {selectedFiles.length} file(s) selected
                     </div>
@@ -566,11 +564,10 @@ const AdminBatchUploadPage = () => {
                 type="button"
                 onClick={handleSubmit}
                 disabled={uploading || selectedFiles.length === 0}
-                className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
-                  uploading || selectedFiles.length === 0
+                className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-3 ${uploading || selectedFiles.length === 0
                     ? 'bg-gray-600 cursor-not-allowed text-gray-400'
                     : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 transform hover:scale-[1.02] shadow-lg hover:shadow-amber-500/20'
-                }`}
+                  }`}
               >
                 {uploading ? (
                   <>

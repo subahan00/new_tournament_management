@@ -1,7 +1,14 @@
-//competitionService.js
 import axios from 'axios';
 const BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
-console.log('Backend URL:', BASE_URL);
+
+// Helper function
+const getAuthToken = () => {
+  let token = localStorage.getItem('authToken');
+  if (!token) {
+    token = sessionStorage.getItem('authToken');
+  }
+  return token;
+};
 
 export const getAllCompetitions = async () => {
   try { 
@@ -12,10 +19,10 @@ export const getAllCompetitions = async () => {
     throw error;
   }
 };
-// New function for creating clan war competitions
+
 export const createClanWarCompetition = async (competitionData) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.post(
@@ -29,6 +36,7 @@ export const createClanWarCompetition = async (competitionData) => {
     throw error;
   }
 };
+
 export const getCompetition = async (competitionId) => {
   try {
     const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/competitions/${competitionId}`);
@@ -40,7 +48,7 @@ export const getCompetition = async (competitionId) => {
 
 export const createCompetition = async (competitionData) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.post(
@@ -57,7 +65,7 @@ export const createCompetition = async (competitionData) => {
 
 export const deleteCompetition = async (competitionId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.delete(
@@ -70,7 +78,7 @@ export const deleteCompetition = async (competitionId) => {
     throw error;
   }
 };
-// Replace player in competition
+
 export const replacePlayerInCompetition = async (competitionId, oldPlayerId, newPlayerId) => {
   try {
     const response = await axios.patch(`${BASE_URL}/competitions/${competitionId}/replace-player`, {
@@ -87,6 +95,7 @@ export const replacePlayerInCompetition = async (competitionId, oldPlayerId, new
     };
   }
 };
+
 export const updatePlayerNameInCompetition = async (competitionId, playerId, newName) => {
   try {
     const response = await axios.put(`${BASE_URL}/competitions/${competitionId}/player-name`, {
@@ -98,12 +107,12 @@ export const updatePlayerNameInCompetition = async (competitionId, playerId, new
     return { success: false, message: error.response?.data?.message || error.message };
   }
 };
-// services/competitionService.js
+
 export const updateCompetitionStatus = async (competitionId, newStatus) => {
   try {
     const response = await axios.put(
       `${process.env.REACT_APP_BACKEND_URL}/api/competitions/${competitionId}/status`,
-      { status: newStatus },  // Ensure correct payload format
+      { status: newStatus },
       {
         headers: {
           'Content-Type': 'application/json'
@@ -126,9 +135,10 @@ export const updateCompetitionStatus = async (competitionId, newStatus) => {
     };
   }
 };
+
 export const updateCompetition = async (competitionId, competitionData) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.put(
@@ -145,15 +155,7 @@ export const updateCompetition = async (competitionId, competitionData) => {
     throw error;
   }
 };
-const getAllPlayers = async () => {
-  try {
-    const response = await axios.get(`${BASE_URL}/players`); // Adjust endpoint as needed
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-// Get clan war fixtures
+
 export const getClanWarFixtures = async (competitionId) => {
   try {
     const response = await axios.get(`${BASE_URL}/competitions/clan-war/${competitionId}/fixtures`);
@@ -164,10 +166,9 @@ export const getClanWarFixtures = async (competitionId) => {
   }
 };
 
-// Update individual match result in clan war
 export const updateClanWarMatch = async (fixtureId, matchIndex, homeScore, awayScore) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.put(
@@ -182,10 +183,9 @@ export const updateClanWarMatch = async (fixtureId, matchIndex, homeScore, awayS
   }
 };
 
-// Progress clan war to next round
 export const progressClanWarToNextRound = async (competitionId) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.post(
@@ -199,12 +199,10 @@ export const progressClanWarToNextRound = async (competitionId) => {
     throw error;
   }
 };
-// services/competitionService.js
-// Add this new method alongside your existing createClanWarCompetition
 
 export const createClanWarCompetitionWithExistingClans = async (competitionData) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken(); // ✅ FIXED
     if (!token) throw new Error('Unauthorized: No token found');
 
     const response = await axios.post(
@@ -218,7 +216,15 @@ export const createClanWarCompetitionWithExistingClans = async (competitionData)
     throw error;
   }
 };
-//
+const getAllPlayers = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}/players`); // Adjust endpoint as needed
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default {
   createCompetition,
   deleteCompetition,
