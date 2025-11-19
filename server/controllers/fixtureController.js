@@ -853,38 +853,61 @@ exports.updateFixtureResult = async (req, res) => {
     await fixture.save();
 
     // 5. Populate fixture data for response
-    const populatedFixture = await Fixture.findById(fixtureId)
+    // We use 'let' because we might need to modify it manually if a player is missing
+    let populatedFixture = await Fixture.findById(fixtureId)
       .populate('homePlayer awayPlayer', 'name _id')
       .lean();
 
-    // 6. Recalculate standings (CRITICAL - moved before response)
+    // --- FIX 1: PREVENT CRASH IF PLAYERS ARE MISSING (The "Akash" Fix) ---
+    // If the player ID exists in fixture but not in DB, .populate returns null.
+    // We manually fill it with a placeholder to prevent frontend/backend crashes.
+    if (!populatedFixture.homePlayer) {
+        console.warn(`[UpdateFixture] Home Player missing for ID: ${fixture.homePlayer}`);
+        populatedFixture.homePlayer = { _id: fixture.homePlayer, name: "Unknown Player" };
+    }
+    if (!populatedFixture.awayPlayer) {
+        console.warn(`[UpdateFixture] Away Player missing for ID: ${fixture.awayPlayer}`);
+        populatedFixture.awayPlayer = { _id: fixture.awayPlayer, name: "Unknown Player" };
+    }
+    // ---------------------------------------------------------------------
+
+    // 6. Logic for Standings and Sockets
     const competitionId = fixture.competitionId || fixture.competition;
     
     if (competitionId) {
       try {
-        // Recalculate standings immediately
-        await calculateStandings(competitionId);
+        // Fetch competition type FIRST to decide logic
+        const competition = await Competition.findById(competitionId).select('type').lean();
         
+        // --- FIX 2: SKIP CALCULATION FOR KNOCKOUT GAMES ---
+        const isKnockout = competition?.type === 'KO_REGULAR';
+        
+        if (!isKnockout) {
+           // Only calculate standings for Leagues or Group Stages
+           await calculateStandings(competitionId);
+        } else {
+           console.log(`Skipping standings calculation for ${competition?.type}`);
+        }
+
         // Emit real-time update if Socket.io is available
         if (global.io || req.app.get('io')) {
           const io = global.io || req.app.get('io');
           
-          // Fetch updated standings to broadcast
-          const updatedStandings = await Standing.find({ 
-            competition: competitionId 
-          }).lean();
+          // Only fetch and emit STANDINGS update if it wasn't a knockout game
+          if (!isKnockout) {
+            const updatedStandings = await Standing.find({ 
+              competition: competitionId 
+            }).lean();
+
+            io.emit('standings_update', {
+              competitionId: competitionId.toString(),
+              competitionType: competition?.type || 'LEAGUE',
+              standings: updatedStandings,
+              timestamp: new Date()
+            });
+          }
           
-          const competition = await Competition.findById(competitionId)
-            .select('type')
-            .lean();
-          
-          io.emit('standings_update', {
-            competitionId: competitionId.toString(),
-            competitionType: competition?.type || 'LEAGUE',
-            standings: updatedStandings,
-            timestamp: new Date()
-          });
-          
+          // Always emit FIXTURE update (scores changed, regardless of type)
           io.emit('fixture_update', {
             competitionId: competitionId.toString(),
             fixture: populatedFixture,
@@ -892,7 +915,7 @@ exports.updateFixtureResult = async (req, res) => {
           });
         }
       } catch (standingsError) {
-        console.error('Standings calculation error:', standingsError);
+        console.error('Standings/Socket error:', standingsError);
         // Don't fail the request if standings calculation fails
       }
     }
