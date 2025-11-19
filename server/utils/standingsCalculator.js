@@ -33,29 +33,37 @@ const calculateStandings = async (competitionId, requestId = 'N/A') => {
 
 const calculateLeagueStandings = async (competitionId, competition) => {
   try {
-    // 2. Get completed fixtures WITHOUT player population
+    // 2. Get completed fixtures
     const fixtures = await Fixture.find({
       competitionId,
       status: 'completed'
     }).lean();
 
-    // 3. Get existing standings for competition-specific names
+    // 3. Get existing standings
     const existingStandings = await Standing.find({ competition: competitionId })
       .select('player playerName')
       .lean();
 
-    // 4. Initialize standings with competition-specific names
+    // 4. Initialize standings map
     const standingsMap = new Map();
     
-    // Create base standings using existing names or global names
-    for (const playerId of competition.players) {
-      const existing = existingStandings.find(s => s.player.equals(playerId));
-      const globalPlayer = await Player.findById(playerId).select('name').lean();
+    // Helper to create a blank entry safely
+    const createEntry = async (playerId) => {
+      const existing = existingStandings.find(s => s.player && s.player.equals(playerId));
+      let playerName = 'Unknown Player';
+      
+      if (existing?.playerName) {
+        playerName = existing.playerName;
+      } else {
+        // Only fetch from DB if we absolutely have to (prevents spamming DB)
+        const globalPlayer = await Player.findById(playerId).select('name').lean();
+        if (globalPlayer) playerName = globalPlayer.name;
+      }
 
-      standingsMap.set(playerId.toString(), {
+      return {
         competition: new mongoose.Types.ObjectId(competitionId),
-        player: playerId,
-        playerName: existing?.playerName || globalPlayer?.name || 'Unknown Player',
+        player: playerId, // Keep as ID for now, cast later if needed
+        playerName: playerName,
         matchesPlayed: 0,
         wins: 0,
         draws: 0,
@@ -63,26 +71,55 @@ const calculateLeagueStandings = async (competitionId, competition) => {
         goalsFor: 0,
         goalsAgainst: 0,
         points: 0
-      });
+      };
+    };
+
+    // Pre-fill with known competition players
+    if (competition.players && competition.players.length > 0) {
+      for (const playerId of competition.players) {
+        standingsMap.set(playerId.toString(), await createEntry(playerId));
+      }
     }
 
-    // 5. Process fixtures using competition-specific names
-    fixtures.forEach(fixture => {
-      const homeEntry = standingsMap.get(fixture.homePlayer.toString());
-      const awayEntry = standingsMap.get(fixture.awayPlayer.toString());
+    // 5. Process fixtures
+    // We use a standard for...of loop to allow await inside if we need to fetch a missing player
+    for (const fixture of fixtures) {
+      const homeId = fixture.homePlayer.toString();
+      const awayId = fixture.awayPlayer.toString();
+
+      // SELF-HEALING: If player is in fixture but not map, add them now!
+      if (!standingsMap.has(homeId)) {
+        console.log(`[Auto-Fix] Found player ${homeId} in fixture but not in competition list. Adding...`);
+        standingsMap.set(homeId, await createEntry(fixture.homePlayer));
+      }
+      if (!standingsMap.has(awayId)) {
+        console.log(`[Auto-Fix] Found player ${awayId} in fixture but not in competition list. Adding...`);
+        standingsMap.set(awayId, await createEntry(fixture.awayPlayer));
+      }
+
+      const homeEntry = standingsMap.get(homeId);
+      const awayEntry = standingsMap.get(awayId);
+
+      // Safety check: If we STILL don't have entries (e.g. null IDs), skip
+      if (!homeEntry || !awayEntry) continue;
 
       // Update match counts
       homeEntry.matchesPlayed++;
       awayEntry.matchesPlayed++;
 
-      // Update goals using FIXTURE STORED NAMES
-      homeEntry.goalsFor += fixture.homeScore;
-      homeEntry.goalsAgainst += fixture.awayScore;
-      awayEntry.goalsFor += fixture.awayScore;
-      awayEntry.goalsAgainst += fixture.homeScore;
+      // Update goals
+      homeEntry.goalsFor += (fixture.homeScore || 0);
+      homeEntry.goalsAgainst += (fixture.awayScore || 0);
+      awayEntry.goalsFor += (fixture.awayScore || 0);
+      awayEntry.goalsAgainst += (fixture.homeScore || 0);
 
       // Update points and results
-      switch (fixture.result) {
+      // Ensure numbers are treated as numbers
+      const result = fixture.result || 
+                     (fixture.homeScore > fixture.awayScore ? 'home' : 
+                      fixture.awayScore > fixture.homeScore ? 'away' : 'draw');
+
+      switch (result) {
         case 'home':
           homeEntry.wins++;
           homeEntry.points += 3;
@@ -100,13 +137,9 @@ const calculateLeagueStandings = async (competitionId, competition) => {
           awayEntry.points++;
           break;
       }
+    }
 
-      // Preserve existing names
-      homeEntry.playerName = homeEntry.playerName;
-      awayEntry.playerName = awayEntry.playerName;
-    });
-
-    // 6. Prepare bulk operations with name preservation
+    // 6. Prepare bulk operations
     const bulkOps = Array.from(standingsMap.values()).map(standing => ({
       updateOne: {
         filter: { 
@@ -124,13 +157,15 @@ const calculateLeagueStandings = async (competitionId, competition) => {
     }));
 
     // 7. Update database
-    await Standing.bulkWrite(bulkOps, { ordered: false });
+    if (bulkOps.length > 0) {
+        await Standing.bulkWrite(bulkOps, { ordered: false });
+    }
 
-    // Return sorted standings with competition names
+    // Return sorted standings
     return Array.from(standingsMap.values()).sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
-      const bGD = b.goalsFor - b.goalsAgainst;
-      const aGD = a.goalsFor - a.goalsAgainst;
+      const bGD = (b.goalsFor - b.goalsAgainst);
+      const aGD = (a.goalsFor - a.goalsAgainst);
       return bGD !== aGD ? bGD - aGD : b.goalsFor - a.goalsFor;
     });
 
