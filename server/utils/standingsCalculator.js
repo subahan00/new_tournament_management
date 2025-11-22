@@ -46,12 +46,12 @@ const calculateLeagueStandings = async (competitionId, competition) => {
 
     // 4. Initialize standings map
     const standingsMap = new Map();
-    
+
     // Helper to create a blank entry safely
     const createEntry = async (playerId) => {
       const existing = existingStandings.find(s => s.player && s.player.equals(playerId));
       let playerName = 'Unknown Player';
-      
+
       if (existing?.playerName) {
         playerName = existing.playerName;
       } else {
@@ -88,14 +88,16 @@ const calculateLeagueStandings = async (competitionId, competition) => {
       const awayId = fixture.awayPlayer.toString();
 
       // SELF-HEALING: If player is in fixture but not map, add them now!
-      if (!standingsMap.has(homeId)) {
-        console.log(`[Auto-Fix] Found player ${homeId} in fixture but not in competition list. Adding...`);
+      const isInCompetition = (id) =>
+        competition.players.some(p => p.toString() === id);
+
+      if (!standingsMap.has(homeId) && isInCompetition(homeId)) {
         standingsMap.set(homeId, await createEntry(fixture.homePlayer));
       }
-      if (!standingsMap.has(awayId)) {
-        console.log(`[Auto-Fix] Found player ${awayId} in fixture but not in competition list. Adding...`);
+      if (!standingsMap.has(awayId) && isInCompetition(awayId)) {
         standingsMap.set(awayId, await createEntry(fixture.awayPlayer));
       }
+
 
       const homeEntry = standingsMap.get(homeId);
       const awayEntry = standingsMap.get(awayId);
@@ -115,9 +117,9 @@ const calculateLeagueStandings = async (competitionId, competition) => {
 
       // Update points and results
       // Ensure numbers are treated as numbers
-      const result = fixture.result || 
-                     (fixture.homeScore > fixture.awayScore ? 'home' : 
-                      fixture.awayScore > fixture.homeScore ? 'away' : 'draw');
+      const result = fixture.result ||
+        (fixture.homeScore > fixture.awayScore ? 'home' :
+          fixture.awayScore > fixture.homeScore ? 'away' : 'draw');
 
       switch (result) {
         case 'home':
@@ -142,15 +144,15 @@ const calculateLeagueStandings = async (competitionId, competition) => {
     // 6. Prepare bulk operations
     const bulkOps = Array.from(standingsMap.values()).map(standing => ({
       updateOne: {
-        filter: { 
+        filter: {
           competition: standing.competition,
-          player: standing.player 
+          player: standing.player
         },
-        update: { 
-          $set: { 
+        update: {
+          $set: {
             ...standing,
             lastUpdated: new Date()
-          } 
+          }
         },
         upsert: true
       }
@@ -158,7 +160,7 @@ const calculateLeagueStandings = async (competitionId, competition) => {
 
     // 7. Update database
     if (bulkOps.length > 0) {
-        await Standing.bulkWrite(bulkOps, { ordered: false });
+      await Standing.bulkWrite(bulkOps, { ordered: false });
     }
 
     // Return sorted standings
@@ -246,17 +248,17 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
       { _id: { $in: uniquePlayerIds } },
       { name: 1 }
     ).lean();
-    
+
     const playerNameMap = new Map(players.map(p => [p._id.toString(), p.name]));
 
     // Initialize standings for all players with 0 values.
     for (const playerId of playerIds) {
       const group = playerGroupMap.get(playerId);
       if (group) {
-        const existing = existingStandings.find(s => 
+        const existing = existingStandings.find(s =>
           s.player.toString() === playerId && s.group === group
         );
-        
+
         const standingKey = `${playerId}_${group}`;
         standingsMap.set(standingKey, {
           competition: new mongoose.Types.ObjectId(competitionId),
@@ -281,7 +283,7 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
       groupFixtures.forEach(fixture => {
         const homeKey = `${fixture.homePlayer.toString()}_${group}`;
         const awayKey = `${fixture.awayPlayer.toString()}_${group}`;
-        
+
         const homeEntry = standingsMap.get(homeKey);
         const awayEntry = standingsMap.get(awayKey);
 
@@ -374,7 +376,7 @@ const calculateGroupStageStandings = async (competitionId, competition) => {
       console.log(`- ${key}: ${val.toFixed(2)}ms`);
     });
     console.log(`Total time: ${totalTime.toFixed(2)}ms`);
-    
+
     return result;
 
   } catch (error) {
@@ -402,7 +404,7 @@ const getGroupStandings = async (competitionId, groupName) => {
 const getAllGroupStandings = async (competitionId) => {
   try {
     const competition = await Competition.findById(competitionId).select('type').lean();
-    
+
     if (!competition || competition.type !== 'GROUP_STAGE') {
       throw new Error('Competition not found or not a group stage competition');
     }
@@ -446,7 +448,7 @@ const getGroupQualifiers = async (competitionId, qualifiersPerGroup = 2) => {
           groupName,
           groupPosition: standing.position
         }));
-      
+
       qualifiers.push(...groupQualifiers);
     });
 
@@ -457,7 +459,7 @@ const getGroupQualifiers = async (competitionId, qualifiersPerGroup = 2) => {
   }
 };
 
-module.exports = { 
+module.exports = {
   calculateStandings,
   calculateLeagueStandings,
   calculateGroupStageStandings,
