@@ -33,13 +33,20 @@ const calculateStandings = async (competitionId, requestId = 'N/A') => {
 
 const calculateLeagueStandings = async (competitionId, competition) => {
   try {
+    // 🔧 FIX: Clean up standings for players no longer in competition FIRST
+    // This removes "ghost" standings from removed/replaced players
+    await Standing.deleteMany({
+      competition: competitionId,
+      player: { $nin: competition.players }
+    });
+
     // 2. Get completed fixtures
     const fixtures = await Fixture.find({
       competitionId,
       status: 'completed'
     }).lean();
 
-    // 3. Get existing standings
+    // 3. Get existing standings (after cleanup, so no orphaned records)
     const existingStandings = await Standing.find({ competition: competitionId })
       .select('player playerName')
       .lean();
@@ -62,7 +69,7 @@ const calculateLeagueStandings = async (competitionId, competition) => {
 
       return {
         competition: new mongoose.Types.ObjectId(competitionId),
-        player: playerId, // Keep as ID for now, cast later if needed
+        player: playerId,
         playerName: playerName,
         matchesPlayed: 0,
         wins: 0,
@@ -82,27 +89,33 @@ const calculateLeagueStandings = async (competitionId, competition) => {
     }
 
     // 5. Process fixtures
-    // We use a standard for...of loop to allow await inside if we need to fetch a missing player
     for (const fixture of fixtures) {
       const homeId = fixture.homePlayer.toString();
       const awayId = fixture.awayPlayer.toString();
 
-      // SELF-HEALING: If player is in fixture but not map, add them now!
+      // 🔧 IMPROVED: Only process fixtures for players currently in competition
+      // This prevents adding back removed players during fixture processing
       const isInCompetition = (id) =>
         competition.players.some(p => p.toString() === id);
 
-      if (!standingsMap.has(homeId) && isInCompetition(homeId)) {
-        standingsMap.set(homeId, await createEntry(fixture.homePlayer));
-      }
-      if (!standingsMap.has(awayId) && isInCompetition(awayId)) {
-        standingsMap.set(awayId, await createEntry(fixture.awayPlayer));
+      // Skip this fixture entirely if either player is no longer in competition
+      if (!isInCompetition(homeId) || !isInCompetition(awayId)) {
+        console.warn(`[Standings] Skipping fixture ${fixture._id}: Player(s) not in competition`);
+        continue;
       }
 
+      // Self-healing: Add player to map if missing (should not happen after cleanup)
+      if (!standingsMap.has(homeId)) {
+        standingsMap.set(homeId, await createEntry(fixture.homePlayer));
+      }
+      if (!standingsMap.has(awayId)) {
+        standingsMap.set(awayId, await createEntry(fixture.awayPlayer));
+      }
 
       const homeEntry = standingsMap.get(homeId);
       const awayEntry = standingsMap.get(awayId);
 
-      // Safety check: If we STILL don't have entries (e.g. null IDs), skip
+      // Safety check: If we STILL don't have entries, skip
       if (!homeEntry || !awayEntry) continue;
 
       // Update match counts
@@ -116,7 +129,6 @@ const calculateLeagueStandings = async (competitionId, competition) => {
       awayEntry.goalsAgainst += (fixture.homeScore || 0);
 
       // Update points and results
-      // Ensure numbers are treated as numbers
       const result = fixture.result ||
         (fixture.homeScore > fixture.awayScore ? 'home' :
           fixture.awayScore > fixture.homeScore ? 'away' : 'draw');
@@ -163,13 +175,17 @@ const calculateLeagueStandings = async (competitionId, competition) => {
       await Standing.bulkWrite(bulkOps, { ordered: false });
     }
 
-    // Return sorted standings
-    return Array.from(standingsMap.values()).sort((a, b) => {
+    // 8. Return sorted standings
+    const sortedStandings = Array.from(standingsMap.values()).sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
       const bGD = (b.goalsFor - b.goalsAgainst);
       const aGD = (a.goalsFor - a.goalsAgainst);
       return bGD !== aGD ? bGD - aGD : b.goalsFor - a.goalsFor;
     });
+
+    console.log(`[Standings] Calculated ${sortedStandings.length} standings for competition ${competitionId}`);
+    
+    return sortedStandings;
 
   } catch (error) {
     console.error('League standings calculation failed:', error);
