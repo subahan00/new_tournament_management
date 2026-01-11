@@ -52,7 +52,7 @@ import Maintenance from './pages/maintenance';
 
 const App = () => {
   
-  const isMaintenanceMode = true;
+  const isMaintenanceMode = false;
 
   return (
     <AuthProvider>
