@@ -45,7 +45,7 @@ import ViewLinks from './pages/viewLiveLink';
 import ClanWarFixtures from './pages/ClanWarFixtures';
 import ClanWarView from './pages/ClanWarView';
 import ClanManagement from './pages/clanmanagement';
-
+import RecoverCompetitions from './pages/RecoverCompetition';
 
 
 import Maintenance from './pages/maintenance';
@@ -90,7 +90,8 @@ const App = () => {
               <Route path="/clan-wars" element={<ClanWarView />} />
               <Route path="/clan-wars/:id" element={<ClanWarFixtures />} />
               <Route path="/admin/clans" element={<ClanManagement />} />
-
+              <Route path="/admin/recover-competitions" element={<RecoverCompetitions />} />
+ 
 
               {}
               <Route

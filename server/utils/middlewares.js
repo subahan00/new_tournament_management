@@ -26,18 +26,12 @@ const middlewares = {
   
   // Competition validation middleware
   validateCompetition: [
-    
-    
     body('name')
       .trim()
       .notEmpty().withMessage('Name is required')
       .isLength({ max: 100 }).withMessage('Name must be less than 100 characters'),
-    
-   
-    
     body('players.*')
       .isMongoId().withMessage('Invalid player ID format'),
-
     (req, res, next) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {

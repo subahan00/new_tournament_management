@@ -156,45 +156,7 @@ const ClanWarFixtures = () => {
     const [error, setError] = useState(null);
     const [activeRound, setActiveRound] = useState(null);
 
-    const mockAxios = {
-        get: (url) => new Promise(resolve => {
-            console.log(`Mock GET request to: ${url}`);
-            setTimeout(() => {
-                const mockData = {
-                    success: true,
-                    data: {
-                        name: "Clash of Titans: Season IV",
-                        description: "The ultimate test of skill and strategy. Only one clan will emerge victorious.",
-                        status: "Ongoing",
-                        totalClans: 16,
-                        fixtures: {
-                            "Round 1": [
-                               { _id: "fixture4", homeClan: { name: "Void Walkers" }, awayClan: { name: "Nightstalkers" }, status: "upcoming", individualMatches: [] },
-                               { _id: "fixture5", homeClan: { name: "Solar Sentinels" }, awayClan: { name: "Star Strikers" }, status: "upcoming", individualMatches: [] },
-                            ],
-                            "Semi-Finals": [
-                               { _id: "fixture2", homeClan: { name: "Void Walkers" }, awayClan: { name: "Iron Brigade" }, status: "completed", result: "home", individualMatches: [] },
-                               { _id: "fixture3", homeClan: { name: "Solar Sentinels" }, awayClan: { name: "Crimson Guard" }, status: "completed", result: "home", individualMatches: [] },
-                            ],
-                            "Grand Final": [{
-                                _id: "fixture1",
-                                homeClan: { name: "Void Walkers" },
-                                awayClan: { name: "Solar Sentinels" },
-                                status: "completed",
-                                result: "home",
-                                individualMatches: [
-                                    { homePlayer: { name: "Shadow" }, awayPlayer: { name: "Lux" }, homeScore: 2, awayScore: 1, result: "home", status: "completed" },
-                                    { homePlayer: { name: "Reaper" }, awayPlayer: { name: "Astra" }, homeScore: 1, awayScore: 1, result: "draw", status: "completed" },
-                                    { homePlayer: { name: "Ghost" }, awayPlayer: { name: "Nova" }, homeScore: 0, awayScore: 3, result: "away", status: "completed" },
-                                ]
-                            }],
-                        }
-                    }
-                };
-                resolve({ data: mockData });
-            }, 1500);
-        })
-    };
+   
     
     const api = axios; // Change to mockAxios to test with mock data
     

@@ -1,4 +1,4 @@
-// models/Clan.js
+// models/Clan.js (Updated with Soft Delete)
 const mongoose = require('mongoose');
 
 const clanSchema = new mongoose.Schema({
@@ -10,7 +10,7 @@ const clanSchema = new mongoose.Schema({
   competitionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Competition',
-    required: false, // Changed to false to allow clans without competitions
+    required: false,
     default: null
   },
   members: [{
@@ -37,6 +37,17 @@ const clanSchema = new mongoose.Schema({
   isEliminated: {
     type: Boolean,
     default: false
+  },
+  
+  // Soft Delete Fields
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
   }
 }, { 
   timestamps: true,
@@ -52,10 +63,18 @@ clanSchema.pre('save', function(next) {
   next();
 });
 
+// Middleware to exclude deleted items from normal queries
+clanSchema.pre(/^find/, function(next) {
+  if (!this.getQuery().isDeleted) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
+
 // Index for better query performance
 clanSchema.index({ competitionId: 1 });
 clanSchema.index({ competitionId: 1, isEliminated: 1 });
-clanSchema.index({ points: -1 }); // For sorting by points
-clanSchema.index({ name: 1 }); // For unique clan names
+clanSchema.index({ points: -1 });
+clanSchema.index({ name: 1 });
 
 module.exports = mongoose.model('Clan', clanSchema);

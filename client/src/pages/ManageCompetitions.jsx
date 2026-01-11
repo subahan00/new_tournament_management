@@ -8,10 +8,10 @@ const ManageCompetitions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  
+
   // State to hold IDs of competitions to be deleted (single or bulk)
   const [competitionsToDelete, setCompetitionsToDelete] = useState([]);
-  
+
   // State for managing selected competitions for bulk actions
   const [selectedCompetitions, setSelectedCompetitions] = useState([]);
 
@@ -28,7 +28,7 @@ const ManageCompetitions = () => {
       setLoading(true);
       setError(null);
       const fetchedCompetitions = await competitionService.getAllCompetitions();
-      
+
       if (Array.isArray(fetchedCompetitions)) {
         // Ensure each competition has a unique ID, fallback to a random key if needed
         setCompetitions(fetchedCompetitions.map(c => ({ ...c, uniqueId: c._id || c.id || Math.random().toString() })));
@@ -55,10 +55,10 @@ const ManageCompetitions = () => {
     const name = comp?.name?.toLowerCase() || '';
     const status = comp?.status?.toLowerCase() || '';
     const term = searchTerm.toLowerCase();
-    
+
     const matchesSearch = name.includes(term);
     const matchesStatus = statusFilter ? status === statusFilter.toLowerCase() : true;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -130,7 +130,7 @@ const ManageCompetitions = () => {
       setDeleteStatus(null); // Reset for next time
     }, 2500);
   };
-  
+
   // Loading state
   if (loading && competitions.length === 0) {
     return (
@@ -182,14 +182,21 @@ const ManageCompetitions = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-gold-400 mb-2">Manage Competitions</h1>
             <p className="text-gold-300">View, edit, and delete competitions</p>
           </div>
-          <Link 
-            to="/admin/create-competition" 
+          <Link
+            to="/admin/create-competition"
             className="mt-4 md:mt-0 bg-gold-700 hover:bg-gold-600 text-white px-4 py-2 rounded-lg flex items-center justify-center transition-colors duration-200"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             Create New Competition
+          </Link>
+          <Link
+            to="/admin/recover-competitions"
+            className="bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:text-amber-200 px-4 py-2 rounded-lg flex items-center transition-all duration-200"
+          >
+            <TrashIcon className="w-5 h-5 mr-2" />
+            View Trash 
           </Link>
         </div>
       </div>
@@ -250,7 +257,7 @@ const ManageCompetitions = () => {
             <thead className="bg-gray-800">
               <tr>
                 <th scope="col" className="px-6 py-3">
-                  <input 
+                  <input
                     type="checkbox"
                     className="form-checkbox h-4 w-4 bg-gray-700 border-gold-600 text-gold-500 rounded focus:ring-gold-500"
                     onChange={handleSelectAll}
@@ -270,7 +277,7 @@ const ManageCompetitions = () => {
                 filteredCompetitions.map((competition) => (
                   <tr key={competition.uniqueId} className="hover:bg-gray-800/70">
                     <td className="px-6 py-4">
-                      <input 
+                      <input
                         type="checkbox"
                         className="form-checkbox h-4 w-4 bg-gray-700 border-gold-600 text-gold-500 rounded focus:ring-gold-500"
                         checked={selectedCompetitions.includes(competition.uniqueId)}
@@ -281,11 +288,10 @@ const ManageCompetitions = () => {
                     <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gold-300">{new Date(competition.startDate).toLocaleDateString()} - {new Date(competition.endDate).toLocaleDateString()}</div></td>
                     <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gold-300">{competition.teamsCount || competition.teams?.length || 0}</div></td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        competition.status === 'Active' ? 'bg-green-900/50 text-green-300' :
-                        competition.status === 'Completed' ? 'bg-gray-700 text-gray-300' :
-                        'bg-yellow-900/50 text-yellow-300'
-                      }`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${competition.status === 'Active' ? 'bg-green-900/50 text-green-300' :
+                          competition.status === 'Completed' ? 'bg-gray-700 text-gray-300' :
+                            'bg-yellow-900/50 text-yellow-300'
+                        }`}>
                         {competition.status}
                       </span>
                     </td>
@@ -295,7 +301,7 @@ const ManageCompetitions = () => {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </Link>
                         <button onClick={() => openDeleteModal([competition.uniqueId])} className="text-red-400 hover:text-red-300">
-                           <TrashIcon className="w-5 h-5" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -331,7 +337,7 @@ const ManageCompetitions = () => {
                   <p className="text-gold-300">{deleteStatus.message}</p>
                 </div>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gold-500 rounded-full transition-all duration-300"
                     style={{ width: `${deleteProgress}%` }}
                   ></div>
@@ -343,10 +349,10 @@ const ManageCompetitions = () => {
                 <p className="text-gold-300">{deleteStatus.message}</p>
               </div>
             ) : deleteStatus?.error ? (
-                 <div className="text-center py-6">
-                    <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <p className="text-gold-300">{deleteStatus.message}</p>
-                 </div>
+              <div className="text-center py-6">
+                <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <p className="text-gold-300">{deleteStatus.message}</p>
+              </div>
             ) : (
               <>
                 <p className="text-gold-300 mb-6">

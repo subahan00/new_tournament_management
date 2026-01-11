@@ -192,7 +192,7 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
       numberOfPlayers: allPlayerIds.length,
       players: allPlayerIds,
       clans: clanIds,
-      status: 'upcoming'
+      status: 'ongoing'
     });
 
     await competition.save();
@@ -873,8 +873,370 @@ console.log('Standings deleted:', standingsResult.deletedCount);
       details: error.message 
     });
   }
-}
+},
+ softDeleteCompetition : async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid competition ID format' });
+    }
+
+    console.log('Soft deleting competition with ID:', id);
+
+    // Find competition (bypass soft delete filter)
+    const competition = await Competition.findOne({ _id: id, isDeleted: false });
+
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    // Count related data before soft deleting
+    const [fixturesCount, standingsCount, clansCount] = await Promise.all([
+      Fixture.countDocuments({ competitionId: id, isDeleted: false }),
+      Standing.countDocuments({ competition: id, isDeleted: false }),
+      competition.type === 'CLAN_WAR' 
+        ? Clan.countDocuments({ competitionId: id, isDeleted: false })
+        : Promise.resolve(0)
+    ]);
+
+    // Store snapshot
+    competition.deletionSnapshot = {
+      fixturesCount,
+      standingsCount,
+      clansCount
+    };
+
+    // Soft delete competition
+    await competition.softDelete(req.user?.id); // Pass user ID if available
+
+    // Soft delete related fixtures
+    await Fixture.updateMany(
+      { competitionId: id, isDeleted: false },
+      { 
+        $set: { 
+          isDeleted: true, 
+          deletedAt: new Date() 
+        } 
+      }
+    );
+
+    // Soft delete related standings
+    await Standing.updateMany(
+      { competition: id, isDeleted: false },
+      { 
+        $set: { 
+          isDeleted: true, 
+          deletedAt: new Date() 
+        } 
+      }
+    );
+
+    // For CLAN_WAR, soft delete related clans
+    if (competition.type === 'CLAN_WAR') {
+      await Clan.updateMany(
+        { competitionId: id, isDeleted: false },
+        { 
+          $set: { 
+            isDeleted: true, 
+            deletedAt: new Date() 
+          } 
+        }
+      );
+    }
+
+    // Remove competition from players
+    await Player.updateMany(
+      { competitions: id },
+      { $pull: { competitions: id } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Competition moved to trash. You can recover it from the Recover Competitions page.',
+      deletedData: {
+        competitionId: id,
+        competitionName: competition.name,
+        fixturesCount,
+        standingsCount,
+        clansCount,
+        deletedAt: competition.deletedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error soft deleting competition:', error);
+    return res.status(500).json({ 
+      error: 'Server error while deleting competition',
+      details: error.message 
+    });
+  }
+},
+
+// Get all deleted competitions
+ getDeletedCompetitions : async (req, res) => {
+  try {
+    const deletedCompetitions = await Competition.findDeleted()
+      .populate('players', 'name _id')
+      .populate('clans', 'name')
+      .lean();
+      console.log('sjfhs-',deletedCompetitions)
+
+    // Add metadata about recoverable data
+    const competitionsWithMetadata = deletedCompetitions.map(comp => ({
+      ...comp,
+      canRecover: true,
+      recoverableData: {
+        fixtures: comp.deletionSnapshot?.fixturesCount || 0,
+        standings: comp.deletionSnapshot?.standingsCount || 0,
+        clans: comp.deletionSnapshot?.clansCount || 0
+      }
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: competitionsWithMetadata.length,
+      data: competitionsWithMetadata
+    });
+
+  } catch (error) {
+    console.error('Error fetching deleted competitions:', error);
+    return res.status(500).json({ 
+      error: 'Failed to fetch deleted competitions',
+      details: error.message 
+    });
+  }
+},
+
+// Recover a single competition
+ recoverCompetition : async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid competition ID format' });
+    }
+
+    console.log('Recovering competition with ID:', id);
+
+    // Find deleted competition
+    const competition = await Competition.findOne({ _id: id, isDeleted: true });
+
+    if (!competition) {
+      return res.status(404).json({ error: 'Deleted competition not found' });
+    }
+
+    // Restore competition
+    await competition.restore();
+
+    // Restore related fixtures
+    const fixturesResult = await Fixture.updateMany(
+      { competitionId: id, isDeleted: true },
+      { 
+        $set: { 
+          isDeleted: false, 
+          deletedAt: null 
+        } 
+      }
+    );
+
+    // Restore related standings
+    const standingsResult = await Standing.updateMany(
+      { competition: id, isDeleted: true },
+      { 
+        $set: { 
+          isDeleted: false, 
+          deletedAt: null 
+        } 
+      }
+    );
+
+    // For CLAN_WAR, restore related clans
+    let clansResult = { modifiedCount: 0 };
+    if (competition.type === 'CLAN_WAR') {
+      clansResult = await Clan.updateMany(
+        { competitionId: id, isDeleted: true },
+        { 
+          $set: { 
+            isDeleted: false, 
+            deletedAt: null 
+          } 
+        }
+      );
+    }
+
+    // Re-add competition to players
+    await Player.updateMany(
+      { _id: { $in: competition.players } },
+      { $addToSet: { competitions: id } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Competition recovered successfully',
+      recoveredData: {
+        competitionId: id,
+        competitionName: competition.name,
+        fixturesRecovered: fixturesResult.modifiedCount,
+        standingsRecovered: standingsResult.modifiedCount,
+        clansRecovered: clansResult.modifiedCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Error recovering competition:', error);
+    return res.status(500).json({ 
+      error: 'Server error while recovering competition',
+      details: error.message 
+    });
+  }
+},
+
+// Bulk recover competitions
+ bulkRecoverCompetitions : async (req, res) => {
+  try {
+    const { competitionIds } = req.body;
+
+    if (!Array.isArray(competitionIds) || competitionIds.length === 0) {
+      return res.status(400).json({ error: 'competitionIds array is required' });
+    }
+
+    // Validate all IDs
+    const invalidIds = competitionIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
+    if (invalidIds.length > 0) {
+      return res.status(400).json({ 
+        error: 'Invalid competition IDs',
+        invalidIds 
+      });
+    }
+
+    console.log('Bulk recovering competitions:', competitionIds);
+
+    const results = {
+      successful: [],
+      failed: []
+    };
+
+    // Process each competition
+    for (const id of competitionIds) {
+      try {
+        const competition = await Competition.findOne({ _id: id, isDeleted: true });
+
+        if (!competition) {
+          results.failed.push({
+            id,
+            reason: 'Competition not found in trash'
+          });
+          continue;
+        }
+
+        // Restore competition and related data
+        await competition.restore();
+
+        await Promise.all([
+          Fixture.updateMany(
+            { competitionId: id, isDeleted: true },
+            { $set: { isDeleted: false, deletedAt: null } }
+          ),
+          Standing.updateMany(
+            { competition: id, isDeleted: true },
+            { $set: { isDeleted: false, deletedAt: null } }
+          ),
+          competition.type === 'CLAN_WAR'
+            ? Clan.updateMany(
+                { competitionId: id, isDeleted: true },
+                { $set: { isDeleted: false, deletedAt: null } }
+              )
+            : Promise.resolve(),
+          Player.updateMany(
+            { _id: { $in: competition.players } },
+            { $addToSet: { competitions: id } }
+          )
+        ]);
+
+        results.successful.push({
+          id,
+          name: competition.name
+        });
+
+      } catch (error) {
+        console.error(`Error recovering competition ${id}:`, error);
+        results.failed.push({
+          id,
+          reason: error.message
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Recovered ${results.successful.length} of ${competitionIds.length} competitions`,
+      results
+    });
+
+  } catch (error) {
+    console.error('Error in bulk recovery:', error);
+    return res.status(500).json({ 
+      error: 'Server error during bulk recovery',
+      details: error.message 
+    });
+  }
+},
+
+// Permanently delete a competition (optional - use with caution)
+ permanentlyDeleteCompetition : async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid competition ID format' });
+    }
+
+    console.log('Permanently deleting competition with ID:', id);
+
+    // Find deleted competition
+    const competition = await Competition.findOne({ _id: id, isDeleted: true });
+
+    if (!competition) {
+      return res.status(404).json({ error: 'Deleted competition not found' });
+    }
+
+    // Permanently delete all related data
+    const [fixturesResult, standingsResult, clansResult] = await Promise.all([
+      Fixture.deleteMany({ competitionId: id }),
+      Standing.deleteMany({ competition: id }),
+      competition.type === 'CLAN_WAR' 
+        ? Clan.deleteMany({ competitionId: id })
+        : Promise.resolve({ deletedCount: 0 })
+    ]);
+
+    // Remove from players
+    await Player.updateMany(
+      { competitions: id },
+      { $pull: { competitions: id } }
+    );
+
+    // Delete competition
+    await Competition.deleteOne({ _id: id });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Competition permanently deleted',
+      deletedCounts: {
+        fixtures: fixturesResult.deletedCount,
+        standings: standingsResult.deletedCount,
+        clans: clansResult.deletedCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Error permanently deleting competition:', error);
+    return res.status(500).json({ 
+      error: 'Server error while permanently deleting competition',
+      details: error.message 
+    });
+  }
+}
 };
 
 module.exports = competitionController;

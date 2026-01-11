@@ -19,7 +19,6 @@ router.use(apiLimiter);
 // Public routes
 router.get('/', competitionController.getAllCompetitions);
 router.get('/league/upcoming', competitionController.getUpcomingLeagueCompetitions);
-router.get('/:id', competitionController.getCompetitionById);
 
 // Protected admin routes
 router.post('/create', 
@@ -33,7 +32,10 @@ router.put('/clan-war/:fixtureId/match/:matchIndex',competitionController.update
 router.get('/clan-war/:competitionId/fixtures', competitionController.getClanWarFixtures);
 router.post('/clan-war/:competitionId/next-round', competitionController.clanWarNextRound);
 router.post('/create-clan-war-existing', competitionController.createClanWarCompetitionWithExistingClans);
-
+router.get('/deleted', competitionController.getDeletedCompetitions);
+router.post('/recover/:id', competitionController.recoverCompetition);
+router.post('/recover-bulk', competitionController.bulkRecoverCompetitions);
+router.delete('/permanent/:id', competitionController.permanentlyDeleteCompetition);
 router.put('/:id', 
   authenticate,
   validateCompetition,
@@ -81,10 +83,13 @@ router.put('/:id/status', async (req, res) => {
     });
   }
 });
-router.delete('/delete/:id',
-  competitionController.deleteCompetition
+router.delete('/recover-delete/:id',
+  competitionController.softDeleteCompetition
 );
 router.patch('/:id/replace-player', competitionController.replacePlayerInCompetition);
+
+router.get('/:id', competitionController.getCompetitionById);
+
 // Error handler
 router.use(errorHandler);
 

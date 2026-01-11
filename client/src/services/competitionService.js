@@ -63,21 +63,21 @@ export const createCompetition = async (competitionData) => {
   }
 };
 
-export const deleteCompetition = async (competitionId) => {
-  try {
-    const token = getAuthToken(); // ✅ FIXED
-    if (!token) throw new Error('Unauthorized: No token found');
+// export const deleteCompetition = async (competitionId) => {
+//   try {
+//     const token = getAuthToken(); // ✅ FIXED
+//     if (!token) throw new Error('Unauthorized: No token found');
 
-    const response = await axios.delete(
-      `${BASE_URL}/competitions/delete/${competitionId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting competition:', error);
-    throw error;
-  }
-};
+//     const response = await axios.delete(
+//       `${BASE_URL}/competitions/delete/${competitionId}`,
+//       { headers: { Authorization: `Bearer ${token}` } }
+//     );
+//     return response.data;
+//   } catch (error) {
+//     console.error('Error deleting competition:', error);
+//     throw error;
+//   }
+// };
 
 export const replacePlayerInCompetition = async (competitionId, oldPlayerId, newPlayerId) => {
   try {
@@ -224,6 +224,61 @@ const getAllPlayers = async () => {
     throw error;
   }
 };
+const getDeletedCompetitions= async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}/competitions/deleted`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching deleted competitions:', error);
+      throw error.response?.data || error;
+    }
+  };
+
+  // Recover a single competition
+ const recoverCompetition= async (id) => {
+    try {
+      const response = await axios.post(`${BASE_URL}/competitions/recover/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error recovering competition:', error);
+      throw error.response?.data || error;
+    }
+  };
+
+  // Bulk recover competitions
+const  bulkRecoverCompetitions= async (competitionIds) => {
+    try {
+      const response = await axios.post(`${BASE_URL}/competitions/recover-bulk`, {
+        competitionIds
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error bulk recovering competitions:', error);
+      throw error.response?.data || error;
+    }
+  };
+
+  // Permanently delete a competition
+const  permanentlyDeleteCompetition=async (id) => {
+    try {
+      const response = await axios.delete(`${BASE_URL}/competitions/permanent/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error permanently deleting competition:', error);
+      throw error.response?.data || error;
+    }
+  };
+
+  // Update existing deleteCompetition to use soft delete
+  const deleteCompetition= async (id) => {
+    try {
+      const response = await axios.delete(`${BASE_URL}/competitions/recover-delete/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting competition:', error);
+      throw error.response?.data || error;
+    }
+  };
 
 export default {
   createCompetition,
@@ -239,5 +294,8 @@ export default {
   createClanWarCompetitionWithExistingClans,
   replacePlayerInCompetition,
   updatePlayerNameInCompetition,
-  updateCompetitionStatus
+  updateCompetitionStatus,
+  getDeletedCompetitions,
+  recoverCompetition
+
 };

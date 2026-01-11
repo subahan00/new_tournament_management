@@ -52,7 +52,7 @@ const CompetitionList = ({ onSelectCompetition }) => {
     const getCompetitionTypeColor = (type) => {
         switch (type) {
             case 'CLAN_WAR': return 'bg-red-900/50 text-red-300 border border-red-500/30';
-            case 'TOURNAMENT': return 'bg-blue-900/50 text-blue-300 border border-blue-500/30';
+            case 'KO_REGULAR': return 'bg-blue-900/50 text-blue-300 border border-blue-500/30';
             case 'LEAGUE': return 'bg-green-900/50 text-green-300 border border-green-500/30';
             default: return 'bg-gray-700 text-gray-300';
         }

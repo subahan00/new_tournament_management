@@ -10,7 +10,10 @@ import {
   Search,
   Swords,
   Info,
-} from 'lucide-react'; // Removed ChevronRight
+  Download,
+  X,
+} from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
 
@@ -63,11 +66,9 @@ const getStatusInfo = (status) => {
 // ROUND-ROBIN MATCHDAY GENERATOR
 //=================================================================
 
-
 const generateMatchdaySchedule = (fixtures) => {
   if (!fixtures || fixtures.length === 0) return [];
 
-  // Helper to get consistent player IDs
   const getPlayerId = (player) => {
     if (!player) return null;
     return typeof player === 'object' && player !== null ? player._id : player;
@@ -76,7 +77,6 @@ const generateMatchdaySchedule = (fixtures) => {
   const playerIds = new Set();
   const fixtureMap = new Map();
 
-  // 1. Process all fixtures into a lookup map and find all unique players
   for (const fixture of fixtures) {
     const homeId = getPlayerId(fixture.homePlayer);
     const awayId = getPlayerId(fixture.awayPlayer);
@@ -86,10 +86,8 @@ const generateMatchdaySchedule = (fixtures) => {
     playerIds.add(homeId);
     playerIds.add(awayId);
 
-    // Create a consistent key (smallerID-largerID) to handle (A vs B) and (B vs A)
     const key = [homeId, awayId].sort().join('-');
 
-    // Only keep the first occurrence of each unique matchup
     if (!fixtureMap.has(key)) {
       fixtureMap.set(key, fixture);
     }
@@ -98,25 +96,20 @@ const generateMatchdaySchedule = (fixtures) => {
   const players = Array.from(playerIds);
   let numPlayers = players.length;
 
-  // 2. Handle odd number of players by adding a "dummy" player for byes
-  // The algorithm requires an even number of participants.
   if (numPlayers % 2 !== 0) {
-    players.push(null); // 'null' represents the "bye"
+    players.push(null);
     numPlayers++;
   }
 
-  // 3. Implement the Circle Method (Polygon Method) algorithm
   const matchdays = [];
-  const numRounds = numPlayers - 1; // For 32 players, this is 31 rounds
-  const halfSize = numPlayers / 2;   // For 32 players, this is 16 fixtures
+  const numRounds = numPlayers - 1;
+  const halfSize = numPlayers / 2;
 
-  // Make a copy of the players array, remove the first player (who stays fixed)
   const rotatingPlayers = players.slice(1);
 
   for (let round = 0; round < numRounds; round++) {
     const currentMatchdayFixtures = [];
     
-    // Pair the fixed player (players[0]) with the first player in the rotating list
     const p1 = players[0];
     const p2 = rotatingPlayers[0];
 
@@ -128,7 +121,6 @@ const generateMatchdaySchedule = (fixtures) => {
       }
     }
 
-    // Pair the rest of the players
     for (let i = 1; i < halfSize; i++) {
       const home = rotatingPlayers[i];
       const away = rotatingPlayers[rotatingPlayers.length - i];
@@ -142,27 +134,15 @@ const generateMatchdaySchedule = (fixtures) => {
       }
     }
 
-    // Add the fully constructed matchday
     if (currentMatchdayFixtures.length > 0) {
       matchdays.push(currentMatchdayFixtures);
     }
 
-    
     rotatingPlayers.unshift(rotatingPlayers.pop());
   }
 
-
-
   return matchdays;
 };
-
-//=================================================================
-// PAGINATION COMPONENT - REMOVED
-//=================================================================
-
-//=================================================================
-// PAGINATION INFO COMPONENT - REMOVED
-//=================================================================
 
 //=================================================================
 // FIXTURE CARD COMPONENT
@@ -261,6 +241,464 @@ const MatchdaySection = memo(({ matchdayNumber, fixtures }) => {
 MatchdaySection.displayName = 'MatchdaySection';
 
 //=================================================================
+// DOWNLOAD MODAL COMPONENT
+//=================================================================
+
+const DownloadModal = ({ isOpen, onClose, matchdaySchedule, competitionName, onGenerate }) => {
+  const [fromMatchday, setFromMatchday] = useState(1);
+  const [toMatchday, setToMatchday] = useState(1);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && matchdaySchedule.length > 0) {
+      setFromMatchday(1);
+      setToMatchday(Math.min(5, matchdaySchedule.length));
+    }
+  }, [isOpen, matchdaySchedule]);
+
+  const isValidRange = useMemo(() => {
+    if (fromMatchday > toMatchday) return false;
+    const range = toMatchday - fromMatchday + 1;
+    return range >= 1 && range <= 5;
+  }, [fromMatchday, toMatchday]);
+
+  const rangeCount = toMatchday - fromMatchday + 1;
+
+  const handleGenerate = async () => {
+    if (!isValidRange) {
+      toast.error('Please select a valid range (max 5 matchdays)');
+      return;
+    }
+
+    setIsGenerating(true);
+
+    try {
+      // Call parent function with selected range
+      await onGenerate(fromMatchday, toMatchday);
+      setIsGenerating(false);
+      onClose();
+    } catch (error) {
+      console.error('Error generating image:', error);
+      toast.error('Failed to generate image. Please try again.');
+      setIsGenerating(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Modal Overlay */}
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}>
+        {/* Modal Content */}
+        <div className="download-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <Download className="text-gold-main" size={24} />
+              <h2 className="text-2xl font-bold text-white font-space-grotesk">
+                Download Fixtures
+              </h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-purple-light hover:text-gold-main transition-colors p-2 hover:bg-purple-dark/30 rounded-lg"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <p className="text-purple-light text-sm mb-6">
+            Select a range of matchdays to download as a high-quality image (max 5 matchdays).
+          </p>
+
+          <div className="space-y-4 mb-6">
+            {/* From Matchday */}
+            <div>
+              <label className="block text-sm font-medium text-purple-light mb-2">
+                From Matchday
+              </label>
+              <select
+                value={fromMatchday}
+                onChange={(e) => setFromMatchday(Number(e.target.value))}
+                className="modal-select"
+              >
+                {Array.from({ length: matchdaySchedule.length }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>Matchday {num}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* To Matchday */}
+            <div>
+              <label className="block text-sm font-medium text-purple-light mb-2">
+                To Matchday
+              </label>
+              <select
+                value={toMatchday}
+                onChange={(e) => setToMatchday(Number(e.target.value))}
+                className="modal-select"
+              >
+                {Array.from({ length: matchdaySchedule.length }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>Matchday {num}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Validation Messages */}
+          <div className="mb-6">
+            {!isValidRange && (
+              <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                {fromMatchday > toMatchday
+                  ? '⚠️ "From" matchday cannot be greater than "To" matchday'
+                  : '⚠️ Maximum range is 5 matchdays'}
+              </div>
+            )}
+            {isValidRange && (
+              <div className="text-gold-main text-sm bg-gold-main/10 border border-gold-main/30 rounded-lg px-3 py-2">
+                ✓ Ready to download {rangeCount} matchday{rangeCount > 1 ? 's' : ''} (MD {fromMatchday}–{toMatchday})
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            <button
+              onClick={onClose}
+              disabled={isGenerating}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-purple-light/30 text-purple-light hover:bg-purple-dark/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleGenerate}
+              disabled={!isValidRange || isGenerating}
+              className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-gold-dark to-gold-main text-purple-dark hover:shadow-lg hover:shadow-gold-main/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center space-x-2"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader className="animate-spin" size={18} />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  <span>Download Image</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+//=================================================================
+// EXPORT CONTAINER COMPONENT (Hidden, for image generation)
+//=================================================================
+
+const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competitionName }) => {
+  // Get the correct slice of matchdays based on selection
+  const selectedMatchdays = useMemo(() => {
+    const start = fromMatchday - 1; // Convert to 0-based index
+    const end = toMatchday; // slice is exclusive of end, so no need to add 1
+    return matchdaySchedule.slice(start, end).map((fixtures, idx) => ({
+      fixtures,
+      matchdayNumber: fromMatchday + idx
+    }));
+  }, [matchdaySchedule, fromMatchday, toMatchday]);
+
+  // Calculate number of columns based on matchday count
+  const numColumns = selectedMatchdays.length;
+  const columnWidth = numColumns <= 2 ? '50%' : numColumns === 3 ? '33.333%' : numColumns === 4 ? '25%' : '20%';
+
+  return (
+    <div
+      id="export-container"
+      style={{
+        position: 'fixed',
+        left: '-9999px',
+        top: 0,
+        width: '1920px',
+        backgroundColor: '#0a0510',
+        backgroundImage: 'linear-gradient(160deg, #0a0510 0%, #1a0f2e 40%, #1a0f2e 60%, #0a0510 100%)',
+        padding: '60px',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      }}
+    >
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+        <h1
+          style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontSize: '56px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #fff8e7 0%, #ffdf80 25%, #e6b422 50%, #ffdf80 75%, #fff8e7 100%)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+            marginBottom: '16px',
+            lineHeight: '1.1',
+          }}
+        >
+          {competitionName} Fixtures
+        </h1>
+        <p
+          style={{
+            fontSize: '20px',
+            color: '#8b7bb8',
+            fontWeight: '400',
+          }}
+        >
+          Matchdays {fromMatchday} – {toMatchday}
+        </p>
+      </div>
+
+      {/* Matchdays - Horizontal Columns Layout */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+        {selectedMatchdays.map(({ fixtures, matchdayNumber }) => {
+          const pendingCount = fixtures.filter(f => f.status === 'pending').length;
+          const completedCount = fixtures.filter(f => f.status === 'completed').length;
+          const liveCount = fixtures.filter(f => f.status === 'live').length;
+
+          return (
+            <div
+              key={matchdayNumber}
+              style={{
+                flex: 1,
+                background: 'rgba(10, 5, 16, 0.5)',
+                border: '1px solid rgba(255, 223, 128, 0.1)',
+                borderRadius: '12px',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Matchday Header */}
+              <div
+                style={{
+                  padding: '12px 16px',
+                  background: 'rgba(44, 27, 75, 0.3)',
+                  textAlign: 'center',
+                }}
+              >
+                <h3
+                  style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    color: '#ffdf80',
+                    margin: '0 0 8px 0',
+                  }}
+                >
+                  MD {matchdayNumber}
+                </h3>
+
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {liveCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        padding: '3px 8px',
+                        borderRadius: '9999px',
+                        background: 'rgba(239, 68, 68, 0.2)',
+                        color: '#fca5a5',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                      }}
+                    >
+                      {liveCount} LIVE
+                    </span>
+                  )}
+                  {pendingCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        padding: '3px 8px',
+                        borderRadius: '9999px',
+                        background: 'rgba(59, 130, 246, 0.2)',
+                        color: '#93c5fd',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                      }}
+                    >
+                      {pendingCount} PENDING
+                    </span>
+                  )}
+                  {completedCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        padding: '3px 8px',
+                        borderRadius: '9999px',
+                        background: 'rgba(34, 197, 94, 0.2)',
+                        color: '#86efac',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                      }}
+                    >
+                      {completedCount} DONE
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Fixtures - Vertical Stack within Column */}
+              <div style={{ padding: '16px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                  }}
+                >
+                  {fixtures.map((fixture) => {
+                    const statusInfo = getStatusInfo(fixture.status);
+
+                    return (
+                      <div
+                        key={fixture._id}
+                        style={{
+                          background: 'rgba(10, 5, 16, 0.5)',
+                          border: '1px solid rgba(255, 223, 128, 0.1)',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                        }}
+                      >
+                        {/* Status Badge */}
+                        <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'flex-start' }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: '600',
+                              padding: '2px 6px',
+                              borderRadius: '9999px',
+                              border: '1px solid',
+                              ...(statusInfo.className.includes('red') && {
+                                background: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                borderColor: 'rgba(239, 68, 68, 0.3)',
+                              }),
+                              ...(statusInfo.className.includes('green') && {
+                                background: 'rgba(34, 197, 94, 0.1)',
+                                color: '#86efac',
+                                borderColor: 'rgba(34, 197, 94, 0.2)',
+                              }),
+                              ...(statusInfo.className.includes('blue') && {
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                color: '#93c5fd',
+                                borderColor: 'rgba(59, 130, 246, 0.2)',
+                              }),
+                            }}
+                          >
+                            {statusInfo.text.toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* Players - Horizontal Layout with wrapping */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            marginBottom: '10px',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          {/* Home Player */}
+                          <span
+                            style={{
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              color: '#e2dcf7',
+                              textAlign: 'center',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {fixture.homePlayerName || 'TBD'}
+                          </span>
+
+                          {/* VS or Score */}
+                          <div style={{ flexShrink: 0 }}>
+                            {fixture.status === 'completed' &&
+                            fixture.homeScore !== null &&
+                            fixture.awayScore !== null ? (
+                              <span
+                                style={{
+                                  fontFamily: "'Space Grotesk', sans-serif",
+                                  fontSize: '15px',
+                                  fontWeight: '700',
+                                  color: '#ffdf80',
+                                }}
+                              >
+                                {fixture.homeScore}:{fixture.awayScore}
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  fontFamily: "'Space Grotesk', sans-serif",
+                                  fontSize: '11px',
+                                  fontWeight: '500',
+                                  color: '#8b7bb8',
+                                  opacity: 0.7,
+                                }}
+                              >
+                                vs
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Away Player */}
+                          <span
+                            style={{
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              color: '#e2dcf7',
+                              textAlign: 'center',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {fixture.awayPlayerName || 'TBD'}
+                          </span>
+                        </div>
+
+                        {/* Winner */}
+                        {fixture.status === 'completed' && fixture.result && (
+                          <div
+                            style={{
+                              paddingTop: '8px',
+                              borderTop: '1px solid rgba(139, 123, 184, 0.1)',
+                              textAlign: 'center',
+                              fontSize: '10px',
+                            }}
+                          >
+                            <span style={{ color: 'rgba(139, 123, 184, 0.6)', marginRight: '4px' }}>
+                              Winner:
+                            </span>
+                            <span style={{ color: '#ffdf80', fontWeight: '600', wordBreak: 'break-word' }}>
+                              {fixture.result === 'home'
+                                ? fixture.homePlayerName
+                                : fixture.result === 'away'
+                                ? fixture.awayPlayerName
+                                : 'Draw'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+//=================================================================
 // MAIN COMPONENT
 //=================================================================
 
@@ -270,7 +708,53 @@ export default function CompetitionFixtures() {
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  // REMOVED: currentPage and matchdaysPerPage state
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [exportFromMatchday, setExportFromMatchday] = useState(1);
+  const [exportToMatchday, setExportToMatchday] = useState(1);
+
+  const handleGenerateImage = async (fromMatchday, toMatchday) => {
+    // Update export state
+    setExportFromMatchday(fromMatchday);
+    setExportToMatchday(toMatchday);
+
+    // Wait for state update and DOM render
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const exportContainer = document.getElementById('export-container');
+    if (!exportContainer) {
+      throw new Error('Export container not found');
+    }
+
+    // Generate high-quality image
+    const canvas = await html2canvas(exportContainer, {
+      scale: 3, // 3x scale for crisp high-DPI output
+      backgroundColor: '#0a0510',
+      logging: false,
+      useCORS: true,
+      allowTaint: true,
+      windowWidth: 1920,
+      windowHeight: exportContainer.scrollHeight,
+    });
+
+    // Convert to blob and download
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        try {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `${competitionName.replace(/\s+/g, '_')}_MD${fromMatchday}-${toMatchday}_Fixtures.png`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+
+          toast.success('Image downloaded successfully!');
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      }, 'image/png');
+    });
+  };
 
   const fetchFixtures = useCallback(async () => {
     try {
@@ -313,7 +797,6 @@ export default function CompetitionFixtures() {
         }
         return newFixtures;
       });
-      
     };
 
     const handlePlayerUpdate = ({ playerId, newName }) => {
@@ -335,18 +818,14 @@ export default function CompetitionFixtures() {
     };
   }, [fetchFixtures]);
 
-  // Generate matchday schedule
   const matchdaySchedule = useMemo(() => {
     return generateMatchdaySchedule(fixtures);
   }, [fixtures]);
 
-  // Filter matchdays based on search
   const filteredMatchdays = useMemo(() => {
     const term = searchTerm.toLowerCase();
 
-    // Map through all matchdays and filter/sort fixtures
     const processedMatchdays = matchdaySchedule.map((matchdayFixtures, index) => {
-      // Filter fixtures based on search term
       const filtered = !term
         ? matchdayFixtures
         : matchdayFixtures.filter(f => {
@@ -355,7 +834,6 @@ export default function CompetitionFixtures() {
           return homePlayerName.includes(term) || awayPlayerName.includes(term);
         });
 
-      // Sort fixtures within matchday: pending first, then live, then completed
       const sorted = filtered.sort((a, b) => {
         const aStatus = a.status === 'pending' ? 0 : a.status === 'live' ? 1 : 2;
         const bStatus = b.status === 'pending' ? 0 : b.status === 'live' ? 1 : 2;
@@ -369,25 +847,17 @@ export default function CompetitionFixtures() {
       };
     }).filter(md => md.fixtures.length > 0);
 
-    // When searching, sort matchdays by pending count (most pending first)
     if (term) {
       return processedMatchdays.sort((a, b) => {
-        // First, sort by number of pending fixtures (descending)
         if (b.pendingCount !== a.pendingCount) {
           return b.pendingCount - a.pendingCount;
         }
-        // If same pending count, maintain original matchday order
         return a.matchdayNumber - b.matchdayNumber;
       });
     }
 
-    // When not searching, keep original matchday order
     return processedMatchdays;
   }, [matchdaySchedule, searchTerm]);
-
-  // REMOVED: paginatedMatchdays memo
-  // REMOVED: useEffect to reset page on search
-  // REMOVED: handlePageChange function
 
   if (loading) {
     return (
@@ -427,23 +897,33 @@ export default function CompetitionFixtures() {
           )}
         </div>
 
-        <InteractiveCard className="mb-12 max-w-2xl mx-auto">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-light/60 pointer-events-none" size={20} />
-            <input
-              type="text"
-              placeholder="Search by player name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input w-full"
-            />
-          </div>
-        </InteractiveCard>
+        <div className="flex flex-col md:flex-row gap-4 mb-12 max-w-2xl mx-auto">
+          <InteractiveCard className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-light/60 pointer-events-none" size={20} />
+              <input
+                type="text"
+                placeholder="Search by player name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input w-full"
+              />
+            </div>
+          </InteractiveCard>
 
-        {/* REMOVED: PaginationInfo component call */}
+          <InteractiveCard>
+            <button
+              onClick={() => setShowDownloadModal(true)}
+              className="download-btn w-full md:w-auto"
+              disabled={matchdaySchedule.length === 0}
+            >
+              <Download size={18} />
+              <span>Download as Image</span>
+            </button>
+          </InteractiveCard>
+        </div>
 
         <div className="space-y-4">
-          {/* MODIFIED: Check filteredMatchdays.length */}
           {filteredMatchdays.length === 0 ? (
             <InteractiveCard>
               <div className="text-center py-16 modern-info-card">
@@ -455,7 +935,6 @@ export default function CompetitionFixtures() {
               </div>
             </InteractiveCard>
           ) : (
-            // MODIFIED: Map over filteredMatchdays directly
             filteredMatchdays.map((matchday) => (
               <InteractiveCard key={matchday.matchdayNumber}>
                 <MatchdaySection
@@ -466,9 +945,26 @@ export default function CompetitionFixtures() {
             ))
           )}
         </div>
-
-        {/* REMOVED: PaginationControls component call */}
       </main>
+
+      {/* Download Modal */}
+      <DownloadModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        matchdaySchedule={matchdaySchedule}
+        competitionName={competitionName}
+        onGenerate={handleGenerateImage}
+      />
+
+      {/* Hidden Export Container */}
+      {showDownloadModal && (
+        <ExportContainer
+          matchdaySchedule={matchdaySchedule}
+          fromMatchday={exportFromMatchday}
+          toMatchday={exportToMatchday}
+          competitionName={competitionName}
+        />
+      )}
 
       <style jsx global>{`
             :root { 
@@ -510,6 +1006,65 @@ export default function CompetitionFixtures() {
                 background: rgba(44, 27, 75, 0.5);
                 border-color: var(--gold-main);
                 box-shadow: 0 0 15px rgba(255, 223, 128, 0.2);
+                color: white;
+            }
+
+            .download-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                padding: 0.75rem 1.5rem;
+                background: linear-gradient(135deg, rgba(255, 223, 128, 0.15) 0%, rgba(230, 180, 34, 0.15) 100%);
+                border: 1px solid rgba(255, 223, 128, 0.3);
+                border-radius: 9999px;
+                color: var(--gold-main);
+                font-weight: 600;
+                font-size: 0.875rem;
+                transition: all 0.3s ease;
+                backdrop-filter: blur(8px);
+            }
+            .download-btn:hover:not(:disabled) {
+                background: linear-gradient(135deg, rgba(255, 223, 128, 0.25) 0%, rgba(230, 180, 34, 0.25) 100%);
+                border-color: var(--gold-main);
+                box-shadow: 0 0 20px rgba(255, 223, 128, 0.3);
+                transform: translateY(-1px);
+            }
+            .download-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            .download-modal {
+                background: linear-gradient(135deg, rgba(10, 5, 16, 0.95) 0%, rgba(26, 15, 46, 0.95) 100%);
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 223, 128, 0.2);
+                border-radius: 16px;
+                padding: 2rem;
+                max-width: 500px;
+                width: 100%;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            }
+
+            .modal-select {
+                width: 100%;
+                background: rgba(44, 27, 75, 0.4);
+                border: 1px solid rgba(139, 123, 184, 0.3);
+                border-radius: 8px;
+                padding: 0.75rem 1rem;
+                color: white;
+                font-weight: 500;
+                font-size: 0.95rem;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }
+            .modal-select:focus {
+                outline: none;
+                border-color: var(--gold-main);
+                box-shadow: 0 0 10px rgba(255, 223, 128, 0.2);
+            }
+            .modal-select option {
+                background: #1a0f2e;
                 color: white;
             }
 
@@ -635,9 +1190,6 @@ export default function CompetitionFixtures() {
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
             }
-
-            /* REMOVED: All .pagination-btn and .pagination-ellipsis styles */
-            
         `}</style>
     </div>
   );

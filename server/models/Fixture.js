@@ -1,4 +1,4 @@
-// models/Fixture.js (Updated)
+// models/Fixture.js (Updated with Soft Delete)
 const mongoose = require('mongoose');
 
 const fixtureSchema = new mongoose.Schema({
@@ -55,7 +55,6 @@ const fixtureSchema = new mongoose.Schema({
     }
   },
   
-  // Individual matches within clan war (5 matches per clan war)
   individualMatches: [{
     homePlayer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -91,7 +90,6 @@ const fixtureSchema = new mongoose.Schema({
     }
   }],
   
-  // Clan war specific scoring
   homeClanPoints: {
     type: Number,
     default: 0,
@@ -112,7 +110,6 @@ const fixtureSchema = new mongoose.Schema({
     default: Date.now
   },
   
-  // For regular matches
   homeScore: {
     type: Number,
     min: 0,
@@ -143,7 +140,18 @@ const fixtureSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Fixture',
     default: []
-  }]
+  }],
+  
+  // Soft Delete Fields
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -156,23 +164,21 @@ fixtureSchema.pre('save', async function (next) {
   const Fixture = mongoose.model('Fixture');
 
   if (this.isClanWar) {
-    // Validate clan war fixture
     const competition = await Competition.findOne({
       _id: this.competitionId,
       type: 'CLAN_WAR',
-      clans: { $all: [this.homeClan, this.awayClan] }
+      clans: { $all: [this.homeClan, this.awayClan] },
+      isDeleted: false
     });
 
     if (!competition) {
       throw new Error('One or both clans do not belong to this CLAN_WAR competition');
     }
 
-    // Validate individual matches have exactly 5 matches
     if (this.individualMatches && this.individualMatches.length !== 5) {
       throw new Error('Clan war must have exactly 5 individual matches');
     }
 
-    // Calculate clan points if all individual matches are completed
     if (this.individualMatches && this.individualMatches.length === 5) {
       const allCompleted = this.individualMatches.every(match => match.status === 'completed');
       if (allCompleted) {
@@ -190,7 +196,6 @@ fixtureSchema.pre('save', async function (next) {
           }
         });
         
-        // Determine overall result
         if (this.homeClanPoints > this.awayClanPoints) {
           this.result = 'home';
         } else if (this.awayClanPoints > this.homeClanPoints) {
@@ -203,13 +208,13 @@ fixtureSchema.pre('save', async function (next) {
       }
     }
   } else {
-    // Existing validation for regular tournaments
     const isBye = this.awayPlayer === null && this.awayPlayerName === 'BYE';
 
     if (!isBye) {
       const competition = await Competition.findOne({
         _id: this.competitionId,
-        players: { $all: [this.homePlayer, this.awayPlayer] }
+        players: { $all: [this.homePlayer, this.awayPlayer] },
+        isDeleted: false
       });
 
       if (!competition) {
@@ -222,6 +227,7 @@ fixtureSchema.pre('save', async function (next) {
 
       const existingFixture = await Fixture.findOne({
         competitionId: this.competitionId,
+        isDeleted: false,
         $or: [
           { homePlayer: this.homePlayer, awayPlayer: this.awayPlayer },
           { homePlayer: this.awayPlayer, awayPlayer: this.homePlayer }
@@ -234,6 +240,14 @@ fixtureSchema.pre('save', async function (next) {
     }
   }
 
+  next();
+});
+
+// Middleware to exclude deleted items from normal queries
+fixtureSchema.pre(/^find/, function(next) {
+  if (!this.getQuery().isDeleted) {
+    this.where({ isDeleted: { $ne: true } });
+  }
   next();
 });
 

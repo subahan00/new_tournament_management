@@ -5,8 +5,6 @@ const cloudinary = require('../utils/cloudinary'); // Use centralized config
 const Wallpaper = require('../models/Wallpaper');
 const { authenticate } = require('../utils/middlewares'); // ✅ Correct path if needed
 
-
-// Configure multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
@@ -22,21 +20,17 @@ const upload = multer({
   }
 });
 
-// Helper function to upload to Cloudinary
 const uploadToCloudinary = (buffer, options = {}) => {
   return new Promise((resolve, reject) => {
-    // Validate configuration exists
     if (!cloudinary.config().api_key) {
       console.error('❌ Cloudinary API key missing!');
       return reject(new Error('Cloudinary not configured'));
     }
-
     const uploadOptions = {
       resource_type: 'image',
       folder: 'football-wallpapers',
       ...options
     };
-
     const uploadStream = cloudinary.uploader.upload_stream(
       uploadOptions,
       (error, result) => {
@@ -48,8 +42,6 @@ const uploadToCloudinary = (buffer, options = {}) => {
         }
       }
     );
-
-    // Create readable stream from buffer
     const { Readable } = require('stream');
     const stream = Readable.from(buffer);
     stream.on('error', (err) => {
@@ -59,9 +51,6 @@ const uploadToCloudinary = (buffer, options = {}) => {
     stream.pipe(uploadStream);
   });
 };
-// ADMIN ROUTES
-
-// Upload wallpaper (Admin only)
 router.post('/admin/upload',authenticate, upload.single('wallpaper'), async (req, res) => {
   try {
     if (!req.file) {

@@ -1,4 +1,4 @@
-// models/Competition.js (Updated)
+// models/Competition.js (Updated with Soft Delete)
 const mongoose = require('mongoose');
 
 const competitionSchema = new mongoose.Schema({
@@ -10,18 +10,9 @@ const competitionSchema = new mongoose.Schema({
     type: String,
     enum: [
       'KO_REGULAR',
-      'KO_CLUBS',
-      'KO_BASE',
-      'ELITE_LEAGUE',
-      'PRO_LEAGUE',
-      'SUPER_LEAGUE',
-      'ROOKIE_LEAGUE',
-      'FRIENDLY_LEAGUE',
-      'GNG',
-      'NEW_TYPE',
       'GROUP_STAGE',
       'LEAGUE',
-      'CLAN_WAR' // New type added
+      'CLAN_WAR'
     ],
     required: true
   },
@@ -29,10 +20,9 @@ const competitionSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  // New fields for CLAN_WAR type
   numberOfClans: {
     type: Number,
-    required: function() {
+    required: function () {
       return this.type === 'CLAN_WAR';
     }
   },
@@ -68,23 +58,41 @@ const competitionSchema = new mongoose.Schema({
     ref: 'Player',
     default: null
   },
-  // For CLAN_WAR, this will reference the winning clan
   winnerClan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Clan',
     default: null
+  },
+
+  // Soft Delete Fields
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+  deletedBy: {
+    type: String, // Could be userId if you have authentication
+    default: null
+  },
+  // Store snapshot of deleted data for recovery
+  deletionSnapshot: {
+    fixturesCount: { type: Number, default: 0 },
+    standingsCount: { type: Number, default: 0 },
+    clansCount: { type: Number, default: 0 }
   }
 }, { timestamps: true });
 
 // Pre-save validation for CLAN_WAR
-competitionSchema.pre('save', function(next) {
+competitionSchema.pre('save', function (next) {
   if (this.type === 'CLAN_WAR') {
-    // Validate numberOfPlayers is correct for clan war (numberOfClans * 5)
     if (this.numberOfPlayers !== this.numberOfClans * 5) {
       return next(new Error('For CLAN_WAR, numberOfPlayers must equal numberOfClans * 5'));
     }
-    
-    // Ensure numberOfClans is power of 2 for proper knockout format
+
     if (this.numberOfClans && !isPowerOfTwo(this.numberOfClans)) {
       return next(new Error('Number of clans must be a power of 2 (2, 4, 8, 16, etc.)'));
     }
@@ -92,29 +100,47 @@ competitionSchema.pre('save', function(next) {
   next();
 });
 
-// Delete associated fixtures and clans when competition is completed
-competitionSchema.pre('save', async function(next) {
-  if (this.isModified('status') && this.status === 'completed') {
-    try {
-      // Delete all associated fixtures
-      await mongoose.model('Fixture').deleteMany({ competitionId: this._id });
-      
-      // For CLAN_WAR, also delete associated clans
-      if (this.type === 'CLAN_WAR') {
-        await mongoose.model('Clan').deleteMany({ competitionId: this._id });
-      }
-      
-      console.log(`Deleted fixtures and clans for completed competition: ${this.name}`);
-    } catch (err) {
-      return next(err);
-    }
+// Middleware to exclude deleted items from normal queries
+competitionSchema.pre(/^find/, function (next) {
+  const query = this.getQuery();
+
+  // If query explicitly asks for deleted or non-deleted, don't override
+  if (
+    Object.prototype.hasOwnProperty.call(query, 'isDeleted')
+  ) {
+    return next();
   }
+
+  // Default: exclude deleted
+  this.where({ isDeleted: false });
   next();
 });
+
 
 // Helper function to check if number is power of 2
 function isPowerOfTwo(n) {
   return n > 0 && (n & (n - 1)) === 0;
 }
+
+// Instance method to soft delete
+competitionSchema.methods.softDelete = async function (userId = null) {
+  this.isDeleted = true;
+  this.deletedAt = new Date();
+  this.deletedBy = userId;
+  return await this.save();
+};
+
+// Instance method to restore
+competitionSchema.methods.restore = async function () {
+  this.isDeleted = false;
+  this.deletedAt = null;
+  this.deletedBy = null;
+  return await this.save();
+};
+
+// Static method to find deleted competitions
+competitionSchema.statics.findDeleted = function (conditions = {}) {
+  return this.find({ ...conditions, isDeleted: true }).sort({ deletedAt: -1 });
+};
 
 module.exports = mongoose.model('Competition', competitionSchema);
