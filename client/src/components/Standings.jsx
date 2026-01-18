@@ -190,6 +190,7 @@ StatsSection.displayName = 'StatsSection';
 //=================================================================
 
 const StandingsTable = memo(({ standings, title = null, showGroupHeader = false, isLoading = false }) => {
+  const { competitionId } = useParams(); // Add this line at the top of the component
   const safeStandings = Array.isArray(standings) ? standings : [];
 
   if (isLoading) {
@@ -244,7 +245,20 @@ const StandingsTable = memo(({ standings, title = null, showGroupHeader = false,
                             <span className="truncate">{standing.playerName.replace('Deleted-', '')}</span>
                           </span>
                         ) : (
-                          <span className="text-white truncate">{standing.playerName}</span>
+                          <Link
+                            to={`/player-fixtures/${competitionId}/${standing.player}`}
+                            className="text-white truncate hover:text-gold-main transition-colors duration-200 flex items-center group/player"
+                          >
+                            <span className="truncate">{standing.playerName}</span>
+                            <svg
+                              className="w-4 h-4 ml-1 opacity-0 group-hover/player:opacity-100 transition-opacity duration-200"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
                         )
                       ) : (
                         <span className="text-purple-light/70 flex items-center italic">
@@ -347,6 +361,7 @@ export default function Standings() {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       const { data } = await standingService.getStandings(competitionId);
+      console.log('data-',data);
 
       if (!data) throw new Error('No data received');
 

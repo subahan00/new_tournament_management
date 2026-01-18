@@ -35,30 +35,41 @@ exports.getOngoingCompetitions = async (req, res) => {
 exports.getStandings = async (req, res) => {
   try {
     const competitionId = req.params.competitionId;
-    
-    const competition = await Competition.findById(competitionId).select('type').lean();
+
+    // ✅ Fetch name + type
+    const competition = await Competition.findById(competitionId)
+      .select('name type')
+      .lean();
+
     if (!competition) {
       return res.status(404).json({
         success: false,
         message: 'Competition not found'
       });
     }
-    
-    // DON'T recalculate - just fetch existing standings
-    const standings = await Standing.find({ competition: competitionId })
+
+    // Fetch existing standings
+    let standings = await Standing.find({ competition: competitionId })
       .select('-__v')
       .lean();
-    
+
+    // Calculate only if empty
     if (standings.length === 0) {
-      // Only calculate if no standings exist yet
       await calculateStandings(competitionId);
-      const newStandings = await Standing.find({ competition: competitionId })
+      standings = await Standing.find({ competition: competitionId })
         .select('-__v')
         .lean();
-      return res.json(formatStandingsResponse(newStandings, competition.type));
     }
 
-    res.json(formatStandingsResponse(standings, competition.type));
+    // ✅ Single clean response
+    res.json({
+      success: true,
+      competitionId,
+      competitionName: competition.name,
+      competitionType: competition.type,
+      standings
+    });
+
   } catch (err) {
     console.error('Standings error:', err);
     res.status(500).json({
@@ -67,6 +78,7 @@ exports.getStandings = async (req, res) => {
     });
   }
 };
+
 
 // Helper function to format response with proper sorting
 function formatStandingsResponse(standings, competitionType) {

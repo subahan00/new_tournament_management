@@ -610,7 +610,7 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
                           <span
                             style={{
                               fontWeight: '600',
-                              fontSize: '13px',
+                              fontSize: '20px',
                               color: '#e2dcf7',
                               textAlign: 'center',
                               wordBreak: 'break-word',
@@ -638,10 +638,10 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
                               <span
                                 style={{
                                   fontFamily: "'Space Grotesk', sans-serif",
-                                  fontSize: '11px',
+                                  fontSize: '13px',
                                   fontWeight: '500',
                                   color: '#8b7bb8',
-                                  opacity: 0.7,
+                                  opacity: 0.8,
                                 }}
                               >
                                 vs
@@ -653,7 +653,7 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
                           <span
                             style={{
                               fontWeight: '600',
-                              fontSize: '13px',
+                              fontSize: '20px',
                               color: '#e2dcf7',
                               textAlign: 'center',
                               wordBreak: 'break-word',

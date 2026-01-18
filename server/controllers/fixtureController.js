@@ -978,3 +978,75 @@ exports.getUpcomingCompetitions = async (req, res) => {
     });
   }
 };
+exports.getPlayerFixtures = async (req, res) => {
+  try {
+    const { competitionId, playerId } = req.params;
+    // const Fixture = require('../models/Fixture');
+    // const Competition = require('../models/Competition');
+    // const Player = require('../models/Player');
+
+    // Verify competition exists
+    const competition = await Competition.findById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ message: 'Competition not found' });
+    }
+
+    // Verify player exists
+    const player = await Player.findById(playerId);
+    if (!player) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+
+    // Get all fixtures where this player is home or away
+    const fixtures = await Fixture.find({
+      competitionId,
+      isDeleted: false,
+      $or: [
+        { homePlayer: playerId },
+        { awayPlayer: playerId }
+      ]
+    })
+    .populate('homePlayer', 'name')
+    .populate('awayPlayer', 'name')
+    .sort({ matchDate: 1, round: 1 })
+    .lean();
+
+    // Format the response
+    const formattedFixtures = fixtures.map(fixture => ({
+      _id: fixture._id,
+      round: fixture.round,
+      matchDate: fixture.matchDate,
+      status: fixture.status,
+      result: fixture.result,
+      homePlayer: {
+        _id: fixture.homePlayer?._id,
+        name: fixture.homePlayerName || fixture.homePlayer?.name
+      },
+      awayPlayer: {
+        _id: fixture.awayPlayer?._id,
+        name: fixture.awayPlayerName || fixture.awayPlayer?.name || 'BYE'
+      },
+      homeScore: fixture.homeScore,
+      awayScore: fixture.awayScore,
+      isHomePlayer: fixture.homePlayer?._id?.toString() === playerId,
+      bracketPosition: fixture.bracketPosition
+    }));
+
+    res.json({
+      competition: {
+        _id: competition._id,
+        name: competition.name,
+        type: competition.type
+      },
+      player: {
+        _id: player._id,
+        name: player.name
+      },
+      fixtures: formattedFixtures
+    });
+
+  } catch (error) {
+    console.error('Error fetching player fixtures:', error);
+    res.status(500).json({ message: 'Failed to fetch player fixtures', error: error.message });
+  }
+};

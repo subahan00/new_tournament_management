@@ -46,7 +46,7 @@ import ClanWarFixtures from './pages/ClanWarFixtures';
 import ClanWarView from './pages/ClanWarView';
 import ClanManagement from './pages/clanmanagement';
 import RecoverCompetitions from './pages/RecoverCompetition';
-
+import PlayerFixtures from './pages/PlayerFixtures';
 
 import Maintenance from './pages/maintenance';
 
@@ -73,6 +73,8 @@ const App = () => {
               <Route path="/fixtures/:competitionId" element={<CompetitionFixtures />} />
               <Route path="/standings" element={<ManageStandings />} />
               <Route path="/standings/:competitionId" element={<Standings />} />
+              <Route path="/player-fixtures/:competitionId/:playerId" element={<PlayerFixtures />} />
+
               <Route path="/public-ko" element={<PublicKo />} />
               <Route path="/wallpaper" element={<PublicWallpaperPage />} />
               <Route path="/view" element={<ViewPage />} />

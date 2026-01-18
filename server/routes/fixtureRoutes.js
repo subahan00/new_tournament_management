@@ -17,7 +17,8 @@ const {
   setCompetitionWinner,
   getFixturesByCompetition,
   createFixturesForGroupStage,
-  getclanWarFixtures
+  getclanWarFixtures,
+  getPlayerFixtures
 } = require('../controllers/fixtureController');
 
 const { authenticate } = require('../utils/middlewares');
@@ -72,4 +73,6 @@ router.get('/ongoing',
 router.get('/upcoming', 
   getUpcomingCompetitions
 );
+router.get('/player/:competitionId/:playerId', getPlayerFixtures);
+
 module.exports = router;
