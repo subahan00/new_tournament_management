@@ -284,6 +284,7 @@ export default function PlayerFixtures() {
       try {
         setState(prev => ({ ...prev, loading: true, error: null }));
         const { data } = await standingService.getPlayerFixtures(competitionId, playerId);
+        console.log("dataeeeeeeee",data);
 
         setState({
           loading: false,
@@ -332,9 +333,10 @@ export default function PlayerFixtures() {
   }
 
   const { competition, player, fixtures } = state;
+  console.log("fixtures",fixtures);
   const sortedFixtures = [...fixtures].sort((a, b) => {
-    const aTime = new Date(a.updatedAt || a.createdAt).getTime();
-    const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+    const aTime = new Date(a.lastUpdated || a.lastUpdated).getTime();
+    const bTime = new Date(b.lastUpdated || b.lastUpdated).getTime();
     return aTime - bTime; // oldest first, latest last
   });
 
@@ -380,7 +382,7 @@ export default function PlayerFixtures() {
               />
             ))}
 
-            ))}
+
           </div>
         ) : (
           <InteractiveCard>
