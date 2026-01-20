@@ -1,122 +1,149 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Menu, X, Shield, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { X, Menu, Crown, Shield, Swords, Star, Trophy, Award, UserCog } from 'lucide-react';
 
-const Header = () => {
+const Header = ({ onQuestClick }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [competitions, setCompetitions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
 
-  
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuOpen && !e.target.closest('.mobile-menu-container')) {
-        setMenuOpen(false);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    document.body.style.overflow = menuOpen ? 'hidden' : 'auto';
+    return () => { 
+      window.removeEventListener('scroll', handleScroll); 
+      document.body.style.overflow = 'auto'; 
+    };
+  }, [scrolled, menuOpen]);
+
+  const navLinks = [
+    { href: "/", label: "Home", icon: Crown },
+    { href: "#tournaments", label: "Arena", icon: Swords, isScroll: true },
+    { href: "/standings", label: "Standings", icon: Award },
+    { href: "#stats", label: "Legends", icon: Star, isScroll: true },
+    { href: "/trophy-cabinet", label: "Trophy Cabinet", icon: Trophy },
+    { href: "/login", label: "Admin", icon: UserCog },
+    { href: "#join", label: "Join Arena", icon: Shield, isSpecial: true, action: onQuestClick },
+  ];
+
+  const NavItem = ({ item }) => {
+    if (item.action) {
+      return (
+        <a 
+          href={item.href} 
+          onClick={(e) => { 
+            e.preventDefault(); 
+            item.action(); 
+            setMenuOpen(false); 
+          }} 
+          className={`modern-nav-link ${item.isSpecial ? 'special' : ''}`}
+        >
+          <span className="flex items-center space-x-2">
+            <item.icon size={16} />
+            <span>{item.label}</span>
+          </span>
+          <span className="nav-underline"></span>
+        </a>
+      );
+    }
+    if (item.isScroll) {
+      return (
+        <a 
+          href={item.href} 
+          onClick={() => setMenuOpen(false)} 
+          className="modern-nav-link"
+        >
+          <span className="flex items-center space-x-2">
+            <item.icon size={16} />
+            <span>{item.label}</span>
+          </span>
+          <span className="nav-underline"></span>
+        </a>
+      );
+    }
+    return (
+      <Link 
+        to={item.href} 
+        onClick={() => setMenuOpen(false)} 
+        className="modern-nav-link"
+      >
+        <span className="flex items-center space-x-2">
+          <item.icon size={16} />
+          <span>{item.label}</span>
+        </span>
+        <span className="nav-underline"></span>
+      </Link>
+    );
+  };
+
+  const MobileNavItem = ({ item }) => {
+    const commonOnClick = (e) => {
+      setMenuOpen(false);
+      if (item.action) {
+        e.preventDefault();
+        item.action();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
+    if (item.action || item.isScroll) {
+      return (
+        <a 
+          href={item.href} 
+          onClick={commonOnClick} 
+          className="modern-mobile-nav-link"
+        >
+          <item.icon size={24} className="mr-4" />
+          {item.label}
+        </a>
+      );
+    }
+    return (
+      <Link 
+        to={item.href} 
+        onClick={commonOnClick} 
+        className="modern-mobile-nav-link"
+      >
+        <item.icon size={24} className="mr-4" />
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-[#0d1b2a]/75 backdrop-blur-xl border-b border-[#1a237e]/50 shadow-lg">
-      <div className="relative px-6 py-4 flex justify-between items-center max-w-screen-xl mx-auto">
-        {}
-        <Link to="/" className="flex items-center space-x-3 group">
-          <div className="relative">
-            <Trophy size={32} className="text-[#ffc107] group-hover:scale-110 transition-transform duration-300" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold tracking-wide text-white group-hover:text-[#ffc107] transition-colors duration-300">
-              Official <span className="text-[#ffc107]">90</span>
-            </span>
-          </div>
-        </Link>
-
-        {}
-        <button
-          className="md:hidden focus:outline-none text-gray-300 hover:text-[#ffc107] p-2 rounded-lg transition-colors duration-300"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-        >
-          {menuOpen ? <X size={28} /> : <Menu size={28} />}
-        </button>
-
-        {}
-        <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
-          {[
-            { to: "/", label: "Home" },
-            { to: "/standings", label: "Standings" },
-            { to: "/competitions", label: "Competitions", hasCount: true },
-            {to :"/trophy-cabinet", label:"Trophy Cabinet"},
-            { to: "/login", label: "Admin", isSpecial: true },
-          ].map((item, index) => (
-            <Link
-              key={index}
-              to={item.to}
-              className={`relative group px-3 py-2 rounded-md transition-all duration-300 ${
-                item.isSpecial 
-                  ? 'text-[#ffc107] border border-[#ffc107]/30 hover:border-[#ffc107] hover:bg-[#ffc107]/10' 
-                  : 'text-gray-300 hover:text-[#ffc107] hover:bg-white/5'
-              }`}
-            >
-              <span className="flex items-center space-x-2">
-                {item.isSpecial && <Shield size={16} />}
-                <span>{item.label}</span>
-                {item.hasCount && competitions.length > 0 && (
-                  <span className="bg-[#ffc107] text-black rounded-full px-2 py-0.5 text-xs font-bold">
-                    {competitions.length}
-                  </span>
-                )}
+    <>
+      <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${scrolled || menuOpen ? 'glass-header' : 'bg-transparent'}`}>
+        <div className="relative px-4 sm:px-6 py-4 flex justify-between items-center max-w-screen-2xl mx-auto">
+          <Link to="/" className="flex items-center space-x-2 sm:space-x-3 group">
+            <div className="relative">
+              <div className="absolute -inset-2 rounded-full modern-glow"></div>
+              <Crown size={32} className="relative text-gold-400 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500" />
+            </div>
+            <div>
+              <span className="text-xl sm:text-2xl font-title font-black tracking-wider text-white group-hover:text-gold-300 transition-colors duration-300">
+                Official <span className="text-gold-400">90</span>
               </span>
-            </Link>
-          ))}
-        </nav>
-      </div>
+            </div>
+          </Link>
 
-      {}
-      <div
-        className={`mobile-menu-container md:hidden bg-[#0d1b2a]/90 backdrop-blur-lg border-t border-[#1a237e]/30 transition-all duration-300 ease-in-out ${
-          menuOpen ? 'block' : 'hidden'
-        }`}
-      >
-        <div className="px-6 py-4">
-          <nav className="flex flex-col space-y-1">
-            {[
-              { to: "/", label: "Home" },
-              { to: "/standings", label: "Standings" },
-              { to: "/competitions", label: "Competitions", hasCount: true },
-              {to :"/trophy-cabinet", label:"Trophy Cabinet"},
-              { to: "/login", label: "Admin Login", isSpecial: true },
-            ].map((item, index) => (
-              <Link
-                key={index}
-                to={item.to}
-                onClick={() => setMenuOpen(false)}
-                className={`group flex items-center justify-between py-3 px-4 rounded-lg text-base transition-all duration-300 ${
-                  item.isSpecial 
-                    ? 'text-[#ffc107] border border-[#ffc107]/30 hover:border-[#ffc107] hover:bg-[#ffc107]/10' 
-                    : 'text-gray-300 hover:text-[#ffc107] hover:bg-white/5'
-                }`}
-              >
-                <span className="flex items-center space-x-3">
-                  {item.isSpecial && <Crown size={18} />}
-                  <span>{item.label}</span>
-                </span>
-                {item.hasCount && competitions.length > 0 && (
-                  <span className="bg-[#ffc107] text-black rounded-full px-2 py-1 text-sm font-bold">
-                    {competitions.length}
-                  </span>
-                )}
-              </Link>
-            ))}
+          <button 
+            className="md:hidden focus:outline-none text-gold-300 hover:text-gold-100 p-2 rounded-lg transition-all duration-300 hover:bg-gold-500/10 z-50" 
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? <X size={28} /> : <Menu size={28} />}
+          </button>
+
+          <nav className="hidden md:flex items-center space-x-1 text-sm font-heading font-bold">
+            {navLinks.map((item) => <NavItem key={item.label} item={item} />)}
           </nav>
         </div>
+      </header>
+
+      <div className={`md:hidden fixed inset-0 modern-mobile-menu z-40 transition-all duration-500 ${menuOpen ? 'opacity-100 pointer-events-auto backdrop-blur-2xl' : 'opacity-0 pointer-events-none backdrop-blur-0'}`}>
+        <nav className="flex flex-col items-center justify-center h-full text-center space-y-8">
+          {navLinks.map((item) => <MobileNavItem key={item.label} item={item} />)}
+        </nav>
       </div>
-    </header>
+    </>
   );
 };
 
