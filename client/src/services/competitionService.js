@@ -39,7 +39,7 @@ export const createClanWarCompetition = async (competitionData) => {
 
 export const getCompetition = async (competitionId) => {
   try {
-    const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/competitions/${competitionId}`);
+    const response = await axios.get(`${BASE_URL}/competitions/${competitionId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;

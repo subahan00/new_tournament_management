@@ -116,22 +116,22 @@ const StatsSummary = ({ fixtures, playerName }) => {
             <div className="stats-label mb-2">Played</div>
             <div className="text-2xl font-bold text-white">{stats.played}</div>
           </div>
-          
+
           <div className="stats-card">
             <div className="stats-label mb-2 text-green-400">Wins</div>
             <div className="text-2xl font-bold text-green-400">{stats.wins}</div>
           </div>
-          
+
           <div className="stats-card">
             <div className="stats-label mb-2 text-yellow-400">Draws</div>
             <div className="text-2xl font-bold text-yellow-400">{stats.draws}</div>
           </div>
-          
+
           <div className="stats-card">
             <div className="stats-label mb-2 text-red-400">Losses</div>
             <div className="text-2xl font-bold text-red-400">{stats.losses}</div>
           </div>
-          
+
           <div className="stats-card">
             <div className="stats-label mb-2 flex items-center justify-center">
               <Target className="w-4 h-4 mr-1" />
@@ -139,7 +139,7 @@ const StatsSummary = ({ fixtures, playerName }) => {
             </div>
             <div className="text-2xl font-bold text-blue-400">{stats.goalsFor}</div>
           </div>
-          
+
           <div className="stats-card">
             <div className="stats-label mb-2 flex items-center justify-center">
               <Shield className="w-4 h-4 mr-1" />
@@ -147,7 +147,7 @@ const StatsSummary = ({ fixtures, playerName }) => {
             </div>
             <div className="text-2xl font-bold text-purple-400">{stats.goalsAgainst}</div>
           </div>
-          
+
           <div className="stats-card">
             <div className="stats-label mb-2 flex items-center justify-center">
               <TrendingUp className="w-4 h-4 mr-1" />
@@ -332,6 +332,11 @@ export default function PlayerFixtures() {
   }
 
   const { competition, player, fixtures } = state;
+  const sortedFixtures = [...fixtures].sort((a, b) => {
+    const aTime = new Date(a.updatedAt || a.createdAt).getTime();
+    const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+    return aTime - bTime; // oldest first, latest last
+  });
 
   return (
     <div className="min-h-screen modern-bg text-white overflow-x-hidden">
@@ -340,8 +345,8 @@ export default function PlayerFixtures() {
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       <header className="fixed top-0 left-0 w-full z-50 p-4">
-        <Link 
-          to={`/standings/${competitionId}`} 
+        <Link
+          to={`/standings/${competitionId}`}
           className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-main transition-colors duration-300 group glass-header-light p-2 rounded-lg"
         >
           <ChevronLeft size={18} className="transition-transform duration-300 group-hover:-translate-x-1" />
@@ -367,12 +372,14 @@ export default function PlayerFixtures() {
         {/* Fixtures List */}
         {fixtures.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {fixtures.map((fixture, index) => (
-              <FixtureCard 
-                key={fixture._id} 
-                fixture={fixture} 
+            {sortedFixtures.map((fixture) => (
+              <FixtureCard
+                key={fixture._id}
+                fixture={fixture}
                 playerName={player?.name}
               />
+            ))}
+
             ))}
           </div>
         ) : (

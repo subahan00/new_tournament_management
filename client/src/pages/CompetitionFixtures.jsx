@@ -66,13 +66,11 @@ const getStatusInfo = (status) => {
 // ROUND-ROBIN MATCHDAY GENERATOR
 //=================================================================
 
-const generateMatchdaySchedule = (fixtures) => {
+const generateSingleRound = (fixtures) => {
   if (!fixtures || fixtures.length === 0) return [];
 
-  const getPlayerId = (player) => {
-    if (!player) return null;
-    return typeof player === 'object' && player !== null ? player._id : player;
-  };
+  const getPlayerId = (player) =>
+    typeof player === 'object' && player !== null ? player._id : player;
 
   const playerIds = new Set();
   const fixtureMap = new Map();
@@ -80,69 +78,76 @@ const generateMatchdaySchedule = (fixtures) => {
   for (const fixture of fixtures) {
     const homeId = getPlayerId(fixture.homePlayer);
     const awayId = getPlayerId(fixture.awayPlayer);
-
     if (!homeId || !awayId || homeId === awayId) continue;
 
     playerIds.add(homeId);
     playerIds.add(awayId);
 
     const key = [homeId, awayId].sort().join('-');
-
-    if (!fixtureMap.has(key)) {
-      fixtureMap.set(key, fixture);
-    }
+    if (!fixtureMap.has(key)) fixtureMap.set(key, fixture);
   }
 
   const players = Array.from(playerIds);
-  let numPlayers = players.length;
+  if (players.length % 2 !== 0) players.push(null);
 
-  if (numPlayers % 2 !== 0) {
-    players.push(null);
-    numPlayers++;
-  }
-
+  const numPlayers = players.length;
+  const rounds = numPlayers - 1;
+  const half = numPlayers / 2;
+  const rotating = players.slice(1);
   const matchdays = [];
-  const numRounds = numPlayers - 1;
-  const halfSize = numPlayers / 2;
 
-  const rotatingPlayers = players.slice(1);
+  for (let r = 0; r < rounds; r++) {
+    const day = [];
 
-  for (let round = 0; round < numRounds; round++) {
-    const currentMatchdayFixtures = [];
-    
     const p1 = players[0];
-    const p2 = rotatingPlayers[0];
+    const p2 = rotating[0];
+    if (p1 && p2) day.push(fixtureMap.get([p1, p2].sort().join('-')));
 
-    if (p1 !== null && p2 !== null) {
-      const key = [p1, p2].sort().join('-');
-      const fixture = fixtureMap.get(key);
-      if (fixture) {
-        currentMatchdayFixtures.push(fixture);
-      }
+    for (let i = 1; i < half; i++) {
+      const a = rotating[i];
+      const b = rotating[rotating.length - i];
+      if (a && b) day.push(fixtureMap.get([a, b].sort().join('-')));
     }
 
-    for (let i = 1; i < halfSize; i++) {
-      const home = rotatingPlayers[i];
-      const away = rotatingPlayers[rotatingPlayers.length - i];
-
-      if (home !== null && away !== null) {
-        const key = [home, away].sort().join('-');
-        const fixture = fixtureMap.get(key);
-        if (fixture) {
-          currentMatchdayFixtures.push(fixture);
-        }
-      }
-    }
-
-    if (currentMatchdayFixtures.length > 0) {
-      matchdays.push(currentMatchdayFixtures);
-    }
-
-    rotatingPlayers.unshift(rotatingPlayers.pop());
+    matchdays.push(day.filter(Boolean));
+    rotating.unshift(rotating.pop());
   }
 
   return matchdays;
 };
+
+const generateMatchdaySchedule = (fixtures) => {
+  if (!fixtures.length) return [];
+
+  const getId = (p) => (typeof p === 'object' ? p._id : p);
+  const players = new Set();
+  fixtures.forEach(f => {
+    players.add(getId(f.homePlayer));
+    players.add(getId(f.awayPlayer));
+  });
+
+  const N = players.size;
+  const fixturesPerRound = (N * (N - 1)) / 2;
+  const roundCount = Math.round(fixtures.length / fixturesPerRound);
+
+  const allMatchdays = [];
+
+  for (let r = 0; r < roundCount; r++) {
+    const start = r * fixturesPerRound;
+    const end = start + fixturesPerRound;
+    const roundFixtures = fixtures.slice(start, end);
+
+    const roundMatchdays = generateSingleRound(roundFixtures);
+
+    roundMatchdays.forEach((md, i) => {
+      allMatchdays.push(md);
+    });
+  }
+
+  return allMatchdays;
+};
+
+
 
 //=================================================================
 // FIXTURE CARD COMPONENT
@@ -768,6 +773,7 @@ export default function CompetitionFixtures() {
       if (!name) {
         try {
           const compRes = await competitionService.getCompetition(competitionId);
+          console.log('comp-',compRes)
           const compPayload = compRes?.data || {};
           name = compPayload.name || compPayload.competitionName || compPayload.competition?.name || name;
         } catch (e) {
