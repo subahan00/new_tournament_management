@@ -87,7 +87,12 @@ const generateSingleRound = (fixtures) => {
     if (!fixtureMap.has(key)) fixtureMap.set(key, fixture);
   }
 
-  const players = Array.from(playerIds);
+ const players = Array.from(playerIds).sort((a, b) => {
+  const pa = fixtures.find(f => f.homePlayer === a || f.awayPlayer === a)?.homePlayerName || '';
+  const pb = fixtures.find(f => f.homePlayer === b || f.awayPlayer === b)?.homePlayerName || '';
+  return pa.localeCompare(pb);
+});
+
   if (players.length % 2 !== 0) players.push(null);
 
   const numPlayers = players.length;
@@ -765,7 +770,6 @@ export default function CompetitionFixtures() {
     try {
       setLoading(true);
       const res = await fixtureService.getCompetitionFixtures(competitionId);
-      console.log('res-',res);
       const payload = res?.data || {};
       const data = payload.data || [];
 
