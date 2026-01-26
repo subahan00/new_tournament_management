@@ -765,6 +765,7 @@ export default function CompetitionFixtures() {
     try {
       setLoading(true);
       const res = await fixtureService.getCompetitionFixtures(competitionId);
+      console.log('res-',res);
       const payload = res?.data || {};
       const data = payload.data || [];
 
