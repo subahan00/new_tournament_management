@@ -63,96 +63,148 @@ const getStatusInfo = (status) => {
 };
 
 //=================================================================
-// ROUND-ROBIN MATCHDAY GENERATOR
+// ROBUST MATCHDAY GENERATOR (BUCKET & DISPENSE ALGORITHM)
 //=================================================================
 
-const generateSingleRound = (fixtures) => {
+const generateMatchdaySchedule = (fixtures, competition) => {
   if (!fixtures || fixtures.length === 0) return [];
 
-  const getPlayerId = (player) =>
-    typeof player === 'object' && player !== null ? player._id : player;
+  // 1. HELPER: standardized ID getter
+  const getId = (p) => {
+    if (!p) return null;
+    return typeof p === 'object' ? (p.$oid || p._id || p.id) : p;
+  };
 
-  const playerIds = new Set();
-  const fixtureMap = new Map();
+  // 2. PREPARE THE QUEUES
+  // We create a map where Key = "PlayerA-PlayerB" and Value = [Fixture_R1, Fixture_R2, Fixture_R3]
+  const fixtureQueue = new Map();
+  const playerSet = new Set();
 
-  for (const fixture of fixtures) {
-    const homeId = getPlayerId(fixture.homePlayer);
-    const awayId = getPlayerId(fixture.awayPlayer);
-    if (!homeId || !awayId || homeId === awayId) continue;
-
-    playerIds.add(homeId);
-    playerIds.add(awayId);
-
-    const key = [homeId, awayId].sort().join('-');
-    if (!fixtureMap.has(key)) fixtureMap.set(key, fixture);
-  }
-
- const players = Array.from(playerIds).sort((a, b) => {
-  const pa = fixtures.find(f => f.homePlayer === a || f.awayPlayer === a)?.homePlayerName || '';
-  const pb = fixtures.find(f => f.homePlayer === b || f.awayPlayer === b)?.homePlayerName || '';
-  return pa.localeCompare(pb);
-});
-
-  if (players.length % 2 !== 0) players.push(null);
-
-  const numPlayers = players.length;
-  const rounds = numPlayers - 1;
-  const half = numPlayers / 2;
-  const rotating = players.slice(1);
-  const matchdays = [];
-
-  for (let r = 0; r < rounds; r++) {
-    const day = [];
-
-    const p1 = players[0];
-    const p2 = rotating[0];
-    if (p1 && p2) day.push(fixtureMap.get([p1, p2].sort().join('-')));
-
-    for (let i = 1; i < half; i++) {
-      const a = rotating[i];
-      const b = rotating[rotating.length - i];
-      if (a && b) day.push(fixtureMap.get([a, b].sort().join('-')));
-    }
-
-    matchdays.push(day.filter(Boolean));
-    rotating.unshift(rotating.pop());
-  }
-
-  return matchdays;
-};
-
-const generateMatchdaySchedule = (fixtures) => {
-  if (!fixtures.length) return [];
-
-  const getId = (p) => (typeof p === 'object' ? p._id : p);
-  const players = new Set();
   fixtures.forEach(f => {
-    players.add(getId(f.homePlayer));
-    players.add(getId(f.awayPlayer));
+    const h = getId(f.homePlayer);
+    const a = getId(f.awayPlayer);
+    
+    if (h && a) {
+      playerSet.add(h);
+      playerSet.add(a);
+      
+      // Create a sorted key ensuring A-B and B-A land in the same bucket
+      const key = [h, a].sort().join('-');
+      
+      if (!fixtureQueue.has(key)) {
+        fixtureQueue.set(key, []);
+      }
+      fixtureQueue.get(key).push(f);
+    }
   });
 
-  const N = players.size;
-  const fixturesPerRound = (N * (N - 1)) / 2;
-  const roundCount = Math.round(fixtures.length / fixturesPerRound);
+  // 3. SORT THE QUEUES (CRITICAL STEP)
+  // Ensure "Round 1" fixture is at index 0, "Round 2" at index 1, etc.
+  fixtureQueue.forEach((matchList) => {
+    matchList.sort((a, b) => {
+      // Try to sort by the explicit "round" string ("Round 1" vs "Round 2")
+      const rA = parseInt(a.round?.replace(/\D/g, '') || '0');
+      const rB = parseInt(b.round?.replace(/\D/g, '') || '0');
+      
+      if (rA !== rB) return rA - rB;
+      
+      // Fallback: Sort by creation date if round info is missing
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+  });
 
+  // 4. SETUP PLAYERS FOR ROUND ROBIN
+  // Use competition players if available to ensure correct order, otherwise derived set
+  let players = [];
+  if (competition && competition.players && competition.players.length > 0) {
+     players = competition.players.map(getId).filter(id => playerSet.has(id));
+  } else {
+     players = Array.from(playerSet);
+  }
+
+  // Sort players alphabetically/numerically to ensure deterministic output every render
+  players.sort(); 
+
+  // Add dummy player for odd numbers
+  if (players.length % 2 !== 0) {
+    players.push(null); 
+  }
+
+  const N = players.length;
+  const matchdaysPerRound = N - 1;
+  const totalRoundsConfigured = competition?.rounds || 1;
+  
+  // 5. GENERATE THE SCHEDULE
   const allMatchdays = [];
 
-  for (let r = 0; r < roundCount; r++) {
-    const start = r * fixturesPerRound;
-    const end = start + fixturesPerRound;
-    const roundFixtures = fixtures.slice(start, end);
+  // Loop for R rounds (e.g., 3 times)
+  for (let r = 0; r < totalRoundsConfigured; r++) {
+    
+    // Berger Table (Circle Method) Rotation Logic
+    let rotatingPlayers = [...players];
+    
+    // Inside a single Round (e.g., Round 1), iterate N-1 matchdays
+    for (let day = 0; day < matchdaysPerRound; day++) {
+      const currentMatchdayFixtures = [];
+      const globalMatchdayNum = (r * matchdaysPerRound) + (day + 1);
 
-    const roundMatchdays = generateSingleRound(roundFixtures);
+      const half = N / 2;
+      
+      for (let i = 0; i < half; i++) {
+        const p1 = rotatingPlayers[i];
+        const p2 = rotatingPlayers[N - 1 - i];
 
-    roundMatchdays.forEach((md, i) => {
-      allMatchdays.push(md);
+        // If this is a real pair (neither is null dummy)
+        if (p1 && p2) {
+          const key = [p1, p2].sort().join('-');
+          const queue = fixtureQueue.get(key);
+
+          if (queue && queue.length > 0) {
+             // DISPENSE: Shift the top fixture from the queue
+             // In Loop 1 (r=0), this grabs the Round 1 fixture.
+             // In Loop 2 (r=1), this grabs the Round 2 fixture.
+             const fixture = queue.shift();
+             currentMatchdayFixtures.push(fixture);
+          }
+        }
+      }
+
+      // Only add the matchday if it has fixtures
+      if (currentMatchdayFixtures.length > 0) {
+        allMatchdays.push({
+          matchdayNumber: globalMatchdayNum,
+          roundLabel: `Round ${r + 1}`, // "Round 1", "Round 2", etc.
+          fixtures: currentMatchdayFixtures
+        });
+      }
+
+      // Rotate players: Keep index 0 fixed, rotate the rest
+      // [0, 1, 2, 3] -> [0, 3, 1, 2]
+      const fixed = rotatingPlayers[0];
+      const moving = rotatingPlayers.slice(1);
+      moving.unshift(moving.pop());
+      rotatingPlayers = [fixed, ...moving];
+    }
+  }
+  
+  // 6. Handle Leftovers (Cleanup)
+  // If any fixtures remain in queues (due to mismatched player counts or errors),
+  // dump them into a final "Overflow" matchday so they aren't lost.
+  const leftovers = [];
+  fixtureQueue.forEach(queue => {
+    if (queue.length > 0) leftovers.push(...queue);
+  });
+  
+  if (leftovers.length > 0) {
+    allMatchdays.push({
+      matchdayNumber: 999,
+      roundLabel: "Unscheduled / Overflow",
+      fixtures: leftovers
     });
   }
 
   return allMatchdays;
 };
-
-
 
 //=================================================================
 // FIXTURE CARD COMPONENT
@@ -414,9 +466,9 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
   const selectedMatchdays = useMemo(() => {
     const start = fromMatchday - 1; // Convert to 0-based index
     const end = toMatchday; // slice is exclusive of end, so no need to add 1
-    return matchdaySchedule.slice(start, end).map((fixtures, idx) => ({
-      fixtures,
-      matchdayNumber: fromMatchday + idx
+    return matchdaySchedule.slice(start, end).map((data) => ({
+      fixtures: data.fixtures,
+      matchdayNumber: data.matchdayNumber
     }));
   }, [matchdaySchedule, fromMatchday, toMatchday]);
 
@@ -715,6 +767,7 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
 export default function CompetitionFixtures() {
   const { competitionId } = useParams();
   const [fixtures, setFixtures] = useState([]);
+  const [competitionData, setCompetitionData] = useState(null);
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -774,16 +827,15 @@ export default function CompetitionFixtures() {
       const data = payload.data || [];
 
       let name = payload.competitionName || payload.competition?.name || payload.competition_name;
+      let compData = null;
 
-      if (!name) {
-        try {
-          const compRes = await competitionService.getCompetition(competitionId);
-          console.log('comp-',compRes)
-          const compPayload = compRes?.data || {};
-          name = compPayload.name || compPayload.competitionName || compPayload.competition?.name || name;
-        } catch (e) {
-          console.warn("Failed to fetch competition metadata", e);
-        }
+      try {
+        const compRes = await competitionService.getCompetition(competitionId);
+        compData = compRes?.data || {};
+        name = compData.name || compData.competitionName || compData.competition?.name || name;
+        setCompetitionData(compData);
+      } catch (e) {
+        console.warn("Failed to fetch competition metadata", e);
       }
 
       setFixtures(data);
@@ -830,16 +882,18 @@ export default function CompetitionFixtures() {
   }, [fetchFixtures]);
 
   const matchdaySchedule = useMemo(() => {
-    return generateMatchdaySchedule(fixtures);
-  }, [fixtures]);
+    // pass competitionData so we know how many rounds there are
+    return generateMatchdaySchedule(fixtures, competitionData);
+  }, [fixtures, competitionData]);
 
   const filteredMatchdays = useMemo(() => {
     const term = searchTerm.toLowerCase();
 
-    const processedMatchdays = matchdaySchedule.map((matchdayFixtures, index) => {
+    // The generator now returns objects, not arrays
+    const processedMatchdays = matchdaySchedule.map((md) => {
       const filtered = !term
-        ? matchdayFixtures
-        : matchdayFixtures.filter(f => {
+        ? md.fixtures
+        : md.fixtures.filter(f => {
           const homePlayerName = (f.homePlayerName || 'tbd').toLowerCase();
           const awayPlayerName = (f.awayPlayerName || 'tbd').toLowerCase();
           return homePlayerName.includes(term) || awayPlayerName.includes(term);
@@ -852,7 +906,7 @@ export default function CompetitionFixtures() {
       });
 
       return {
-        matchdayNumber: index + 1,
+        ...md, // keep roundLabel and matchdayNumber
         fixtures: sorted,
         pendingCount: sorted.filter(f => f.status === 'pending').length
       };
@@ -946,14 +1000,36 @@ export default function CompetitionFixtures() {
               </div>
             </InteractiveCard>
           ) : (
-            filteredMatchdays.map((matchday) => (
-              <InteractiveCard key={matchday.matchdayNumber}>
-                <MatchdaySection
-                  matchdayNumber={matchday.matchdayNumber}
-                  fixtures={matchday.fixtures}
-                />
-              </InteractiveCard>
-            ))
+            filteredMatchdays.map((matchday, index) => {
+              // Logic to show a Round Header if it changes
+              const prevMatchday = filteredMatchdays[index - 1];
+              const showRoundHeader = !prevMatchday || (prevMatchday.roundLabel !== matchday.roundLabel);
+
+              return (
+                <React.Fragment key={matchday.matchdayNumber}>
+                  
+                  {/* Visual Divider for Rounds */}
+                  {showRoundHeader && matchday.roundLabel && (
+                     <InteractiveCard className="py-6">
+                       <div className="flex items-center justify-center">
+                         <div className="h-[1px] bg-gradient-to-r from-transparent via-gold-main/40 to-transparent w-24 sm:w-48 mr-4"></div>
+                         <h2 className="text-gold-main font-space-grotesk font-bold text-xl uppercase tracking-widest shadow-gold">
+                           {matchday.roundLabel}
+                         </h2>
+                         <div className="h-[1px] bg-gradient-to-r from-transparent via-gold-main/40 to-transparent w-24 sm:w-48 ml-4"></div>
+                       </div>
+                     </InteractiveCard>
+                  )}
+
+                  <InteractiveCard>
+                    <MatchdaySection
+                      matchdayNumber={matchday.matchdayNumber}
+                      fixtures={matchday.fixtures}
+                    />
+                  </InteractiveCard>
+                </React.Fragment>
+              );
+            })
           )}
         </div>
       </main>
@@ -1000,6 +1076,7 @@ export default function CompetitionFixtures() {
             .modern-hero-subtitle { font-size: clamp(0.9rem, 2vw, 1.1rem); color: var(--purple-light); font-weight: 400; line-height: 1.5; max-width: 40rem; margin: 0 auto; }
             .modern-info-card { background: linear-gradient(135deg, rgba(44, 27, 75, 0.4) 0%, rgba(30, 42, 90, 0.3) 50%, rgba(44, 27, 75, 0.4) 100%); backdrop-filter: blur(16px); border: 1px solid rgba(255, 223, 128, 0.1); border-radius: 16px; padding: 1.5rem; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); position: relative; overflow: hidden; }
             .modern-interactive-card:hover .modern-info-card { border-color: rgba(255, 223, 128, 0.25); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); }
+            .shadow-gold { text-shadow: 0 0 20px rgba(255, 223, 128, 0.4); }
 
             .search-input {
                 background: rgba(44, 27, 75, 0.3);
