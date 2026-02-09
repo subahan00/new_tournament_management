@@ -18,7 +18,8 @@ const {
   getFixturesByCompetition,
   createFixturesForGroupStage,
   getclanWarFixtures,
-  getPlayerFixtures
+  getPlayerFixtures,
+  revertFixtureResult
 } = require('../controllers/fixtureController');
 
 const { authenticate } = require('../utils/middlewares');
@@ -74,5 +75,6 @@ router.get('/upcoming',
   getUpcomingCompetitions
 );
 router.get('/player/:competitionId/:playerId', getPlayerFixtures);
+router.put('/:fixtureId/revert',revertFixtureResult);
 
 module.exports = router;

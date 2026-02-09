@@ -1080,6 +1080,42 @@ exports.updateFixtureResult = async (req, res) => {
     });
   }
 };
+// Add this to controllers/fixtureController.js
+
+exports.revertFixtureResult = async (req, res) => {
+    console.log("🔥 REVERT API HIT for:", req.params.fixtureId);
+
+    try {
+        const { fixtureId } = req.params;
+        const fixture = await Fixture.findById(fixtureId);
+
+        if (!fixture) return res.status(404).json({ error: 'Fixture not found' });
+
+        // Force Manual Update (Bypasses all checks)
+        fixture.homeScore = null;
+        fixture.awayScore = null;
+        fixture.status = 'pending';
+        fixture.result = null;
+        fixture.completedAt = null;
+
+        await fixture.save();
+
+        console.log("✅ Database Reverted Successfully");
+
+        // Recalculate Standings to remove points
+        if (fixture.competitionId) {
+             // Assuming you have this imported
+             // const { calculateStandings } = require('../utils/standingsUtils'); 
+             try { await calculateStandings(fixture.competitionId); } catch(e) {}
+        }
+
+        res.json({ success: true, message: 'Reverted successfully' });
+
+    } catch (err) {
+        console.error("Revert Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+};
 // Additional Methods
 exports.getOngoingCompetitions = async (req, res) => {
   try {

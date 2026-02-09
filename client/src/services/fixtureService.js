@@ -144,6 +144,16 @@ export default {
     }
   },
 
+  revertFixtureResult: async (fixtureId) => {
+    try {
+      const response = await axios.put(`${BASE_URL}/fixtures/${fixtureId}/revert`);
+      return response.data;
+    } catch (error) {
+      console.error('Error reverting fixture result:', error);
+      throw error;
+    }
+  },
+
   advanceToNextRound: async (competitionId, currentRound) => {
     try {
       const response = await axios.post(`${BASE_URL}/fixtures/advance-round`, {

@@ -254,30 +254,34 @@ export default function CompetitionResults() {
         setShowConfirmModal(true);
     };
 
-    const confirmSingleSubmission = async () => {
+const confirmSingleSubmission = async () => {
         if (!pendingSubmission) return;
+        
         try {
             setSubmitting(true);
-            let payload;
-            
+
             if (modalAction === 'revert') {
-                payload = {
-                    homeScore: null,
-                    awayScore: null,
-                    status: 'pending'
-                };
+                // 🔴 REVERT LOGIC: Call the dedicated revert endpoint
+                // This ensures we bypass any number conversion issues on the backend
+                console.log("Reverting fixture:", pendingSubmission);
+                await fixtureService.revertFixtureResult(pendingSubmission);
             } else {
-                payload = {
+                // 🟢 UPDATE LOGIC: Standard update
+                const payload = {
                     homeScore: Number(singleScores.home),
                     awayScore: Number(singleScores.away)
                 };
+                console.log('Update payload:', payload);
+                await fixtureService.updateFixtureResult(pendingSubmission, payload);
             }
-            console.log('payload',payload);
-            await fixtureService.updateFixtureResult(pendingSubmission, payload);
+
+            // Refresh data and close modal
             await fetchFixtures();
             setEditingFixtureId(null);
             setShowConfirmModal(false);
+
         } catch (err) {
+            console.error(err);
             setError(err.message || 'Update failed');
         } finally {
             setSubmitting(false);
