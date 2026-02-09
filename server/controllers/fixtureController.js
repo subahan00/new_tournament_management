@@ -911,41 +911,13 @@ exports.getCompetitionFixtures = async (req, res) => {
     });
   }
 };
-
-
-
 exports.updateFixtureResult = async (req, res) => {
   try {
     const { fixtureId } = req.params;
-    const { homeScore, awayScore } = req.body;
+    // We get status from body because frontend sends { status: 'pending' } on revert
+    const { homeScore, awayScore, status } = req.body; 
 
-    // 1. Validate inputs
-    if (homeScore === undefined || awayScore === undefined) {
-      return res.status(400).json({
-        success: false,
-        error: 'Both homeScore and awayScore are required'
-      });
-    }
-
-    // Convert to numbers if strings
-    const home = Number(homeScore);
-    const away = Number(awayScore);
-
-    if (isNaN(home) || isNaN(away)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Scores must be valid numbers'
-      });
-    }
-
-    if (home < 0 || away < 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Scores cannot be negative'
-      });
-    }
-
-    // 2. Find fixture first to get competitionId
+    // 1. Find the fixture
     const fixture = await Fixture.findById(fixtureId);
 
     if (!fixture) {
@@ -955,60 +927,106 @@ exports.updateFixtureResult = async (req, res) => {
       });
     }
 
-    // 3. Determine result
-    const result = home > away ? 'home' : away > home ? 'away' : 'draw';
+    // --- 🔴 REVERT LOGIC ---
+    // We check if scores are null OR if the frontend explicitly asked to set status to 'pending'
+    // This prevents the bug where null becomes 0.
+    const isRevert = (homeScore === null && awayScore === null) || status === 'pending';
 
-    // 4. Update fixture
-    fixture.homeScore = home;
-    fixture.awayScore = away;
-    fixture.status = 'completed';
-    fixture.result = result;
-    fixture.completedAt = new Date();
+    if (isRevert) {
+      console.log(`[Fixture] Reverting fixture ${fixtureId} to pending.`);
+
+      fixture.homeScore = null;
+      fixture.awayScore = null;
+      fixture.status = 'pending';  // Force status back to pending
+      fixture.result = null;       // Clear the winner/draw
+      fixture.completedAt = null;  // Clear completion timestamp
+
+    } 
+    // --- 🟢 UPDATE LOGIC ---
+    else {
+      
+      // Validate inputs
+      if (homeScore === undefined || awayScore === undefined) {
+        return res.status(400).json({
+          success: false,
+          error: 'Both homeScore and awayScore are required'
+        });
+      }
+
+      // Convert to numbers safely
+      const h = Number(homeScore);
+      const a = Number(awayScore);
+
+      if (isNaN(h) || isNaN(a)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Scores must be valid numbers'
+        });
+      }
+
+      if (h < 0 || a < 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Scores cannot be negative'
+        });
+      }
+
+      // Apply updates
+      fixture.homeScore = h;
+      fixture.awayScore = a;
+      fixture.status = 'completed'; // Mark as completed
+      
+      // Determine result
+      if (h > a) {
+        fixture.result = 'home';
+      } else if (a > h) {
+        fixture.result = 'away';
+      } else {
+        fixture.result = 'draw';
+      }
+      
+      fixture.completedAt = new Date();
+    }
+
+    // 2. Save the fixture
     fixture.updatedAt = new Date();
     await fixture.save();
 
-    // 5. Populate fixture data for response
-    // We use 'let' because we might need to modify it manually if a player is missing
+    // 3. Populate fixture data for response
+    // Using .lean() for performance
     let populatedFixture = await Fixture.findById(fixtureId)
       .populate('homePlayer awayPlayer', 'name _id')
       .lean();
 
-    // --- FIX 1: PREVENT CRASH IF PLAYERS ARE MISSING (The "Akash" Fix) ---
-    // If the player ID exists in fixture but not in DB, .populate returns null.
-    // We manually fill it with a placeholder to prevent frontend/backend crashes.
+    // --- SAFETY CHECK: Prevent crash if players are missing ---
     if (!populatedFixture.homePlayer) {
-      console.warn(`[UpdateFixture] Home Player missing for ID: ${fixture.homePlayer}`);
       populatedFixture.homePlayer = { _id: fixture.homePlayer, name: "Unknown Player" };
     }
     if (!populatedFixture.awayPlayer) {
-      console.warn(`[UpdateFixture] Away Player missing for ID: ${fixture.awayPlayer}`);
       populatedFixture.awayPlayer = { _id: fixture.awayPlayer, name: "Unknown Player" };
     }
-    // ---------------------------------------------------------------------
 
-    // 6. Logic for Standings and Sockets
+    // 4. Standings & Sockets Logic
     const competitionId = fixture.competitionId || fixture.competition;
 
     if (competitionId) {
       try {
-        // Fetch competition type FIRST to decide logic
         const competition = await Competition.findById(competitionId).select('type').lean();
-
-        // --- FIX 2: SKIP CALCULATION FOR KNOCKOUT GAMES ---
+        // Skip standings calc for knockout games usually
         const isKnockout = competition?.type === 'KO_REGULAR';
 
         if (!isKnockout) {
-          // Only calculate standings for Leagues or Group Stages
+          // Recalculate standings. 
+          // If reverted, this match is now 'pending' so it won't count toward points.
+          // If updated, it counts with the new scores.
           await calculateStandings(competitionId);
-        } else {
-          console.log(`Skipping standings calculation for ${competition?.type}`);
         }
 
-        // Emit real-time update if Socket.io is available
+        // Emit real-time updates
         if (global.io || req.app.get('io')) {
           const io = global.io || req.app.get('io');
 
-          // Only fetch and emit STANDINGS update if it wasn't a knockout game
+          // Emit STANDINGS update (only for leagues)
           if (!isKnockout) {
             const updatedStandings = await Standing.find({
               competition: competitionId
@@ -1022,7 +1040,7 @@ exports.updateFixtureResult = async (req, res) => {
             });
           }
 
-          // Always emit FIXTURE update (scores changed, regardless of type)
+          // Emit FIXTURE update (always)
           io.emit('fixture_update', {
             competitionId: competitionId.toString(),
             fixture: populatedFixture,
@@ -1031,21 +1049,20 @@ exports.updateFixtureResult = async (req, res) => {
         }
       } catch (standingsError) {
         console.error('Standings/Socket error:', standingsError);
-        // Don't fail the request if standings calculation fails
+        // We continue because the main update succeeded
       }
     }
 
-    // 7. Send response
+    // 5. Send Success Response
     res.json({
       success: true,
       data: populatedFixture,
-      message: 'Fixture result updated successfully'
+      message: fixture.status === 'pending' ? 'Fixture reverted successfully' : 'Fixture updated successfully'
     });
 
   } catch (err) {
     console.error('Result Update Error:', err);
 
-    // Handle specific error types
     let statusCode = 500;
     let errorMessage = 'Failed to update result';
 
@@ -1059,13 +1076,10 @@ exports.updateFixtureResult = async (req, res) => {
 
     res.status(statusCode).json({
       success: false,
-      error: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: errorMessage
     });
   }
 };
-
-
 // Additional Methods
 exports.getOngoingCompetitions = async (req, res) => {
   try {

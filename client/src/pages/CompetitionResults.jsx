@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
     ArrowLeft, Search, Edit2, AlertTriangle, Inbox,
     Check, X, ListChecks, Save, Calendar, Clock, Trophy,
-    RotateCcw // <--- 1. Import the Revert Icon
+    RotateCcw
 } from 'lucide-react';
 import fixtureService from '../services/fixtureService';
 
@@ -29,7 +29,7 @@ const FixtureCard = ({
     bulkScores,
     onBulkChange,
     onEditClick,
-    onRevertClick, // <--- 2. Receive the Revert Handler
+    onRevertClick,
     editingId,
     tempScores,
     onTempScoreChange,
@@ -118,31 +118,14 @@ const FixtureCard = ({
                                 </div>
                             </div>
                         ) : (
-                            <div className="relative flex flex-col items-center group/score">
-                                {/* Score Display */}
-                                <div className="text-center transition-transform duration-300 group-hover/score:scale-110">
-                                    {fixture.status === 'completed' ? (
-                                        <div className="text-3xl font-black text-white tracking-widest font-mono">
-                                            {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
-                                        </div>
-                                    ) : (
-                                        <span className="text-2xl font-black text-gray-700 font-mono">VS</span>
-                                    )}
-                                </div>
-
-                                {/* 3. The Revert Button (Only visible on hover if completed) */}
-                                {fixture.status === 'completed' && !isBulkMode && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRevertClick(fixture._id);
-                                        }}
-                                        className="absolute -bottom-8 opacity-0 group-hover/score:opacity-100 transition-all duration-200 flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 hover:bg-red-500 hover:text-white"
-                                        title="Revert to Pending"
-                                    >
-                                        <RotateCcw className="w-3 h-3" />
-                                        REVERT
-                                    </button>
+                            // --- CLEANED UP DISPLAY SECTION ---
+                            <div className="text-center group-hover:scale-110 transition-transform duration-300">
+                                {fixture.status === 'completed' ? (
+                                    <div className="text-3xl font-black text-white tracking-widest font-mono">
+                                        {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
+                                    </div>
+                                ) : (
+                                    <span className="text-2xl font-black text-gray-700 font-mono">VS</span>
                                 )}
                             </div>
                         )}
@@ -157,16 +140,31 @@ const FixtureCard = ({
                     </div>
                 </div>
 
-                {/* Single Edit Trigger Button */}
+                {/* --- FOOTER ACTION BAR (Edit & Revert) --- */}
                 {!isBulkMode && !isEditingSingle && (
-                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        {/* Edit Button */}
                         <button
                             onClick={() => onEditClick(fixture)}
                             className="flex items-center gap-2 text-xs font-medium text-amber-500 hover:text-amber-400 transition-colors"
                         >
                             <Edit2 className="w-3 h-3" />
-                            {fixture.status === 'completed' ? 'Update Result' : 'Enter Result'}
+                            {fixture.status === 'completed' ? 'Edit Score' : 'Enter Result'}
                         </button>
+
+                        {/* Revert Button - NOW VISIBLE HERE */}
+                        {fixture.status === 'completed' && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRevertClick(fixture._id);
+                                }}
+                                className="flex items-center gap-2 text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
+                            >
+                                <RotateCcw className="w-3 h-3" />
+                                Revert
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -188,8 +186,6 @@ export default function CompetitionResults() {
     const [singleScores, setSingleScores] = useState({ home: 0, away: 0 });
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingSubmission, setPendingSubmission] = useState(null);
-    
-    // 4. New State to track if we are Updating or Reverting
     const [modalAction, setModalAction] = useState('update'); // 'update' | 'revert'
 
     // Bulk Edit State
@@ -211,7 +207,19 @@ export default function CompetitionResults() {
         try {
             setLoading(true);
             const response = await fixtureService.getCompetitionFixtures(competitionId);
-            setFixtures(Array.isArray(response?.data?.data) ? response.data.data : []);
+            // Assuming your API returns { data: [...] } structure
+            const data = response?.data?.data || response?.data || [];
+            
+            // Handle if data is nested or flat depending on your backend
+            if (Array.isArray(data)) {
+                 setFixtures(data);
+            } else if (response?.data?.matchdaySchedule) {
+                 // Flatten if using the schedule format
+                 setFixtures(response.data.matchdaySchedule.flatMap(md => md.fixtures));
+            } else {
+                 setFixtures([]);
+            }
+
         } catch (err) {
             console.error(err);
             setError('Failed to load fixtures.');
@@ -229,10 +237,9 @@ export default function CompetitionResults() {
         });
     };
 
-    // 5. New Handler for Revert Click
     const handleRevertClick = (fixtureId) => {
         setPendingSubmission(fixtureId);
-        setModalAction('revert'); // Set mode to revert
+        setModalAction('revert');
         setShowConfirmModal(true);
     };
 
@@ -243,7 +250,7 @@ export default function CompetitionResults() {
     const handleSingleSubmitRequest = (fixtureId) => {
         if (isNaN(Number(singleScores.home)) || isNaN(Number(singleScores.away))) return;
         setPendingSubmission(fixtureId);
-        setModalAction('update'); // Set mode to update
+        setModalAction('update');
         setShowConfirmModal(true);
     };
 
@@ -251,23 +258,21 @@ export default function CompetitionResults() {
         if (!pendingSubmission) return;
         try {
             setSubmitting(true);
-
-            // 6. Logic to determine payload based on Action
             let payload;
+            
             if (modalAction === 'revert') {
                 payload = {
                     homeScore: null,
                     awayScore: null,
-                    status: 'pending' // Explicitly setting status back
+                    status: 'pending'
                 };
             } else {
                 payload = {
                     homeScore: Number(singleScores.home),
                     awayScore: Number(singleScores.away)
-                    // Status usually auto-updates to 'completed' on backend when scores are present
                 };
             }
-
+            console.log('payload',payload);
             await fixtureService.updateFixtureResult(pendingSubmission, payload);
             await fetchFixtures();
             setEditingFixtureId(null);
@@ -284,7 +289,6 @@ export default function CompetitionResults() {
     const toggleBulkMode = () => {
         if (!isBulkEditMode) {
             setEditingFixtureId(null);
-            // Initialize bulk scores
             const initial = fixtures.reduce((acc, f) => {
                 acc[f._id] = { home: f.homeScore ?? '', away: f.awayScore ?? '' };
                 return acc;
@@ -335,51 +339,37 @@ export default function CompetitionResults() {
     const filteredFixtures = useMemo(() => {
         let result = [...fixtures];
 
-        // 1. Search Logic
         if (searchTerm.trim()) {
             const terms = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
-
             result = result.filter(f => {
                 const h = (f.homePlayer?.name || f.homePlayerName || '').toLowerCase();
                 const a = (f.awayPlayer?.name || f.awayPlayerName || '').toLowerCase();
-
-                // Single Term
                 if (terms.length === 1) {
                     return h.includes(terms[0]) || a.includes(terms[0]);
                 }
-
-                // Multi Term
                 if (terms.length >= 2) {
                     const [t1, t2] = terms;
                     return (h.includes(t1) && a.includes(t2)) || (h.includes(t2) && a.includes(t1));
                 }
-
                 return false;
             });
         }
 
-        // 2. Sort Logic (Order: Ongoing -> Pending -> Completed)
         result.sort((a, b) => {
             if (searchTerm.trim()) {
                 const aNotUpdated = a.homeScore == null || a.awayScore == null;
                 const bNotUpdated = b.homeScore == null || b.awayScore == null;
-
-                if (aNotUpdated !== bNotUpdated) {
-                    return aNotUpdated ? -1 : 1;
-                }
+                if (aNotUpdated !== bNotUpdated) return aNotUpdated ? -1 : 1;
             }
-
             const statusOrder = { ongoing: 0, pending: 1, completed: 2 };
             const scoreA = statusOrder[a.status] ?? 1;
             const scoreB = statusOrder[b.status] ?? 1;
-
             return scoreA - scoreB;
         });
 
         return result;
     }, [fixtures, searchTerm]);
 
-    // Group by Matchday/Round
     const groupedData = useMemo(() => {
         return filteredFixtures.reduce((groups, f) => {
             const round = f.round || 'Unscheduled';
@@ -429,8 +419,6 @@ export default function CompetitionResults() {
                 {/* Sticky Controls Bar */}
                 <div className="sticky top-4 z-40 mb-10">
                     <div className="bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl shadow-black/50 flex flex-col md:flex-row gap-3">
-
-                        {/* Search */}
                         <div className="relative flex-grow group">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-amber-500 transition-colors">
                                 <Search className="w-5 h-5" />
@@ -444,7 +432,6 @@ export default function CompetitionResults() {
                             />
                         </div>
 
-                        {/* Actions */}
                         <div className="flex gap-2">
                             {isBulkEditMode ? (
                                 <>
@@ -511,7 +498,7 @@ export default function CompetitionResults() {
                                             bulkScores={bulkScores}
                                             onBulkChange={handleBulkChange}
                                             onEditClick={handleEditClick}
-                                            onRevertClick={handleRevertClick} // <--- Pass the new handler
+                                            onRevertClick={handleRevertClick}
                                             editingId={editingFixtureId}
                                             tempScores={singleScores}
                                             onTempScoreChange={handleSingleScoreChange}
@@ -552,7 +539,6 @@ export default function CompetitionResults() {
                 {showConfirmModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl">
-                            {/* 7. Dynamic Modal Content based on Action */}
                             <h3 className={`text-xl font-bold mb-2 ${modalAction === 'revert' ? 'text-red-400' : 'text-white'}`}>
                                 {modalAction === 'revert' ? 'Confirm Revert' : 'Confirm Result'}
                             </h3>
