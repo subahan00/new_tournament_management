@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
     ArrowLeft, Search, Edit2, AlertTriangle, Inbox,
-    Check, X, ListChecks, Save, Calendar, Clock, Trophy
+    Check, X, ListChecks, Save, Calendar, Clock, Trophy,
+    RotateCcw // <--- 1. Import the Revert Icon
 } from 'lucide-react';
 import fixtureService from '../services/fixtureService';
 
@@ -28,6 +29,7 @@ const FixtureCard = ({
     bulkScores,
     onBulkChange,
     onEditClick,
+    onRevertClick, // <--- 2. Receive the Revert Handler
     editingId,
     tempScores,
     onTempScoreChange,
@@ -116,13 +118,31 @@ const FixtureCard = ({
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center group-hover:scale-110 transition-transform duration-300">
-                                {fixture.status === 'completed' ? (
-                                    <div className="text-3xl font-black text-white tracking-widest font-mono">
-                                        {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
-                                    </div>
-                                ) : (
-                                    <span className="text-2xl font-black text-gray-700 font-mono">VS</span>
+                            <div className="relative flex flex-col items-center group/score">
+                                {/* Score Display */}
+                                <div className="text-center transition-transform duration-300 group-hover/score:scale-110">
+                                    {fixture.status === 'completed' ? (
+                                        <div className="text-3xl font-black text-white tracking-widest font-mono">
+                                            {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
+                                        </div>
+                                    ) : (
+                                        <span className="text-2xl font-black text-gray-700 font-mono">VS</span>
+                                    )}
+                                </div>
+
+                                {/* 3. The Revert Button (Only visible on hover if completed) */}
+                                {fixture.status === 'completed' && !isBulkMode && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRevertClick(fixture._id);
+                                        }}
+                                        className="absolute -bottom-8 opacity-0 group-hover/score:opacity-100 transition-all duration-200 flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 hover:bg-red-500 hover:text-white"
+                                        title="Revert to Pending"
+                                    >
+                                        <RotateCcw className="w-3 h-3" />
+                                        REVERT
+                                    </button>
                                 )}
                             </div>
                         )}
@@ -168,6 +188,9 @@ export default function CompetitionResults() {
     const [singleScores, setSingleScores] = useState({ home: 0, away: 0 });
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingSubmission, setPendingSubmission] = useState(null);
+    
+    // 4. New State to track if we are Updating or Reverting
+    const [modalAction, setModalAction] = useState('update'); // 'update' | 'revert'
 
     // Bulk Edit State
     const [isBulkEditMode, setIsBulkEditMode] = useState(false);
@@ -206,6 +229,13 @@ export default function CompetitionResults() {
         });
     };
 
+    // 5. New Handler for Revert Click
+    const handleRevertClick = (fixtureId) => {
+        setPendingSubmission(fixtureId);
+        setModalAction('revert'); // Set mode to revert
+        setShowConfirmModal(true);
+    };
+
     const handleSingleScoreChange = (field, value) => {
         setSingleScores(prev => ({ ...prev, [field]: value }));
     };
@@ -213,6 +243,7 @@ export default function CompetitionResults() {
     const handleSingleSubmitRequest = (fixtureId) => {
         if (isNaN(Number(singleScores.home)) || isNaN(Number(singleScores.away))) return;
         setPendingSubmission(fixtureId);
+        setModalAction('update'); // Set mode to update
         setShowConfirmModal(true);
     };
 
@@ -220,10 +251,24 @@ export default function CompetitionResults() {
         if (!pendingSubmission) return;
         try {
             setSubmitting(true);
-            await fixtureService.updateFixtureResult(pendingSubmission, {
-                homeScore: Number(singleScores.home),
-                awayScore: Number(singleScores.away)
-            });
+
+            // 6. Logic to determine payload based on Action
+            let payload;
+            if (modalAction === 'revert') {
+                payload = {
+                    homeScore: null,
+                    awayScore: null,
+                    status: 'pending' // Explicitly setting status back
+                };
+            } else {
+                payload = {
+                    homeScore: Number(singleScores.home),
+                    awayScore: Number(singleScores.away)
+                    // Status usually auto-updates to 'completed' on backend when scores are present
+                };
+            }
+
+            await fixtureService.updateFixtureResult(pendingSubmission, payload);
             await fetchFixtures();
             setEditingFixtureId(null);
             setShowConfirmModal(false);
@@ -315,24 +360,21 @@ export default function CompetitionResults() {
 
         // 2. Sort Logic (Order: Ongoing -> Pending -> Completed)
         result.sort((a, b) => {
-            // When searching, prioritize not-updated fixtures
             if (searchTerm.trim()) {
                 const aNotUpdated = a.homeScore == null || a.awayScore == null;
                 const bNotUpdated = b.homeScore == null || b.awayScore == null;
 
                 if (aNotUpdated !== bNotUpdated) {
-                    return aNotUpdated ? -1 : 1; // not updated first
+                    return aNotUpdated ? -1 : 1;
                 }
             }
 
-            // Default status order: ongoing -> pending -> completed
             const statusOrder = { ongoing: 0, pending: 1, completed: 2 };
             const scoreA = statusOrder[a.status] ?? 1;
             const scoreB = statusOrder[b.status] ?? 1;
 
             return scoreA - scoreB;
         });
-
 
         return result;
     }, [fixtures, searchTerm]);
@@ -469,6 +511,7 @@ export default function CompetitionResults() {
                                             bulkScores={bulkScores}
                                             onBulkChange={handleBulkChange}
                                             onEditClick={handleEditClick}
+                                            onRevertClick={handleRevertClick} // <--- Pass the new handler
                                             editingId={editingFixtureId}
                                             tempScores={singleScores}
                                             onTempScoreChange={handleSingleScoreChange}
@@ -505,21 +548,33 @@ export default function CompetitionResults() {
                     </div>
                 )}
 
-                {/* Modal for Single Edit Confirmation */}
+                {/* Modal for Single Edit/Revert Confirmation */}
                 {showConfirmModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl">
-                            <h3 className="text-xl font-bold text-white mb-2">Confirm Result</h3>
+                            {/* 7. Dynamic Modal Content based on Action */}
+                            <h3 className={`text-xl font-bold mb-2 ${modalAction === 'revert' ? 'text-red-400' : 'text-white'}`}>
+                                {modalAction === 'revert' ? 'Confirm Revert' : 'Confirm Result'}
+                            </h3>
                             <p className="text-gray-400 text-sm mb-6">
-                                Are you sure you want to update this fixture? This will reflect on the leaderboard immediately.
+                                {modalAction === 'revert'
+                                    ? "Are you sure you want to revert this match? The scores will be cleared and status set to pending."
+                                    : "Are you sure you want to update this fixture? This will reflect on the leaderboard immediately."
+                                }
                             </p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={confirmSingleSubmission}
                                     disabled={submitting}
-                                    className="flex-1 py-2.5 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors"
+                                    className={`flex-1 py-2.5 font-bold rounded-lg transition-colors ${modalAction === 'revert'
+                                            ? 'bg-red-500 hover:bg-red-400 text-white'
+                                            : 'bg-amber-500 hover:bg-amber-400 text-black'
+                                        }`}
                                 >
-                                    {submitting ? 'Updating...' : 'Yes, Update'}
+                                    {submitting
+                                        ? 'Processing...'
+                                        : (modalAction === 'revert' ? 'Yes, Revert' : 'Yes, Update')
+                                    }
                                 </button>
                                 <button
                                     onClick={() => setShowConfirmModal(false)}
