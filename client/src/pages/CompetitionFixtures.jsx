@@ -63,98 +63,6 @@ const getStatusInfo = (status) => {
 };
 
 //=================================================================
-// ROUND-ROBIN MATCHDAY GENERATOR
-//=================================================================
-
-const generateSingleRound = (fixtures) => {
-  if (!fixtures || fixtures.length === 0) return [];
-
-  const getPlayerId = (player) =>
-    typeof player === 'object' && player !== null ? player._id : player;
-
-  const playerIds = new Set();
-  const fixtureMap = new Map();
-
-  for (const fixture of fixtures) {
-    const homeId = getPlayerId(fixture.homePlayer);
-    const awayId = getPlayerId(fixture.awayPlayer);
-    if (!homeId || !awayId || homeId === awayId) continue;
-
-    playerIds.add(homeId);
-    playerIds.add(awayId);
-
-    const key = [homeId, awayId].sort().join('-');
-    if (!fixtureMap.has(key)) fixtureMap.set(key, fixture);
-  }
-
- const players = Array.from(playerIds).sort((a, b) => {
-  const pa = fixtures.find(f => f.homePlayer === a || f.awayPlayer === a)?.homePlayerName || '';
-  const pb = fixtures.find(f => f.homePlayer === b || f.awayPlayer === b)?.homePlayerName || '';
-  return pa.localeCompare(pb);
-});
-
-  if (players.length % 2 !== 0) players.push(null);
-
-  const numPlayers = players.length;
-  const rounds = numPlayers - 1;
-  const half = numPlayers / 2;
-  const rotating = players.slice(1);
-  const matchdays = [];
-
-  for (let r = 0; r < rounds; r++) {
-    const day = [];
-
-    const p1 = players[0];
-    const p2 = rotating[0];
-    if (p1 && p2) day.push(fixtureMap.get([p1, p2].sort().join('-')));
-
-    for (let i = 1; i < half; i++) {
-      const a = rotating[i];
-      const b = rotating[rotating.length - i];
-      if (a && b) day.push(fixtureMap.get([a, b].sort().join('-')));
-    }
-
-    matchdays.push(day.filter(Boolean));
-    rotating.unshift(rotating.pop());
-  }
-
-  return matchdays;
-};
-
-const generateMatchdaySchedule = (fixtures) => {
-  if (!fixtures.length) return [];
-
-  const getId = (p) => (typeof p === 'object' ? p._id : p);
-  const players = new Set();
-  fixtures.forEach(f => {
-    players.add(getId(f.homePlayer));
-    players.add(getId(f.awayPlayer));
-  });
-
-  const N = players.size;
-  const fixturesPerRound = (N * (N - 1)) / 2;
-  const roundCount = Math.round(fixtures.length / fixturesPerRound);
-
-  const allMatchdays = [];
-
-  for (let r = 0; r < roundCount; r++) {
-    const start = r * fixturesPerRound;
-    const end = start + fixturesPerRound;
-    const roundFixtures = fixtures.slice(start, end);
-
-    const roundMatchdays = generateSingleRound(roundFixtures);
-
-    roundMatchdays.forEach((md, i) => {
-      allMatchdays.push(md);
-    });
-  }
-
-  return allMatchdays;
-};
-
-
-
-//=================================================================
 // FIXTURE CARD COMPONENT
 //=================================================================
 
@@ -414,15 +322,11 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
   const selectedMatchdays = useMemo(() => {
     const start = fromMatchday - 1; // Convert to 0-based index
     const end = toMatchday; // slice is exclusive of end, so no need to add 1
-    return matchdaySchedule.slice(start, end).map((fixtures, idx) => ({
-      fixtures,
-      matchdayNumber: fromMatchday + idx
+    return matchdaySchedule.slice(start, end).map((data, idx) => ({
+      ...data, // Contains fixtures and matchdayNumber from backend
+      displayNumber: fromMatchday + idx
     }));
   }, [matchdaySchedule, fromMatchday, toMatchday]);
-
-  // Calculate number of columns based on matchday count
-  const numColumns = selectedMatchdays.length;
-  const columnWidth = numColumns <= 2 ? '50%' : numColumns === 3 ? '33.333%' : numColumns === 4 ? '25%' : '20%';
 
   return (
     <div
@@ -575,126 +479,34 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
                           padding: '10px 12px',
                         }}
                       >
-                        {/* Status Badge */}
+                        {/* Fixture content for image generation... same as before */}
                         <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'flex-start' }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontWeight: '600',
-                              padding: '2px 6px',
-                              borderRadius: '9999px',
-                              border: '1px solid',
-                              ...(statusInfo.className.includes('red') && {
-                                background: 'rgba(239, 68, 68, 0.2)',
-                                color: '#fca5a5',
-                                borderColor: 'rgba(239, 68, 68, 0.3)',
-                              }),
-                              ...(statusInfo.className.includes('green') && {
-                                background: 'rgba(34, 197, 94, 0.1)',
-                                color: '#86efac',
-                                borderColor: 'rgba(34, 197, 94, 0.2)',
-                              }),
-                              ...(statusInfo.className.includes('blue') && {
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                color: '#93c5fd',
-                                borderColor: 'rgba(59, 130, 246, 0.2)',
-                              }),
-                            }}
-                          >
+                          <span style={{
+                            fontSize: '9px', fontWeight: '600', padding: '2px 6px', borderRadius: '9999px', border: '1px solid',
+                            ...(statusInfo.className.includes('red') && { background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' }),
+                            ...(statusInfo.className.includes('green') && { background: 'rgba(34, 197, 94, 0.1)', color: '#86efac', borderColor: 'rgba(34, 197, 94, 0.2)' }),
+                            ...(statusInfo.className.includes('blue') && { background: 'rgba(59, 130, 246, 0.1)', color: '#93c5fd', borderColor: 'rgba(59, 130, 246, 0.2)' }),
+                          }}>
                             {statusInfo.text.toUpperCase()}
                           </span>
                         </div>
-
-                        {/* Players - Horizontal Layout with wrapping */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            marginBottom: '10px',
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          {/* Home Player */}
-                          <span
-                            style={{
-                              fontWeight: '600',
-                              fontSize: '20px',
-                              color: '#e2dcf7',
-                              textAlign: 'center',
-                              wordBreak: 'break-word',
-                            }}
-                          >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '600', fontSize: '20px', color: '#e2dcf7', textAlign: 'center', wordBreak: 'break-word' }}>
                             {fixture.homePlayerName || 'TBD'}
                           </span>
-
-                          {/* VS or Score */}
                           <div style={{ flexShrink: 0 }}>
-                            {fixture.status === 'completed' &&
-                            fixture.homeScore !== null &&
-                            fixture.awayScore !== null ? (
-                              <span
-                                style={{
-                                  fontFamily: "'Space Grotesk', sans-serif",
-                                  fontSize: '15px',
-                                  fontWeight: '700',
-                                  color: '#ffdf80',
-                                }}
-                              >
+                            {fixture.status === 'completed' && fixture.homeScore !== null ? (
+                              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '15px', fontWeight: '700', color: '#ffdf80' }}>
                                 {fixture.homeScore}:{fixture.awayScore}
                               </span>
                             ) : (
-                              <span
-                                style={{
-                                  fontFamily: "'Space Grotesk', sans-serif",
-                                  fontSize: '13px',
-                                  fontWeight: '500',
-                                  color: '#8b7bb8',
-                                  opacity: 0.8,
-                                }}
-                              >
-                                vs
-                              </span>
+                              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '13px', fontWeight: '500', color: '#8b7bb8', opacity: 0.8 }}>vs</span>
                             )}
                           </div>
-
-                          {/* Away Player */}
-                          <span
-                            style={{
-                              fontWeight: '600',
-                              fontSize: '20px',
-                              color: '#e2dcf7',
-                              textAlign: 'center',
-                              wordBreak: 'break-word',
-                            }}
-                          >
+                          <span style={{ fontWeight: '600', fontSize: '20px', color: '#e2dcf7', textAlign: 'center', wordBreak: 'break-word' }}>
                             {fixture.awayPlayerName || 'TBD'}
                           </span>
                         </div>
-
-                        {/* Winner */}
-                        {fixture.status === 'completed' && fixture.result && (
-                          <div
-                            style={{
-                              paddingTop: '8px',
-                              borderTop: '1px solid rgba(139, 123, 184, 0.1)',
-                              textAlign: 'center',
-                              fontSize: '10px',
-                            }}
-                          >
-                            <span style={{ color: 'rgba(139, 123, 184, 0.6)', marginRight: '4px' }}>
-                              Winner:
-                            </span>
-                            <span style={{ color: '#ffdf80', fontWeight: '600', wordBreak: 'break-word' }}>
-                              {fixture.result === 'home'
-                                ? fixture.homePlayerName
-                                : fixture.result === 'away'
-                                ? fixture.awayPlayerName
-                                : 'Draw'}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -714,7 +526,10 @@ const ExportContainer = ({ matchdaySchedule, fromMatchday, toMatchday, competiti
 
 export default function CompetitionFixtures() {
   const { competitionId } = useParams();
-  const [fixtures, setFixtures] = useState([]);
+  
+  // CHANGED: We now use matchdaySchedule as our primary state
+  const [matchdaySchedule, setMatchdaySchedule] = useState([]);
+  const [fixtures, setFixtures] = useState([]); // Keep raw fixtures if needed, or remove
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -723,21 +538,15 @@ export default function CompetitionFixtures() {
   const [exportToMatchday, setExportToMatchday] = useState(1);
 
   const handleGenerateImage = async (fromMatchday, toMatchday) => {
-    // Update export state
     setExportFromMatchday(fromMatchday);
     setExportToMatchday(toMatchday);
-
-    // Wait for state update and DOM render
     await new Promise(resolve => setTimeout(resolve, 100));
 
     const exportContainer = document.getElementById('export-container');
-    if (!exportContainer) {
-      throw new Error('Export container not found');
-    }
+    if (!exportContainer) throw new Error('Export container not found');
 
-    // Generate high-quality image
     const canvas = await html2canvas(exportContainer, {
-      scale: 3, // 3x scale for crisp high-DPI output
+      scale: 3,
       backgroundColor: '#0a0510',
       logging: false,
       useCORS: true,
@@ -746,7 +555,6 @@ export default function CompetitionFixtures() {
       windowHeight: exportContainer.scrollHeight,
     });
 
-    // Convert to blob and download
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
         try {
@@ -756,7 +564,6 @@ export default function CompetitionFixtures() {
           link.href = url;
           link.click();
           URL.revokeObjectURL(url);
-
           toast.success('Image downloaded successfully!');
           resolve();
         } catch (error) {
@@ -771,23 +578,32 @@ export default function CompetitionFixtures() {
       setLoading(true);
       const res = await fixtureService.getCompetitionFixtures(competitionId);
       const payload = res?.data || {};
-      const data = payload.data || [];
+      
+      // CHANGED: Get matchdaySchedule directly from backend response
+      // This prevents the "shuffle" because backend owns the order
+      if (payload.matchdaySchedule) {
+        setMatchdaySchedule(payload.matchdaySchedule);
+      } else {
+        // Fallback: If backend isn't ready, set empty or handle error
+        console.warn("Backend didn't return matchdaySchedule");
+        setMatchdaySchedule([]);
+      }
 
+      setFixtures(payload.data || []);
+      
+      // Get Name logic
       let name = payload.competitionName || payload.competition?.name || payload.competition_name;
-
       if (!name) {
         try {
           const compRes = await competitionService.getCompetition(competitionId);
-          console.log('comp-',compRes)
           const compPayload = compRes?.data || {};
-          name = compPayload.name || compPayload.competitionName || compPayload.competition?.name || name;
+          name = compPayload.name || compPayload.competitionName || name;
         } catch (e) {
           console.warn("Failed to fetch competition metadata", e);
         }
       }
-
-      setFixtures(data);
       setCompetitionName(name || "Competition");
+
     } catch (err) {
       console.error("Error fetching fixtures:", err);
       toast.error("Failed to load fixtures");
@@ -799,25 +615,41 @@ export default function CompetitionFixtures() {
   useEffect(() => {
     fetchFixtures();
 
+    // CHANGED: Update the MatchdaySchedule State directly on socket event
     const handleFixtureUpdate = (updatedFixture) => {
+      setMatchdaySchedule(prevSchedule => {
+        return prevSchedule.map(md => ({
+          ...md,
+          fixtures: md.fixtures.map(f => 
+            f._id === updatedFixture._id ? updatedFixture : f
+          )
+        }));
+      });
+      
+      // Also update raw fixtures list just in case
       setFixtures(prev => {
-        const newFixtures = [...prev];
-        const index = newFixtures.findIndex(f => f._id === updatedFixture._id);
-        if (index !== -1) {
-          newFixtures[index] = updatedFixture;
-        }
-        return newFixtures;
+        const index = prev.findIndex(f => f._id === updatedFixture._id);
+        if (index === -1) return prev;
+        const newArr = [...prev];
+        newArr[index] = updatedFixture;
+        return newArr;
       });
     };
 
     const handlePlayerUpdate = ({ playerId, newName }) => {
-      setFixtures(prev => {
-        return prev.map(f => ({
+       // Helper to update name in a list
+       const updateList = (list) => list.map(f => ({
           ...f,
           homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
           awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
-        }));
-      });
+       }));
+
+       setMatchdaySchedule(prev => prev.map(md => ({
+         ...md,
+         fixtures: updateList(md.fixtures)
+       })));
+
+       setFixtures(prev => updateList(prev));
     };
 
     socket.on('fixtureUpdate', handleFixtureUpdate);
@@ -829,35 +661,34 @@ export default function CompetitionFixtures() {
     };
   }, [fetchFixtures]);
 
-  const matchdaySchedule = useMemo(() => {
-    return generateMatchdaySchedule(fixtures);
-  }, [fixtures]);
-
   const filteredMatchdays = useMemo(() => {
     const term = searchTerm.toLowerCase();
 
-    const processedMatchdays = matchdaySchedule.map((matchdayFixtures, index) => {
-      const filtered = !term
-        ? matchdayFixtures
-        : matchdayFixtures.filter(f => {
+    // CHANGED: Filter based on the existing matchdaySchedule state
+    const processedMatchdays = matchdaySchedule.map((md) => {
+      // 1. Filter fixtures inside the matchday
+      const filteredFixtures = !term
+        ? md.fixtures
+        : md.fixtures.filter(f => {
           const homePlayerName = (f.homePlayerName || 'tbd').toLowerCase();
           const awayPlayerName = (f.awayPlayerName || 'tbd').toLowerCase();
           return homePlayerName.includes(term) || awayPlayerName.includes(term);
         });
 
-      const sorted = filtered.sort((a, b) => {
-        const aStatus = a.status === 'pending' ? 0 : a.status === 'live' ? 1 : 2;
-        const bStatus = b.status === 'pending' ? 0 : b.status === 'live' ? 1 : 2;
-        return aStatus - bStatus;
+      // 2. Sort fixtures (Live > Pending > Completed)
+      const sortedFixtures = filteredFixtures.sort((a, b) => {
+        const getVal = (s) => s === 'pending' ? 0 : s === 'live' ? 1 : 2;
+        return getVal(a.status) - getVal(b.status);
       });
 
       return {
-        matchdayNumber: index + 1,
-        fixtures: sorted,
-        pendingCount: sorted.filter(f => f.status === 'pending').length
+        ...md,
+        fixtures: sortedFixtures,
+        pendingCount: sortedFixtures.filter(f => f.status === 'pending').length
       };
     }).filter(md => md.fixtures.length > 0);
 
+    // 3. Sort Matchdays if searching (bring relevant matches to top)
     if (term) {
       return processedMatchdays.sort((a, b) => {
         if (b.pendingCount !== a.pendingCount) {

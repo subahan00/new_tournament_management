@@ -23,6 +23,11 @@ const fixtureSchema = new mongoose.Schema({
       return !this.isClanWar;
     }
   },
+  matchday: {
+    type: Number,
+    required: true,
+    index: true
+  },
   awayPlayer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Player',

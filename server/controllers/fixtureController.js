@@ -785,21 +785,134 @@ exports.setCompetitionWinner = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-// Common Methods
 exports.getCompetitionFixtures = async (req, res) => {
   try {
-    const fixtures = await Fixture.find({ competitionId: req.params.competitionId })
-      .populate('homePlayer awayPlayer', 'name')
-      .sort('matchDate round');
+    const competitionId = req.params.competitionId;
 
-    res.json({ success: true, data: fixtures });
+    // 1. Fetch fixtures
+    const fixtures = await Fixture.find({ competitionId })
+      .populate('homePlayer awayPlayer', 'name')
+      .lean();
+
+    // ✅ CONDITION 1: Check if assignment is needed
+    const needsAssignment = fixtures.some(f => f.matchday == null);
+
+    if (needsAssignment) {
+      // 2. Group by round
+      const roundMap = new Map();
+
+      fixtures.forEach(f => {
+        const r = f.round ?? 1;
+        if (!roundMap.has(r)) roundMap.set(r, []);
+        roundMap.get(r).push(f);
+      });
+
+      const bulkOps = [];
+      let matchdayOffset = 0;
+
+      // 3. Assign matchdays using round-robin
+      for (const [, roundFixtures] of [...roundMap.entries()].sort()) {
+        // Only fixtures without matchday
+        const unassigned = roundFixtures.filter(f => f.matchday == null);
+        if (unassigned.length === 0) {
+          // Still need to advance offset correctly
+          const players = new Set();
+          roundFixtures.forEach(f => {
+            players.add(f.homePlayer._id.toString());
+            players.add(f.awayPlayer._id.toString());
+          });
+          const count = players.size % 2 === 0 ? players.size - 1 : players.size;
+          matchdayOffset += count;
+          continue;
+        }
+
+        // Collect players
+        const players = new Set();
+        unassigned.forEach(f => {
+          players.add(f.homePlayer._id.toString());
+          players.add(f.awayPlayer._id.toString());
+        });
+
+        let playerList = [...players];
+        if (playerList.length % 2 === 1) playerList.push(null);
+
+        const totalMDs = playerList.length - 1;
+        const half = playerList.length / 2;
+
+        const fixed = playerList[0];
+        let rotating = playerList.slice(1);
+
+        for (let md = 0; md < totalMDs; md++) {
+          const pairs = [
+            [fixed, rotating[0]],
+            ...Array.from({ length: half - 1 }, (_, i) => [
+              rotating[i + 1],
+              rotating[rotating.length - 1 - i]
+            ])
+          ];
+
+          for (const [a, b] of pairs) {
+            if (!a || !b) continue;
+
+            const fixture = unassigned.find(f =>
+              (f.homePlayer._id.equals(a) && f.awayPlayer._id.equals(b)) ||
+              (f.homePlayer._id.equals(b) && f.awayPlayer._id.equals(a))
+            );
+
+            if (fixture) {
+              bulkOps.push({
+                updateOne: {
+                  // ✅ CONDITION 2: only if matchday is still null
+                  filter: { _id: fixture._id, matchday: { $in: [null, undefined] } },
+                  update: { $set: { matchday: matchdayOffset + md + 1 } }
+                }
+              });
+            }
+          }
+
+          rotating.unshift(rotating.pop());
+        }
+
+        matchdayOffset += totalMDs;
+      }
+
+      // 4. Persist matchdays ONCE
+      if (bulkOps.length) {
+        await Fixture.bulkWrite(bulkOps);
+      }
+    }
+
+    // 5. Fetch final schedule
+    const finalFixtures = await Fixture.find({ competitionId })
+      .populate('homePlayer awayPlayer', 'name')
+      .sort({ matchday: 1 });
+
+    // 6. Group for frontend
+    const scheduleMap = {};
+    finalFixtures.forEach(f => {
+      if (!scheduleMap[f.matchday]) scheduleMap[f.matchday] = [];
+      scheduleMap[f.matchday].push(f);
+    });
+
+    const matchdaySchedule = Object.keys(scheduleMap)
+      .sort((a, b) => a - b)
+      .map(md => ({
+        matchdayNumber: Number(md),
+        fixtures: scheduleMap[md]
+      }));
+
+    res.json({ success: true, matchdaySchedule });
+
   } catch (err) {
+    console.error('getCompetitionFixtures error:', err);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch fixtures'
     });
   }
 };
+
+
 
 exports.updateFixtureResult = async (req, res) => {
   try {
