@@ -7,7 +7,7 @@ const fixtureSchema = new mongoose.Schema({
   // Regular tournaments
   homePlayer: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: function() { return !this.isClanWar; } },
   homePlayerName: { type: String, required: function() { return !this.isClanWar; } },
-  matchday: { type: Number, required: true, index: true },
+  matchday: { type: Number, required: false, index: true },
   awayPlayer: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: false, default: null },
   awayPlayerName: { type: String, required: false, default: 'BYE' },
   
