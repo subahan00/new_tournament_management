@@ -261,12 +261,9 @@ const confirmSingleSubmission = async () => {
             setSubmitting(true);
 
             if (modalAction === 'revert') {
-                // 🔴 REVERT LOGIC: Call the dedicated revert endpoint
-                // This ensures we bypass any number conversion issues on the backend
                 console.log("Reverting fixture:", pendingSubmission);
                 await fixtureService.revertFixtureResult(pendingSubmission);
             } else {
-                // 🟢 UPDATE LOGIC: Standard update
                 const payload = {
                     homeScore: Number(singleScores.home),
                     awayScore: Number(singleScores.away)
@@ -275,8 +272,7 @@ const confirmSingleSubmission = async () => {
                 await fixtureService.updateFixtureResult(pendingSubmission, payload);
             }
 
-            // Refresh data and close modal
-            await fetchFixtures();
+                await fetchFixtures();
             setEditingFixtureId(null);
             setShowConfirmModal(false);
 
@@ -289,7 +285,6 @@ const confirmSingleSubmission = async () => {
         }
     };
 
-    // --- Handlers: Bulk Edit ---
     const toggleBulkMode = () => {
         if (!isBulkEditMode) {
             setEditingFixtureId(null);
@@ -339,7 +334,6 @@ const confirmSingleSubmission = async () => {
         }
     };
 
-    // --- Filtering & Sorting Logic ---
     const filteredFixtures = useMemo(() => {
         let result = [...fixtures];
 

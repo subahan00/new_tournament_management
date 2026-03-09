@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import standingService from '../services/standingService';
 
-// Import icons from lucide-react
 import {
   Trophy,
   Users,
@@ -15,7 +14,10 @@ import {
   Target,
   Crown,
   Award,
-  TrendingUp
+  TrendingUp,
+  Download,
+  ImageIcon,
+  Check
 } from 'lucide-react';
 
 //=================================================================
@@ -70,6 +72,361 @@ const InteractiveCard = ({ children, className = "", animationDelay = '0ms', as:
 };
 
 //=================================================================
+// IMAGE DOWNLOAD UTILITY
+//=================================================================
+
+/**
+ * Draws a standings table onto a canvas and triggers a PNG download.
+ * Works for both LEAGUE and GROUP_STAGE competitions.
+ *
+ * @param {object} options
+ * @param {string} options.competitionName
+ * @param {string} options.competitionType  - 'LEAGUE' | 'GROUP_STAGE'
+ * @param {object} options.groupData        - { [groupName]: standing[] }  (GROUP_STAGE only)
+ * @param {Array}  options.leagueStandings  - standing[]                   (LEAGUE only)
+ * @param {string} [options.activeGroup]    - currently selected group or 'all'
+ */
+const downloadStandingsAsImage = async ({
+  competitionName,
+  competitionType,
+  groupData = {},
+  leagueStandings = [],
+  activeGroup = 'all',
+}) => {
+  // ── Determine which groups/standings to render ──────────────────────────
+  let sections = []; // [{ title: string|null, rows: standing[] }]
+
+  if (competitionType === 'LEAGUE') {
+    sections = [{ title: null, rows: leagueStandings }];
+  } else if (competitionType === 'GROUP_STAGE') {
+    if (activeGroup === 'all') {
+      sections = Object.keys(groupData)
+        .sort()
+        .map(g => ({ title: g, rows: groupData[g] || [] }));
+    } else {
+      sections = [{ title: activeGroup, rows: groupData[activeGroup] || [] }];
+    }
+  }
+
+  if (sections.length === 0 || sections.every(s => s.rows.length === 0)) return;
+
+  // ── Layout constants ─────────────────────────────────────────────────────
+  const COLS = ['#', 'Player', 'P', 'W', 'D', 'L', 'GF', 'GA', 'GD', 'Pts'];
+  const COL_WIDTHS = [42, 220, 48, 48, 48, 48, 52, 52, 52, 52]; // px
+  const PADDING_H = 32;
+  const HEADER_H = 80;    // competition name banner
+  const GROUP_TITLE_H = 44;
+  const TABLE_HEADER_H = 38;
+  const ROW_H = 40;
+  const GAP_BETWEEN = 36;
+  const FOOTER_H = 36;
+
+  const totalWidth = COL_WIDTHS.reduce((a, b) => a + b, 0) + PADDING_H * 2;
+
+  // Calculate total canvas height
+  let totalHeight = HEADER_H + PADDING_H;
+  sections.forEach((sec, i) => {
+    if (sec.title) totalHeight += GROUP_TITLE_H;
+    totalHeight += TABLE_HEADER_H + sec.rows.length * ROW_H;
+    if (i < sections.length - 1) totalHeight += GAP_BETWEEN;
+  });
+  totalHeight += PADDING_H + FOOTER_H;
+
+  // ── Create canvas ────────────────────────────────────────────────────────
+  const dpr = window.devicePixelRatio || 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = totalWidth * dpr;
+  canvas.height = totalHeight * dpr;
+  canvas.style.width = `${totalWidth}px`;
+  canvas.style.height = `${totalHeight}px`;
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  const hex2rgba = (hex, alpha) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  };
+
+  const colX = (colIndex) => {
+    let x = PADDING_H;
+    for (let i = 0; i < colIndex; i++) x += COL_WIDTHS[i];
+    return x;
+  };
+
+  // ── Background ───────────────────────────────────────────────────────────
+  const bgGrad = ctx.createLinearGradient(0, 0, totalWidth, totalHeight);
+  bgGrad.addColorStop(0, '#0a0510');
+  bgGrad.addColorStop(0.45, '#1a0f2e');
+  bgGrad.addColorStop(1, '#0a0510');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+  // Subtle grid dots
+  ctx.fillStyle = 'rgba(139,123,184,0.06)';
+  for (let gx = 0; gx < totalWidth; gx += 28) {
+    for (let gy = 0; gy < totalHeight; gy += 28) {
+      ctx.beginPath();
+      ctx.arc(gx, gy, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ── Header banner ────────────────────────────────────────────────────────
+  const headerGrad = ctx.createLinearGradient(0, 0, totalWidth, 0);
+  headerGrad.addColorStop(0, 'rgba(44,27,75,0)');
+  headerGrad.addColorStop(0.3, 'rgba(44,27,75,0.7)');
+  headerGrad.addColorStop(0.7, 'rgba(44,27,75,0.7)');
+  headerGrad.addColorStop(1, 'rgba(44,27,75,0)');
+  ctx.fillStyle = headerGrad;
+  ctx.fillRect(0, 0, totalWidth, HEADER_H);
+
+  // Gold accent line under header
+  const lineGrad = ctx.createLinearGradient(0, 0, totalWidth, 0);
+  lineGrad.addColorStop(0, 'transparent');
+  lineGrad.addColorStop(0.2, '#ffdf80');
+  lineGrad.addColorStop(0.8, '#ffdf80');
+  lineGrad.addColorStop(1, 'transparent');
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, HEADER_H - 1);
+  ctx.lineTo(totalWidth, HEADER_H - 1);
+  ctx.stroke();
+
+  // Trophy icon area (simple circle glow)
+  ctx.save();
+  const glow = ctx.createRadialGradient(totalWidth / 2, HEADER_H / 2, 0, totalWidth / 2, HEADER_H / 2, 50);
+  glow.addColorStop(0, 'rgba(255,223,128,0.12)');
+  glow.addColorStop(1, 'rgba(255,223,128,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, totalWidth, HEADER_H);
+  ctx.restore();
+
+  // Competition name
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const titleGrad = ctx.createLinearGradient(totalWidth * 0.2, 0, totalWidth * 0.8, 0);
+  titleGrad.addColorStop(0, '#fff8e7');
+  titleGrad.addColorStop(0.4, '#ffdf80');
+  titleGrad.addColorStop(0.6, '#e6b422');
+  titleGrad.addColorStop(1, '#fff8e7');
+  ctx.fillStyle = titleGrad;
+  ctx.font = 'bold 26px "Segoe UI", sans-serif';
+  ctx.fillText(`${competitionName} — Standings`, totalWidth / 2, HEADER_H / 2 - 4);
+
+  // Competition type badge
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillStyle = 'rgba(139,123,184,0.9)';
+  ctx.fillText(competitionType.replace('_', ' '), totalWidth / 2, HEADER_H / 2 + 16);
+
+  // ── Render each section ──────────────────────────────────────────────────
+  let curY = HEADER_H + PADDING_H;
+
+  sections.forEach((sec, secIdx) => {
+    // Group title
+    if (sec.title) {
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.fillStyle = '#ffdf80';
+      ctx.fillText(`⚔  ${sec.title}`, PADDING_H, curY + GROUP_TITLE_H / 2 - 2);
+
+      // Underline
+      ctx.strokeStyle = 'rgba(255,223,128,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PADDING_H, curY + GROUP_TITLE_H - 1);
+      ctx.lineTo(totalWidth - PADDING_H, curY + GROUP_TITLE_H - 1);
+      ctx.stroke();
+
+      curY += GROUP_TITLE_H;
+    }
+
+    // Table header row
+    const thBg = ctx.createLinearGradient(0, curY, 0, curY + TABLE_HEADER_H);
+    thBg.addColorStop(0, 'rgba(44,27,75,0.6)');
+    thBg.addColorStop(1, 'rgba(44,27,75,0.3)');
+    ctx.fillStyle = thBg;
+    // Rounded top corners for first section
+    ctx.beginPath();
+    if (secIdx === 0 || sec.title) {
+      ctx.roundRect(PADDING_H - 8, curY, totalWidth - PADDING_H * 2 + 16, TABLE_HEADER_H, [8, 8, 0, 0]);
+    } else {
+      ctx.rect(PADDING_H - 8, curY, totalWidth - PADDING_H * 2 + 16, TABLE_HEADER_H);
+    }
+    ctx.fill();
+
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 11px "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(255,223,128,0.7)';
+
+    COLS.forEach((col, ci) => {
+      const x = colX(ci);
+      ctx.textAlign = ci <= 1 ? 'left' : 'center';
+      const cellCx = ci <= 1 ? x + 6 : x + COL_WIDTHS[ci] / 2;
+      ctx.fillText(col.toUpperCase(), cellCx, curY + TABLE_HEADER_H / 2);
+    });
+
+    curY += TABLE_HEADER_H;
+
+    // Data rows
+    sec.rows.forEach((row, rowIdx) => {
+      const rowBg = rowIdx % 2 === 0 ? 'rgba(44,27,75,0.15)' : 'rgba(30,15,60,0.1)';
+      const isPromotion = rowIdx < 4;
+
+      ctx.fillStyle = rowBg;
+      const isLastRow = rowIdx === sec.rows.length - 1;
+      ctx.beginPath();
+      if (isLastRow) {
+        ctx.roundRect(PADDING_H - 8, curY, totalWidth - PADDING_H * 2 + 16, ROW_H, [0, 0, 8, 8]);
+      } else {
+        ctx.rect(PADDING_H - 8, curY, totalWidth - PADDING_H * 2 + 16, ROW_H);
+      }
+      ctx.fill();
+
+      // Promotion indicator (gold left bar)
+      if (isPromotion) {
+        const barGrad = ctx.createLinearGradient(0, curY, 0, curY + ROW_H);
+        barGrad.addColorStop(0, 'transparent');
+        barGrad.addColorStop(0.5, '#ffdf80');
+        barGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = barGrad;
+        ctx.fillRect(PADDING_H - 8, curY, 3, ROW_H);
+      }
+
+      // Divider
+      ctx.strokeStyle = 'rgba(255,223,128,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PADDING_H - 8, curY + ROW_H);
+      ctx.lineTo(totalWidth - PADDING_H + 8, curY + ROW_H);
+      ctx.stroke();
+
+      const GD = (row.goalsFor || 0) - (row.goalsAgainst || 0);
+      const cellValues = [
+        rowIdx + 1,
+        row.playerName || 'Unknown',
+        row.matchesPlayed || 0,
+        row.wins || 0,
+        row.draws || 0,
+        row.losses || 0,
+        row.goalsFor || 0,
+        row.goalsAgainst || 0,
+        GD > 0 ? `+${GD}` : GD,
+        row.points || 0,
+      ];
+
+      cellValues.forEach((val, ci) => {
+        const x = colX(ci);
+        ctx.textAlign = ci <= 1 ? 'left' : 'center';
+        const cellCx = ci <= 1 ? x + 6 : x + COL_WIDTHS[ci] / 2;
+        ctx.textBaseline = 'middle';
+
+        // Colour coding
+        if (ci === 0) {
+          ctx.fillStyle = '#ffdf80';
+          ctx.font = 'bold 13px "Segoe UI", sans-serif';
+        } else if (ci === 1) {
+          ctx.fillStyle = row.playerName?.startsWith('Deleted-') ? '#f87171' : '#ffffff';
+          ctx.font = '500 13px "Segoe UI", sans-serif';
+        } else if (ci === 8) {
+          // GD colour
+          ctx.fillStyle = GD > 0 ? '#4ade80' : GD < 0 ? '#f87171' : 'rgba(139,123,184,0.8)';
+          ctx.font = '500 13px "Segoe UI", sans-serif';
+        } else if (ci === 9) {
+          // Points
+          ctx.fillStyle = '#ffdf80';
+          ctx.font = 'bold 14px "Segoe UI", sans-serif';
+        } else {
+          ctx.fillStyle = 'rgba(139,123,184,0.85)';
+          ctx.font = '13px "Segoe UI", sans-serif';
+        }
+
+        // Truncate player name
+        let displayVal = String(val);
+        if (ci === 1 && displayVal.startsWith('Deleted-')) {
+          displayVal = displayVal.replace('Deleted-', '');
+        }
+        if (ci === 1) {
+          // Measure & truncate
+          let measured = ctx.measureText(displayVal).width;
+          while (measured > COL_WIDTHS[1] - 12 && displayVal.length > 3) {
+            displayVal = displayVal.slice(0, -1);
+            measured = ctx.measureText(displayVal + '…').width;
+          }
+          if (displayVal !== String(val).replace('Deleted-', '')) displayVal += '…';
+        }
+
+        ctx.fillText(displayVal, cellCx, curY + ROW_H / 2);
+      });
+
+      curY += ROW_H;
+    });
+
+    if (secIdx < sections.length - 1) curY += GAP_BETWEEN;
+  });
+
+  // ── Footer ───────────────────────────────────────────────────────────────
+  curY += PADDING_H / 2;
+  ctx.strokeStyle = 'rgba(255,223,128,0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PADDING_H, curY);
+  ctx.lineTo(totalWidth - PADDING_H, curY);
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '11px "Segoe UI", sans-serif';
+  ctx.fillStyle = 'rgba(139,123,184,0.5)';
+  ctx.fillText(
+    `Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+    totalWidth / 2,
+    curY + FOOTER_H / 2
+  );
+
+  // ── Trigger download ─────────────────────────────────────────────────────
+  const link = document.createElement('a');
+  const slug = competitionName.toLowerCase().replace(/\s+/g, '-');
+  const groupSlug = competitionType === 'GROUP_STAGE' && activeGroup !== 'all'
+    ? `-${activeGroup.toLowerCase().replace(/\s+/g, '-')}`
+    : '';
+  link.download = `standings-${slug}${groupSlug}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+//=================================================================
+// DOWNLOAD BUTTON COMPONENT
+//=================================================================
+
+const DownloadButton = ({ onClick, isDownloading }) => (
+  <button
+    onClick={onClick}
+    disabled={isDownloading}
+    className={`download-btn ${isDownloading ? 'downloading' : ''}`}
+    title="Download standings as image"
+  >
+    {isDownloading ? (
+      <>
+        <Loader className="w-4 h-4 animate-spin" />
+        <span>Generating…</span>
+      </>
+    ) : (
+      <>
+        <ImageIcon className="w-4 h-4" />
+        <span>Save as Image</span>
+        <Download className="w-3.5 h-3.5 opacity-60" />
+      </>
+    )}
+  </button>
+);
+
+//=================================================================
 // STATS SECTION COMPONENT
 //=================================================================
 
@@ -78,28 +435,23 @@ const StatsSection = memo(({ standings, groupName = null }) => {
     const safeStandings = Array.isArray(standings) ? standings : [];
     if (safeStandings.length === 0) return null;
 
-    // Filter out teams with no matches played
     const teamsWithMatches = safeStandings.filter(team => (team.matchesPlayed || 0) > 0);
     if (teamsWithMatches.length === 0) return null;
 
-    // Qualifying teams (top 4)
     const qualifying = safeStandings.slice(0, 4);
 
-    // Top scorer (goals per match)
     const topScorer = teamsWithMatches.reduce((prev, current) => {
       const currentAvg = (current.goalsFor || 0) / (current.matchesPlayed || 1);
       const prevAvg = (prev.goalsFor || 0) / (prev.matchesPlayed || 1);
       return currentAvg > prevAvg ? current : prev;
     });
 
-    // Best defense (least goals conceded per match)
     const bestDefense = teamsWithMatches.reduce((prev, current) => {
       const currentAvg = (current.goalsAgainst || 0) / (current.matchesPlayed || 1);
       const prevAvg = (prev.goalsAgainst || 0) / (prev.matchesPlayed || 1);
       return currentAvg < prevAvg ? current : prev;
     });
 
-    // Best goal difference (per match)
     const bestGD = teamsWithMatches.reduce((prev, current) => {
       const currentGD = ((current.goalsFor || 0) - (current.goalsAgainst || 0)) / (current.matchesPlayed || 1);
       const prevGD = ((prev.goalsFor || 0) - (prev.goalsAgainst || 0)) / (prev.matchesPlayed || 1);
@@ -120,7 +472,6 @@ const StatsSection = memo(({ standings, groupName = null }) => {
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Qualifying Teams */}
           <div className="stats-card">
             <div className="flex items-center mb-3">
               <Crown className="w-5 h-5 text-gold-main mr-2" />
@@ -138,7 +489,6 @@ const StatsSection = memo(({ standings, groupName = null }) => {
             </div>
           </div>
 
-          {/* Top Scorer */}
           <div className="stats-card">
             <div className="flex items-center mb-3">
               <Target className="w-5 h-5 text-green-400 mr-2" />
@@ -151,7 +501,6 @@ const StatsSection = memo(({ standings, groupName = null }) => {
             </div>
           </div>
 
-          {/* Best Defense */}
           <div className="stats-card">
             <div className="flex items-center mb-3">
               <Award className="w-5 h-5 text-blue-400 mr-2" />
@@ -164,7 +513,6 @@ const StatsSection = memo(({ standings, groupName = null }) => {
             </div>
           </div>
 
-          {/* Best Goal Difference */}
           <div className="stats-card">
             <div className="flex items-center mb-3">
               <TrendingUp className="w-5 h-5 text-purple-400 mr-2" />
@@ -190,7 +538,7 @@ StatsSection.displayName = 'StatsSection';
 //=================================================================
 
 const StandingsTable = memo(({ standings, title = null, showGroupHeader = false, isLoading = false }) => {
-  const { competitionId } = useParams(); // Add this line at the top of the component
+  const { competitionId } = useParams();
   const safeStandings = Array.isArray(standings) ? standings : [];
 
   if (isLoading) {
@@ -306,21 +654,17 @@ export default function Standings() {
     error: null,
     competitionName: 'Competition',
     competitionType: 'LEAGUE',
-    activeGroup: null
+    activeGroup: 'all'   // ← default to 'all' so GROUP_STAGE shows immediately
   });
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Sort standings properly with goal difference
   const sortStandings = (standings) => {
     return [...standings].sort((a, b) => {
-      // First compare points
       if (b.points !== a.points) return b.points - a.points;
-
-      // Then compare goal difference
       const aGD = (a.goalsFor || 0) - (a.goalsAgainst || 0);
       const bGD = (b.goalsFor || 0) - (b.goalsAgainst || 0);
       if (bGD !== aGD) return bGD - aGD;
-
-      // Finally compare goals scored
       return (b.goalsFor || 0) - (a.goalsFor || 0);
     });
   };
@@ -345,8 +689,6 @@ export default function Standings() {
 
     const groups = Object.keys(groupData).sort();
     const sortedGroupData = {};
-
-    // Sort each group properly
     groups.forEach(groupName => {
       if (groupData[groupName]) {
         sortedGroupData[groupName] = sortStandings(groupData[groupName]);
@@ -361,7 +703,7 @@ export default function Standings() {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       const { data } = await standingService.getStandings(competitionId);
-      console.log('data-',data);
+      console.log('data-', data);
 
       if (!data) throw new Error('No data received');
 
@@ -375,11 +717,10 @@ export default function Standings() {
         updates.competitionType = 'GROUP_STAGE';
         updates.standingsData = data.standings || data.groups || data;
         updates.competitionName = data.competitionName || 'Group Stage Competition';
-        const firstGroup = Object.keys(updates.standingsData)[0];
-        updates.activeGroup = firstGroup || null;
+        // ✅ FIX: always default to 'all' so the table renders on first load
+        updates.activeGroup = 'all';
       } else {
         updates.competitionType = 'LEAGUE';
-        // Sort league standings on frontend
         updates.standingsData = sortStandings(data?.standings || data || []);
         updates.competitionName = data?.competitionName || 'League Competition';
       }
@@ -398,6 +739,25 @@ export default function Standings() {
   useEffect(() => {
     fetchStandings();
   }, [competitionId]);
+
+  // ── Download handler ───────────────────────────────────────────────────
+  const handleDownload = useCallback(async () => {
+    setIsDownloading(true);
+    try {
+      await downloadStandingsAsImage({
+        competitionName: state.competitionName,
+        competitionType: state.competitionType,
+        groupData: processedGroupData.groupData,
+        leagueStandings: Array.isArray(state.standingsData) ? state.standingsData : [],
+        activeGroup: state.activeGroup,
+      });
+    } catch (e) {
+      console.error('Download failed:', e);
+    } finally {
+      // Keep spinner briefly so user sees feedback
+      setTimeout(() => setIsDownloading(false), 600);
+    }
+  }, [state, processedGroupData]);
 
   // Loading state
   if (state.loading) {
@@ -427,31 +787,34 @@ export default function Standings() {
 
   // Get current group data for display
   const getCurrentGroupData = () => {
-    if (state.competitionType === 'LEAGUE') {
-      return state.standingsData;
-    }
-
-    if (state.activeGroup === 'all') {
-      return null;
-    }
-
+    if (state.competitionType === 'LEAGUE') return state.standingsData;
+    if (state.activeGroup === 'all') return null;
     return processedGroupData.groupData[state.activeGroup] || [];
   };
 
   const currentGroupData = getCurrentGroupData();
 
-  // Main component render
+  // Check if there's any data to download
+  const hasData = state.competitionType === 'LEAGUE'
+    ? Array.isArray(state.standingsData) && state.standingsData.length > 0
+    : processedGroupData.groups.length > 0;
+
   return (
     <div className="min-h-screen modern-bg text-white overflow-x-hidden">
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-      <header className="fixed top-0 left-0 w-full z-50 p-4">
+      <header className="fixed top-0 left-0 w-full z-50 p-4 flex items-center justify-between">
         <Link to="/view" className="inline-flex items-center space-x-2 text-purple-300 hover:text-gold-main transition-colors duration-300 group glass-header-light p-2 rounded-lg">
           <ChevronLeft size={18} className="transition-transform duration-300 group-hover:-translate-x-1" />
           <span className="font-medium text-sm">Back to Dashboard</span>
         </Link>
+
+        {/* Download button in header — always visible */}
+        {hasData && (
+          <DownloadButton onClick={handleDownload} isDownloading={isDownloading} />
+        )}
       </header>
 
       <main className="flex-grow container mx-auto px-4 sm:px-6 py-20 md:py-28 relative z-10 max-w-6xl">
@@ -470,15 +833,25 @@ export default function Standings() {
           </div>
         </div>
 
+        {/* Group navigation */}
         {state.competitionType === 'GROUP_STAGE' && processedGroupData.groups.length > 0 && (
           <div className="mb-8">
             <div className="flex flex-wrap gap-2 justify-center">
-              {[...processedGroupData.groups, ...(processedGroupData.groups.length > 1 ? ['all'] : [])].map((groupName) => (
+              {/* 'All Groups' button first */}
+              {processedGroupData.groups.length > 1 && (
+                <button
+                  key="all"
+                  onClick={() => setState(prev => ({ ...prev, activeGroup: 'all' }))}
+                  className={`group-nav-button ${state.activeGroup === 'all' ? 'active' : ''}`}>
+                  All Groups
+                </button>
+              )}
+              {processedGroupData.groups.map((groupName) => (
                 <button
                   key={groupName}
                   onClick={() => setState(prev => ({ ...prev, activeGroup: groupName }))}
                   className={`group-nav-button ${state.activeGroup === groupName ? 'active' : ''}`}>
-                  {groupName === 'all' ? 'All Groups' : groupName}
+                  {groupName}
                 </button>
               ))}
             </div>
@@ -533,6 +906,23 @@ export default function Standings() {
           <div className="text-center p-8">
             <p className="text-gold-main text-xl">No Data Available</p>
             <p className="text-purple-light mt-2">Competition has not started yet.</p>
+          </div>
+        )}
+
+        {/* Floating download button (bottom-right, secondary) */}
+        {hasData && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="fab-download"
+              title="Download standings as image"
+            >
+              {isDownloading
+                ? <Loader className="w-5 h-5 animate-spin" />
+                : <Download className="w-5 h-5" />
+              }
+            </button>
           </div>
         )}
       </main>
@@ -748,6 +1138,66 @@ export default function Standings() {
                     letter-spacing: 0.05em;
                     color: var(--purple-light);
                 }
+
+                /* ── Download button (header) ── */
+                .download-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.45rem 1rem;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    border-radius: 8px;
+                    border: 1px solid rgba(255, 223, 128, 0.35);
+                    background: rgba(10, 5, 16, 0.65);
+                    backdrop-filter: blur(12px);
+                    color: var(--gold-main);
+                    cursor: pointer;
+                    transition: all 0.25s ease;
+                    white-space: nowrap;
+                }
+
+                .download-btn:hover:not(:disabled) {
+                    background: rgba(255, 223, 128, 0.12);
+                    border-color: var(--gold-main);
+                    box-shadow: 0 0 16px rgba(255, 223, 128, 0.18);
+                    transform: translateY(-1px);
+                }
+
+                .download-btn.downloading,
+                .download-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                /* ── FAB download (floating) ── */
+                .fab-download {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    border: 1px solid rgba(255, 223, 128, 0.3);
+                    background: rgba(10, 5, 16, 0.85);
+                    backdrop-filter: blur(12px);
+                    color: var(--gold-main);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.25s ease;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                }
+
+                .fab-download:hover:not(:disabled) {
+                    background: rgba(255, 223, 128, 0.15);
+                    border-color: var(--gold-main);
+                    box-shadow: 0 0 20px rgba(255, 223, 128, 0.25), 0 4px 20px rgba(0,0,0,0.4);
+                    transform: scale(1.08);
+                }
+
+                .fab-download:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
                 
                 @media (max-width: 768px) {
                     .modern-info-card {
@@ -765,6 +1215,15 @@ export default function Standings() {
                     .group-nav-button {
                         padding: 0.35rem 0.7rem;
                         font-size: 0.8rem;
+                    }
+
+                    .download-btn span {
+                        display: none;
+                    }
+
+                    .download-btn {
+                        padding: 0.45rem 0.6rem;
+                        gap: 0;
                     }
                 }
                 

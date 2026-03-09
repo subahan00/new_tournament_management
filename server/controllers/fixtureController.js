@@ -326,10 +326,17 @@ exports.createFixturesForGroupStage = async (req, res) => {
     if (numberOfPlayers === 32) {
       groupCount = 8;
       playersPerGroup = 4;
-    } else if (numberOfPlayers === 64) {
+    } 
+    else if (numberOfPlayers === 48) {
+      groupCount = 6;
+      playersPerGroup = 8;
+    }
+    else if (numberOfPlayers === 64) {
       groupCount = 8;
       playersPerGroup = 8;
-    } else {
+    }
+    
+     else {
       return res.status(400).json({
         success: false,
         message: 'GROUP_STAGE only supports 32 or 64 players'

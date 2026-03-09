@@ -39,6 +39,7 @@ export default {
 
   createGroupStageFixtures: async (competitionId) => {
     try {
+      console.log(' createGroupStageFixtures', competitionId);
       const token = getAuthToken(); // ✅ FIXED
       const response = await axios.post(
         `${BASE_URL}/fixtures/create-groupstage/${competitionId}`,
