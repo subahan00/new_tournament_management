@@ -688,12 +688,18 @@ export default function CompetitionFixtures() {
       };
     }).filter(md => md.fixtures.length > 0);
 
-    // 3. Sort Matchdays if searching (bring relevant matches to top)
+// 3. Sort Matchdays if searching (bring relevant matches to top)
     if (term) {
       return processedMatchdays.sort((a, b) => {
-        if (b.pendingCount !== a.pendingCount) {
-          return b.pendingCount - a.pendingCount;
+        const hasPendingA = a.pendingCount > 0;
+        const hasPendingB = b.pendingCount > 0;
+
+        // If one has pending matches and the other doesn't, prioritize the one with pending matches
+        if (hasPendingA !== hasPendingB) {
+          return hasPendingA ? -1 : 1; 
         }
+        
+        // If both have pending matches (or neither do), sort sequentially by matchday number
         return a.matchdayNumber - b.matchdayNumber;
       });
     }
