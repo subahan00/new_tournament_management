@@ -560,10 +560,36 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
 
         const fixtures = await Fixture.find({ competitionId: id, isClanWar: true });
         for (const fixture of fixtures) {
-          fixture.individualMatches = fixture.individualMatches.filter(match => {
-            return !removedPlayerIds.includes(match.homePlayer.toString()) && 
-                   !removedPlayerIds.includes(match.awayPlayer.toString());
+          const remainingMatches = [];
+          let orphanedHomePlayer = null;
+          let orphanedAwayPlayer = null;
+
+          fixture.individualMatches.forEach(match => {
+            const isHomeRemoved = removedPlayerIds.includes(match.homePlayer.toString());
+            const isAwayRemoved = removedPlayerIds.includes(match.awayPlayer.toString());
+            
+            if (!isHomeRemoved && !isAwayRemoved) {
+              remainingMatches.push(match);
+            } else if (isHomeRemoved && isAwayRemoved) {
+              // Both removed, drop this match completely.
+            } else if (isHomeRemoved) {
+              orphanedAwayPlayer = { player: match.awayPlayer, name: match.awayPlayerName, score: match.awayScore };
+            } else if (isAwayRemoved) {
+              orphanedHomePlayer = { player: match.homePlayer, name: match.homePlayerName, score: match.homeScore };
+            }
           });
+
+          if (orphanedHomePlayer && orphanedAwayPlayer) {
+            remainingMatches.push({
+              homePlayer: orphanedHomePlayer.player,
+              awayPlayer: orphanedAwayPlayer.player,
+              homePlayerName: orphanedHomePlayer.name,
+              awayPlayerName: orphanedAwayPlayer.name,
+              status: 'pending' // Note: New paired match is reset to pending
+            });
+          }
+
+          fixture.individualMatches = remainingMatches;
 
           if (fixture.individualMatches.every(m => m.status === 'completed') && fixture.individualMatches.length > 0) {
             fixture.homeClanPoints = 0;
