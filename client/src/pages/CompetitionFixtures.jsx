@@ -705,6 +705,7 @@ export default function CompetitionFixtures() {
     }
 
     return processedMatchdays;
+      
   }, [matchdaySchedule, searchTerm]);
 
   if (loading) {

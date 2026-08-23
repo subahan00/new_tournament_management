@@ -531,6 +531,116 @@ createClanWarCompetitionWithExistingClans: async (req, res) => {
     }
   },
 
+  changeParticipantCount: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newCount, modifications } = req.body;
+      
+      const competition = await Competition.findById(id);
+      if (!competition || competition.type !== 'CLAN_WAR') {
+        return res.status(404).json({ message: 'Clan war competition not found' });
+      }
+
+      const currentCount = competition.playersPerClan || 5;
+      if (currentCount === newCount) {
+        return res.status(400).json({ message: 'Count is already ' + newCount });
+      }
+
+      if (newCount === 4 && currentCount === 5) {
+        const removedPlayerIds = modifications.map(m => m.playerIdToRemove);
+        
+        for (const mod of modifications) {
+          const clan = await Clan.findById(mod.clanId);
+          clan.members = clan.members.filter(m => m.toString() !== mod.playerIdToRemove);
+          await clan.save();
+          await Player.findByIdAndDelete(mod.playerIdToRemove);
+        }
+
+        competition.players = competition.players.filter(p => !removedPlayerIds.includes(p.toString()));
+
+        const fixtures = await Fixture.find({ competitionId: id, isClanWar: true });
+        for (const fixture of fixtures) {
+          fixture.individualMatches = fixture.individualMatches.filter(match => {
+            return !removedPlayerIds.includes(match.homePlayer.toString()) && 
+                   !removedPlayerIds.includes(match.awayPlayer.toString());
+          });
+
+          if (fixture.individualMatches.every(m => m.status === 'completed') && fixture.individualMatches.length > 0) {
+            fixture.homeClanPoints = 0;
+            fixture.awayClanPoints = 0;
+            fixture.individualMatches.forEach(match => {
+              if (match.result === 'home') fixture.homeClanPoints += 3;
+              else if (match.result === 'away') fixture.awayClanPoints += 3;
+              else if (match.result === 'draw') {
+                fixture.homeClanPoints += 1;
+                fixture.awayClanPoints += 1;
+              }
+            });
+            if (fixture.homeClanPoints > fixture.awayClanPoints) fixture.result = 'home';
+            else if (fixture.awayClanPoints > fixture.homeClanPoints) fixture.result = 'away';
+            else fixture.result = 'draw';
+            fixture.status = 'completed';
+          } else {
+            fixture.status = 'pending';
+            fixture.result = null;
+          }
+          await fixture.save();
+        }
+      } else if (newCount === 5 && currentCount === 4) {
+        const newPlayersByClan = {}; 
+
+        for (const mod of modifications) {
+          const newPlayer = new Player({
+            name: mod.newPlayerName.trim(),
+            competitionId: competition._id
+          });
+          await newPlayer.save();
+
+          const clan = await Clan.findById(mod.clanId);
+          clan.members.push(newPlayer._id);
+          await clan.save();
+
+          competition.players.push(newPlayer._id);
+          newPlayersByClan[mod.clanId] = newPlayer;
+        }
+
+        const fixtures = await Fixture.find({ competitionId: id, isClanWar: true });
+        for (const fixture of fixtures) {
+          const homeNewPlayer = newPlayersByClan[fixture.homeClan.toString()];
+          const awayNewPlayer = newPlayersByClan[fixture.awayClan.toString()];
+          
+          if (homeNewPlayer && awayNewPlayer) {
+            fixture.individualMatches.push({
+              homePlayer: homeNewPlayer._id,
+              awayPlayer: awayNewPlayer._id,
+              homePlayerName: homeNewPlayer.name,
+              awayPlayerName: awayNewPlayer.name,
+              status: 'pending'
+            });
+            
+            fixture.status = 'pending';
+            fixture.result = null;
+            await fixture.save();
+          }
+        }
+      } else {
+        return res.status(400).json({ message: 'Invalid transition' });
+      }
+      
+      competition.playersPerClan = newCount;
+      competition.numberOfPlayers = competition.numberOfClans * newCount;
+      await competition.save();
+
+      res.json({ message: 'Participant count updated successfully' });
+    } catch (error) {
+      console.error('Error changing participant count:', error);
+      res.status(500).json({ 
+        message: 'Failed to change participant count',
+        error: error.message 
+      });
+    }
+  },
+
 updatePlayerNameInCompetition : async (req, res) => {
   const { competitionId } = req.params;
   const { playerId, newName } = req.body;

@@ -64,10 +64,10 @@ fixtureSchema.pre('save', async function (next) {
     });
 
     if (!competition) throw new Error('One or both clans do not belong to this CLAN_WAR competition');
-    if (this.individualMatches && this.individualMatches.length !== 5) throw new Error('Clan war must have exactly 5 individual matches');
+    if (this.individualMatches && (this.individualMatches.length !== 4 && this.individualMatches.length !== 5)) throw new Error('Clan war must have exactly 4 or 5 individual matches');
 
     // Auto-calculate Clan War Status
-    if (this.individualMatches && this.individualMatches.length === 5) {
+    if (this.individualMatches && (this.individualMatches.length === 4 || this.individualMatches.length === 5)) {
       const allCompleted = this.individualMatches.every(match => match.status === 'completed');
       
       if (allCompleted) {

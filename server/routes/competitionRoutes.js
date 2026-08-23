@@ -32,6 +32,7 @@ router.put('/clan-war/:fixtureId/match/:matchIndex',competitionController.update
 router.get('/clan-war/:competitionId/fixtures', competitionController.getClanWarFixtures);
 router.post('/clan-war/:competitionId/next-round', competitionController.clanWarNextRound);
 router.post('/create-clan-war-existing', competitionController.createClanWarCompetitionWithExistingClans);
+router.put('/clan-war/:id/participant-count', competitionController.changeParticipantCount);
 router.get('/deleted', competitionController.getDeletedCompetitions);
 router.post('/recover/:id', competitionController.recoverCompetition);
 router.post('/recover-bulk', competitionController.bulkRecoverCompetitions);

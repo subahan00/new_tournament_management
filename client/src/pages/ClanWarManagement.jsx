@@ -7,8 +7,10 @@ import {
     getAllCompetitions,
     getClanWarFixtures,
     updateClanWarMatch,
-    progressClanWarToNextRound
+    progressClanWarToNextRound,
+    changeParticipantCount
 } from '../services/competitionService'; // Assuming service functions are in this path
+import ParticipantCountModal from '../components/ParticipantCountModal';
 
 // Helper component for a consistent loading spinner
 const LoadingSpinner = ({ message }) => (
@@ -161,6 +163,7 @@ const ClanWarManagement = ({ competition, onBack }) => {
     const [scores, setScores] = useState({ home: '', away: '' });
     const [showProgressDialog, setShowProgressDialog] = useState(false);
     const [progressLoading, setProgressLoading] = useState(false);
+    const [showParticipantCountModal, setShowParticipantCountModal] = useState(false);
 
     const competitionId = useMemo(() => competition._id?.$oid || competition.id || competition._id, [competition]);
 
@@ -203,6 +206,19 @@ const ClanWarManagement = ({ competition, onBack }) => {
             acc[roundName].push(fixture);
             return acc;
         }, {});
+    }, [fixtures]);
+
+    const uniqueClans = useMemo(() => {
+        const clanMap = new Map();
+        fixtures.forEach(fixture => {
+            if (fixture.homeClan && !clanMap.has(fixture.homeClan._id || fixture.homeClan.id)) {
+                clanMap.set(fixture.homeClan._id || fixture.homeClan.id, fixture.homeClan);
+            }
+            if (fixture.awayClan && !clanMap.has(fixture.awayClan._id || fixture.awayClan.id)) {
+                clanMap.set(fixture.awayClan._id || fixture.awayClan.id, fixture.awayClan);
+            }
+        });
+        return Array.from(clanMap.values());
     }, [fixtures]);
 
 
@@ -274,8 +290,17 @@ const ClanWarManagement = ({ competition, onBack }) => {
                         <div>
                              {/* Mobile-first: smaller base text size */}
                             <h1 className="text-xl sm:text-3xl font-bold text-white tracking-wider">{competition.name}</h1>
-                            <p className="text-amber-400 text-sm sm:text-base">Clan War Management</p>
+                            <p className="text-amber-400 text-sm sm:text-base">Clan War Management ({(competition.playersPerClan || 5)} vs {(competition.playersPerClan || 5)})</p>
                         </div>
+                    </div>
+                    <div>
+                        <button 
+                            onClick={() => setShowParticipantCountModal(true)}
+                            className="bg-slate-800 hover:bg-slate-700 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+                        >
+                            <Users size={16} />
+                            <span className="hidden sm:inline">Change Count</span>
+                        </button>
                     </div>
                 </header>
 
@@ -399,6 +424,25 @@ const ClanWarManagement = ({ competition, onBack }) => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Participant Count Modal */}
+            {showParticipantCountModal && (
+                <ParticipantCountModal
+                    competition={{ ...competition, clans: uniqueClans }}
+                    onClose={() => setShowParticipantCountModal(false)}
+                    onUpdate={() => {
+                        setShowParticipantCountModal(false);
+                        fetchFixtures();
+                        // Ideally we would also refresh the competition data here, 
+                        // but since the parent component manages the list, this is a simplified approach.
+                        if (competition.playersPerClan) {
+                            competition.playersPerClan = competition.playersPerClan === 5 ? 4 : 5;
+                        } else {
+                            competition.playersPerClan = 4; // since default is 5
+                        }
+                    }}
+                />
             )}
         </div>
     );

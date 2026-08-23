@@ -216,6 +216,23 @@ export const createClanWarCompetitionWithExistingClans = async (competitionData)
     throw error;
   }
 };
+
+export const changeParticipantCount = async (competitionId, newCount, modifications) => {
+  try {
+    const token = getAuthToken();
+    if (!token) throw new Error('Unauthorized: No token found');
+
+    const response = await axios.put(
+      `${BASE_URL}/competitions/clan-war/${competitionId}/participant-count`,
+      { newCount, modifications },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error changing participant count:', error.response?.data || error.message);
+    throw error;
+  }
+};
 const getAllPlayers = async () => {
   try {
     const response = await axios.get(`${BASE_URL}/players`); // Adjust endpoint as needed
@@ -296,6 +313,6 @@ export default {
   updatePlayerNameInCompetition,
   updateCompetitionStatus,
   getDeletedCompetitions,
-  recoverCompetition
-
+  recoverCompetition,
+  changeParticipantCount
 };

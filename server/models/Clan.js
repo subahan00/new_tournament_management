@@ -55,10 +55,10 @@ const clanSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Validation to ensure exactly 5 members per clan
+// Validation to ensure exactly 4 or 5 members per clan
 clanSchema.pre('save', function(next) {
-  if (this.members.length !== 5) {
-    return next(new Error('Each clan must have exactly 5 members'));
+  if (this.members.length !== 4 && this.members.length !== 5) {
+    return next(new Error('Each clan must have exactly 4 or 5 members'));
   }
   next();
 });

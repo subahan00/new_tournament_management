@@ -63,6 +63,11 @@ const competitionSchema = new mongoose.Schema({
     ref: 'Clan',
     default: null
   },
+  playersPerClan: {
+    type: Number,
+    enum: [4, 5],
+    default: 5
+  },
 
   // Soft Delete Fields
   isDeleted: {
@@ -89,8 +94,8 @@ const competitionSchema = new mongoose.Schema({
 // Pre-save validation for CLAN_WAR
 competitionSchema.pre('save', function (next) {
   if (this.type === 'CLAN_WAR') {
-    if (this.numberOfPlayers !== this.numberOfClans * 5) {
-      return next(new Error('For CLAN_WAR, numberOfPlayers must equal numberOfClans * 5'));
+    if (this.numberOfPlayers !== this.numberOfClans * 4 && this.numberOfPlayers !== this.numberOfClans * 5) {
+      return next(new Error('For CLAN_WAR, numberOfPlayers must equal numberOfClans * 4 or 5'));
     }
 
     if (this.numberOfClans && !isPowerOfTwo(this.numberOfClans)) {
