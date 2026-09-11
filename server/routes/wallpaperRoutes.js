@@ -5,6 +5,8 @@ const cloudinary = require('../utils/cloudinary'); // Use centralized config
 const Wallpaper = require('../models/Wallpaper');
 const { authenticate } = require('../utils/middlewares'); // ✅ Correct path if needed
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
@@ -65,6 +67,7 @@ router.post('/admin/upload',authenticate, upload.single('wallpaper'), async (req
 
     // Upload original image
     const originalUpload = await uploadToCloudinary(req.file.buffer, {
+      colors: true,
       transformation: [
         { quality: 'auto:best' },
         { fetch_format: 'auto' }
@@ -97,6 +100,7 @@ router.post('/admin/upload',authenticate, upload.single('wallpaper'), async (req
       fileSize: originalUpload.bytes,
       category: category || 'players',
       featured: featured === 'true',
+      dominantColor: originalUpload.colors?.[0]?.[0] || '#1a1a1a',
       uploadedBy: req.user.id
     });
 
@@ -205,10 +209,11 @@ router.get('/public', async (req, res) => {
     let query = {};
     
     if (search) {
+      const escaped = escapeRegex(search);
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
+        { title: { $regex: escaped, $options: 'i' } },
+        { description: { $regex: escaped, $options: 'i' } },
+        { tags: { $in: [new RegExp(escaped, 'i')] } }
       ];
     }
 
@@ -218,8 +223,9 @@ router.get('/public', async (req, res) => {
 
     // Add tag filtering - this is the new section
     if (tag && tag !== 'all') {
+      const escapedTag = escapeRegex(tag);
       query.tags = { 
-        $regex: tag, 
+        $regex: escapedTag, 
         $options: 'i'  // Case-insensitive matching
       };
     }
@@ -319,6 +325,97 @@ router.get('/public/tags', async (req, res) => {
     res.status(500).json({ message: 'Error fetching tags', error: error.message });
   }
 });
+
+// Seeded discovery feed - deterministic random order for stable pagination
+router.get('/public/discover', async (req, res) => {
+  try {
+    const { seed = '1', page = 1, limit = 30 } = req.query;
+    const seedNum = Math.max(1, Math.abs(parseInt(seed)) || 1);
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 30, 50);
+
+    const total = await Wallpaper.countDocuments();
+
+    const wallpapers = await Wallpaper.aggregate([
+      { $addFields: {
+        _hash: {
+          $mod: [
+            { $add: [
+              { $multiply: [
+                { $mod: [{ $toLong: '$createdAt' }, 100003] },
+                seedNum
+              ]},
+              { $mod: [{ $toLong: { $toDate: '$_id' } }, 99991] }
+            ]},
+            99991
+          ]
+        }
+      }},
+      { $sort: { _hash: 1, _id: 1 } },
+      { $skip: (pageNum - 1) * limitNum },
+      { $limit: limitNum },
+      { $project: { _hash: 0, cloudinaryId: 0, uploadedBy: 0 } }
+    ]);
+
+    res.json({
+      wallpapers,
+      pagination: {
+        current: pageNum,
+        pages: Math.ceil(total / limitNum),
+        total
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching discovery wallpapers', error: error.message });
+  }
+});
+
+// Tag-based albums with preview images
+router.get('/public/albums', async (req, res) => {
+  try {
+    const pageNum = parseInt(req.query.page) || 1;
+    const limitNum = Math.min(parseInt(req.query.limit) || 24, 50);
+
+    const albums = await Wallpaper.aggregate([
+      { $unwind: '$tags' },
+      { $sort: { createdAt: -1 } },
+      { $group: {
+        _id: '$tags',
+        count: { $sum: 1 },
+        previews: { $push: '$thumbnailUrl' }
+      }},
+      { $match: { count: { $gte: 1 } } },
+      { $sort: { count: -1 } },
+      { $skip: (pageNum - 1) * limitNum },
+      { $limit: limitNum },
+      { $project: {
+        name: '$_id',
+        count: 1,
+        previews: { $slice: ['$previews', 4] },
+        _id: 0
+      }}
+    ]);
+
+    const totalResult = await Wallpaper.aggregate([
+      { $unwind: '$tags' },
+      { $group: { _id: '$tags' } },
+      { $count: 'total' }
+    ]);
+    const total = totalResult[0]?.total || 0;
+
+    res.json({
+      albums,
+      pagination: {
+        current: pageNum,
+        pages: Math.ceil(total / limitNum),
+        total
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching albums', error: error.message });
+  }
+});
+
 // Get single wallpaper details
 router.get('/public/:id', async (req, res) => {
   try {

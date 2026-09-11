@@ -29,3 +29,32 @@
     color: #FFFFFF;
   }
 }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Dark thin scrollbar for wallpaper pages */
+.wallpaper-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.wallpaper-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.wallpaper-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+.wallpaper-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}

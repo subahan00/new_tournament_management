@@ -101,3 +101,15 @@ export const getWallpaperCategories = async () => {
 export const getWallpaperTags = async () => {
   return axios.get(`${API_BASE_URL}/public/tags`);
 };
+
+export const getDiscoverWallpapers = async (seed, page = 1, limit = 30) => {
+  return axios.get(`${API_BASE_URL}/public/discover`, {
+    params: { seed, page, limit }
+  });
+};
+
+export const getAlbums = async (page = 1, limit = 24) => {
+  return axios.get(`${API_BASE_URL}/public/albums`, {
+    params: { page, limit }
+  });
+};

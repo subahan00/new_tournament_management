@@ -57,6 +57,10 @@ const wallpaperSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  dominantColor: {
+    type: String,
+    default: '#1a1a1a'
+  },
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
   },
@@ -76,5 +80,6 @@ wallpaperSchema.index({ category: 1 });
 wallpaperSchema.index({ featured: -1, createdAt: -1 });
 wallpaperSchema.index({ downloads: -1 });
 wallpaperSchema.index({ createdAt: -1 });
+wallpaperSchema.index({ title: 'text', tags: 'text' });
 
 module.exports = mongoose.model('Wallpaper', wallpaperSchema);

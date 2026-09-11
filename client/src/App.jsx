@@ -47,6 +47,10 @@ import ClanWarView from './pages/ClanWarView';
 import ClanManagement from './pages/clanmanagement';
 import RecoverCompetitions from './pages/RecoverCompetition';
 import PlayerFixtures from './pages/PlayerFixtures';
+import WallpapersHome from './pages/wallpapers/WallpapersHome';
+import WallpapersSearch from './pages/wallpapers/WallpapersSearch';
+import WallpapersAlbums from './pages/wallpapers/WallpapersAlbums';
+import WallpapersAlbumView from './pages/wallpapers/WallpapersAlbumView';
 
 import Maintenance from './pages/maintenance';
 
@@ -77,6 +81,10 @@ const App = () => {
 
               <Route path="/public-ko" element={<PublicKo />} />
               <Route path="/wallpaper" element={<PublicWallpaperPage />} />
+              <Route path="/wallpapers" element={<WallpapersHome />} />
+              <Route path="/wallpapers/search" element={<WallpapersSearch />} />
+              <Route path="/wallpapers/albums" element={<WallpapersAlbums />} />
+              <Route path="/wallpapers/albums/:tag" element={<WallpapersAlbumView />} />
               <Route path="/view" element={<ViewPage />} />
               <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
               <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
