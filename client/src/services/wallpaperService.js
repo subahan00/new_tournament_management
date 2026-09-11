@@ -108,8 +108,8 @@ export const getDiscoverWallpapers = async (seed, page = 1, limit = 30) => {
   });
 };
 
-export const getAlbums = async (page = 1, limit = 24) => {
+export const getAlbums = async (page = 1, limit = 24, search = '') => {
   return axios.get(`${API_BASE_URL}/public/albums`, {
-    params: { page, limit }
+    params: { page, limit, search }
   });
 };

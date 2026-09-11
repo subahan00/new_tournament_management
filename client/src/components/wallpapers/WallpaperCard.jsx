@@ -35,7 +35,7 @@ const WallpaperCard = ({ wallpaper, onClick }) => {
       style={{ aspectRatio: `${w}/${h}`, backgroundColor: bgColor, breakInside: 'avoid' }}
     >
       <img
-        src={wallpaper.thumbnailUrl || wallpaper.imageUrl}
+        src={wallpaper.imageUrl ? wallpaper.imageUrl.replace('/upload/', '/upload/c_scale,w_600/q_auto:good,f_auto/') : wallpaper.thumbnailUrl}
         alt={wallpaper.title}
         loading="lazy"
         decoding="async"

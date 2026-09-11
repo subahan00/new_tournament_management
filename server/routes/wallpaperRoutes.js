@@ -375,9 +375,15 @@ router.get('/public/albums', async (req, res) => {
   try {
     const pageNum = parseInt(req.query.page) || 1;
     const limitNum = Math.min(parseInt(req.query.limit) || 24, 50);
+    const search = req.query.search;
+
+    const matchStage = search 
+      ? { tags: { $regex: escapeRegex(search), $options: 'i' } } 
+      : {};
 
     const albums = await Wallpaper.aggregate([
       { $unwind: '$tags' },
+      { $match: matchStage },
       { $sort: { createdAt: -1 } },
       { $group: {
         _id: '$tags',
@@ -398,6 +404,7 @@ router.get('/public/albums', async (req, res) => {
 
     const totalResult = await Wallpaper.aggregate([
       { $unwind: '$tags' },
+      { $match: matchStage },
       { $group: { _id: '$tags' } },
       { $count: 'total' }
     ]);
