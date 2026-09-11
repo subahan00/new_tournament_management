@@ -28,11 +28,18 @@ const WallpaperCard = ({ wallpaper, onClick }) => {
     }
   };
 
+  const tinyUrl = wallpaper.imageUrl ? wallpaper.imageUrl.replace('/upload/', '/upload/w_10,c_scale,e_blur:200,q_auto,f_auto/') : '';
+
   return (
     <div
       onClick={onClick}
-      className="group relative overflow-hidden rounded-xl cursor-pointer lg:hover:scale-[1.02] transition-transform duration-300 w-full"
-      style={{ aspectRatio: `${w}/${h}`, backgroundColor: bgColor, breakInside: 'avoid' }}
+      className={`group relative overflow-hidden rounded-xl cursor-pointer lg:hover:scale-[1.02] transition-transform duration-300 w-full bg-cover bg-center ${!loaded ? 'animate-pulse' : ''}`}
+      style={{ 
+        aspectRatio: `${w}/${h}`, 
+        backgroundColor: bgColor,
+        backgroundImage: !loaded && tinyUrl ? `url(${tinyUrl})` : 'none',
+        breakInside: 'avoid' 
+      }}
     >
       <img
         src={wallpaper.imageUrl ? wallpaper.imageUrl.replace('/upload/', '/upload/c_scale,w_600/q_auto:good,f_auto/') : wallpaper.thumbnailUrl}
@@ -41,7 +48,7 @@ const WallpaperCard = ({ wallpaper, onClick }) => {
         decoding="async"
         onLoad={() => setLoaded(true)}
         className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out ${
-          loaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-sm scale-105'
+          loaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-md scale-105'
         }`}
       />
       

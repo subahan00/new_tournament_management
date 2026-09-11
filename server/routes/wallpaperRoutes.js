@@ -230,6 +230,12 @@ router.get('/public', async (req, res) => {
       };
     }
 
+    if (req.query.orientation === 'portrait') {
+      query.$expr = { $gt: ["$resolution.height", "$resolution.width"] };
+    } else if (req.query.orientation === 'landscape') {
+      query.$expr = { $lt: ["$resolution.height", "$resolution.width"] };
+    }
+
     // Build sort
     let sortOption = {};
     switch (sort) {
@@ -329,14 +335,22 @@ router.get('/public/tags', async (req, res) => {
 // Seeded discovery feed - deterministic random order for stable pagination
 router.get('/public/discover', async (req, res) => {
   try {
-    const { seed = '1', page = 1, limit = 30 } = req.query;
+    const { seed = '1', page = 1, limit = 30, orientation } = req.query;
     const seedNum = Math.max(1, Math.abs(parseInt(seed)) || 1);
     const pageNum = parseInt(page) || 1;
     const limitNum = Math.min(parseInt(limit) || 30, 50);
 
-    const total = await Wallpaper.countDocuments();
+    const matchStage = {};
+    if (orientation === 'portrait') {
+      matchStage.$expr = { $gt: ["$resolution.height", "$resolution.width"] };
+    } else if (orientation === 'landscape') {
+      matchStage.$expr = { $lt: ["$resolution.height", "$resolution.width"] };
+    }
+
+    const total = await Wallpaper.countDocuments(matchStage);
 
     const wallpapers = await Wallpaper.aggregate([
+      { $match: matchStage },
       { $addFields: {
         _hash: {
           $mod: [
@@ -436,6 +450,32 @@ router.get('/public/:id', async (req, res) => {
     res.json(wallpaper);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching wallpaper', error: error.message });
+  }
+});
+
+// Get similar wallpapers
+router.get('/public/:id/similar', async (req, res) => {
+  try {
+    const wallpaper = await Wallpaper.findById(req.params.id);
+    if (!wallpaper) {
+      return res.status(404).json({ message: 'Wallpaper not found' });
+    }
+
+    const similar = await Wallpaper.aggregate([
+      { $match: { 
+          _id: { $ne: wallpaper._id },
+          $or: [
+            { category: wallpaper.category },
+            { tags: { $in: wallpaper.tags } }
+          ]
+      }},
+      { $sample: { size: 12 } },
+      { $project: { cloudinaryId: 0, uploadedBy: 0 } }
+    ]);
+
+    res.json(similar);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching similar wallpapers', error: error.message });
   }
 });
 

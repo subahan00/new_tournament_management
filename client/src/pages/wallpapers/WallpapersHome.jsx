@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowUp } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowUp, Monitor, Smartphone, Grid } from 'lucide-react';
 import WallpaperNav from '../../components/wallpapers/WallpaperNav';
 import WallpaperGrid from '../../components/wallpapers/WallpaperGrid';
 import WallpaperModal from '../../components/wallpapers/WallpaperModal';
 import WallpaperSkeleton from '../../components/wallpapers/WallpaperSkeleton';
-import { getDiscoverWallpapers, getWallpaperTags } from '../../services/wallpaperService';
+import { getDiscoverWallpapers, getWallpaperTags, getWallpaperById } from '../../services/wallpaperService';
 
 const WallpapersHome = () => {
   const [wallpapers, setWallpapers] = useState([]);
@@ -16,8 +16,22 @@ const WallpapersHome = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedWallpaper, setSelectedWallpaper] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [orientation, setOrientation] = useState('all');
   
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (id) {
+      getWallpaperById(id).then(res => {
+        if(res.data) setSelectedWallpaper(res.data);
+      }).catch(err => console.error("Error fetching shared wallpaper:", err));
+      // Remove id from URL so refreshing doesn't pop it up again
+      navigate('/wallpapers', { replace: true });
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     let seed = sessionStorage.getItem('wp_discover_seed');
@@ -31,12 +45,13 @@ const WallpapersHome = () => {
       try {
         const [tagsRes, wpRes] = await Promise.all([
           getWallpaperTags(),
-          getDiscoverWallpapers(seed, 1, 30)
+          getDiscoverWallpapers(seed, 1, 30, orientation)
         ]);
         
         if (tagsRes?.data) setTags(tagsRes.data);
         if (wpRes?.data?.wallpapers) {
           setWallpapers(wpRes.data.wallpapers);
+          setPage(1);
           setHasMore(wpRes.data.pagination.current < wpRes.data.pagination.pages);
         }
       } catch (error) {
@@ -47,7 +62,7 @@ const WallpapersHome = () => {
     };
     
     fetchInitialData();
-  }, []);
+  }, [orientation]);
   
   useEffect(() => {
     const handleScroll = () => {
@@ -64,7 +79,7 @@ const WallpapersHome = () => {
     try {
       const seed = sessionStorage.getItem('wp_discover_seed');
       const nextPage = page + 1;
-      const res = await getDiscoverWallpapers(seed, nextPage, 30);
+      const res = await getDiscoverWallpapers(seed, nextPage, 30, orientation);
       
       if (res?.data?.wallpapers) {
         setWallpapers(prev => [...prev, ...res.data.wallpapers]);
@@ -82,29 +97,72 @@ const WallpapersHome = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleNext = useCallback(() => {
+    if (!selectedWallpaper) return;
+    const idx = wallpapers.findIndex(w => w._id === selectedWallpaper._id);
+    if (idx !== -1 && idx < wallpapers.length - 1) {
+      setSelectedWallpaper(wallpapers[idx + 1]);
+    }
+  }, [selectedWallpaper, wallpapers]);
+
+  const handlePrev = useCallback(() => {
+    if (!selectedWallpaper) return;
+    const idx = wallpapers.findIndex(w => w._id === selectedWallpaper._id);
+    if (idx > 0) {
+      setSelectedWallpaper(wallpapers[idx - 1]);
+    }
+  }, [selectedWallpaper, wallpapers]);
+
+  const hasNext = selectedWallpaper && wallpapers.findIndex(w => w._id === selectedWallpaper._id) < wallpapers.length - 1;
+  const hasPrev = selectedWallpaper && wallpapers.findIndex(w => w._id === selectedWallpaper._id) > 0;
+
   return (
     <div className="min-h-screen bg-zinc-950 pt-28 sm:pt-32 pb-8 px-3 sm:px-4 lg:px-6 xl:px-8">
       <WallpaperNav activeTab="discover" />
       
-      {tags.length > 0 && (
-        <div className="mb-6 overflow-x-auto scrollbar-hide flex gap-2 py-3">
-          {tags.map((tagObj) => (
-            <button
-              key={tagObj._id}
-              onClick={() => navigate(`/wallpapers/search?q=${encodeURIComponent(tagObj._id)}`)}
-              className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap cursor-pointer"
-            >
-              {tagObj._id}
-            </button>
-          ))}
+      {/* Filters and Tags */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div className="flex bg-zinc-900 rounded-xl p-1 shrink-0 w-fit">
+          <button 
+            onClick={() => setOrientation('all')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${orientation === 'all' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+          >
+            <Grid size={16} /> All
+          </button>
+          <button 
+            onClick={() => setOrientation('portrait')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${orientation === 'portrait' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+          >
+            <Smartphone size={16} /> Mobile
+          </button>
+          <button 
+            onClick={() => setOrientation('landscape')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${orientation === 'landscape' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+          >
+            <Monitor size={16} /> Desktop
+          </button>
         </div>
-      )}
+
+        {tags.length > 0 && (
+          <div className="overflow-x-auto scrollbar-hide flex gap-2 sm:max-w-[50%] lg:max-w-2xl">
+            {tags.map((tagObj) => (
+              <button
+                key={tagObj._id}
+                onClick={() => navigate(`/wallpapers/search?q=${encodeURIComponent(tagObj._id)}`)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap cursor-pointer shrink-0"
+              >
+                {tagObj._id}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <WallpaperSkeleton count={10} />
       ) : wallpapers.length === 0 ? (
         <div className="flex justify-center items-center h-64">
-          <p className="text-zinc-500">No wallpapers yet</p>
+          <p className="text-zinc-500">No wallpapers yet for this filter</p>
         </div>
       ) : (
         <WallpaperGrid 
@@ -120,6 +178,11 @@ const WallpapersHome = () => {
         <WallpaperModal 
           wallpaper={selectedWallpaper} 
           onClose={() => setSelectedWallpaper(null)} 
+          onNext={handleNext}
+          onPrev={handlePrev}
+          hasNext={hasNext}
+          hasPrev={hasPrev}
+          onSelectSimilar={(sim) => setSelectedWallpaper(sim)}
         />
       )}
 
