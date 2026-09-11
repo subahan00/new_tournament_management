@@ -57,7 +57,7 @@ const WallpaperModal = ({ wallpaper, onClose, onNext, onPrev, hasNext, hasPrev, 
   }, [wallpaper, onClose, onNext, onPrev, hasNext, hasPrev]);
 
   const onTouchStartEvent = (e) => {
-    if (showMockup) return; // disable swipe during mockup to prevent accidental touches
+    if (showMockup) return;
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
   };
@@ -131,26 +131,20 @@ const WallpaperModal = ({ wallpaper, onClose, onNext, onPrev, hasNext, hasPrev, 
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-0 lg:p-4"
         >
+          {/* Backdrop */}
           <div
             onClick={onClose}
-            className="absolute inset-0 bg-black/95 backdrop-blur-xl cursor-zoom-out"
+            className="absolute inset-0 bg-black/95 lg:backdrop-blur-xl cursor-zoom-out"
           />
           
+          {/* Main Modal Container - Scrollable on Mobile, Hidden Overflow on Desktop */}
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="relative w-full h-full lg:h-[95vh] lg:max-w-[90vw] xl:max-w-[85vw] lg:rounded-2xl bg-black overflow-hidden shadow-2xl flex flex-col lg:flex-row"
+            className="relative w-full h-full lg:h-[95vh] lg:max-w-[90vw] xl:max-w-[85vw] lg:rounded-2xl bg-zinc-950 lg:bg-black shadow-2xl flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden wallpaper-scrollbar"
           >
-            {/* Close Button */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 z-[60] w-10 h-10 flex items-center justify-center rounded-full bg-black/60 text-white/80 hover:text-white hover:bg-black/80 backdrop-blur-md transition-all border border-white/10"
-            >
-              <X size={20} />
-            </button>
-
-            {/* Navigation Arrows */}
+            {/* Navigation Arrows for Desktop */}
             {hasPrev && !showMockup && (
               <button 
                 onClick={onPrev}
@@ -171,11 +165,19 @@ const WallpaperModal = ({ wallpaper, onClose, onNext, onPrev, hasNext, hasPrev, 
 
             {/* Immersive Image Section with Mockup Support */}
             <div 
-              className="absolute inset-0 lg:static flex-1 bg-black flex items-center justify-center p-0 lg:p-4 z-0"
+              className="relative w-full h-[75vh] shrink-0 lg:h-auto lg:flex-1 bg-black flex items-center justify-center p-0 lg:p-4 z-0"
               onTouchStart={onTouchStartEvent}
               onTouchMove={onTouchMoveEvent}
               onTouchEnd={onTouchEndEvent}
             >
+              {/* Close Button - fixed to image section on mobile, absolute on desktop */}
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 z-[60] w-10 h-10 flex items-center justify-center rounded-full bg-black/60 text-white/80 hover:text-white hover:bg-black/80 backdrop-blur-md transition-all border border-white/10"
+              >
+                <X size={20} />
+              </button>
+
               <div 
                 className={`relative transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] overflow-hidden ${
                   showMockup 
@@ -208,7 +210,6 @@ const WallpaperModal = ({ wallpaper, onClose, onNext, onPrev, hasNext, hasPrev, 
                       <div className="text-xl font-medium tracking-wide mt-1">
                         {dateStr}
                       </div>
-                      
                       <div className="absolute bottom-4 w-32 h-1.5 bg-white/60 backdrop-blur-md rounded-full shadow-lg" />
                     </motion.div>
                   )}
@@ -219,21 +220,18 @@ const WallpaperModal = ({ wallpaper, onClose, onNext, onPrev, hasNext, hasPrev, 
               {!showMockup && <div className="absolute inset-0 z-10 lg:hidden" />}
             </div>
 
-            {/* Glassmorphic Info Panel (Floating on Desktop, Bottom Sheet on Mobile) */}
+            {/* Info Panel - Stacked below image on mobile, Floating Glass on Desktop */}
             <AnimatePresence>
               {!showMockup && (
                 <motion.div 
                   initial={{ opacity: 0, y: 50 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 50 }}
-                  className="absolute bottom-0 left-0 right-0 lg:relative lg:w-96 xl:w-[28rem] z-50 flex flex-col max-h-[80vh] lg:max-h-full"
+                  className="relative w-full lg:absolute lg:bottom-0 lg:left-0 lg:right-0 lg:w-96 xl:w-[28rem] z-50 flex flex-col shrink-0 lg:max-h-[80vh] xl:max-h-full"
                 >
-                  <div className="w-full h-full bg-zinc-950/80 lg:bg-zinc-900/40 backdrop-blur-3xl border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)] lg:shadow-none">
-                    <div className="w-full flex justify-center py-3 lg:hidden">
-                      <div className="w-12 h-1.5 rounded-full bg-white/20" />
-                    </div>
-
-                    <div className="p-6 lg:p-8 overflow-y-auto flex-1 wallpaper-scrollbar">
+                  <div className="w-full h-full bg-zinc-950 lg:bg-zinc-900/40 lg:backdrop-blur-3xl lg:border-t lg:border-r border-white/10 flex flex-col lg:shadow-[10px_-10px_40px_rgba(0,0,0,0.5)]">
+                    
+                    <div className="p-6 lg:p-8 flex-1 lg:overflow-y-auto wallpaper-scrollbar">
                       
                       {/* Header */}
                       <div className="flex items-start justify-between mb-3">
@@ -307,7 +305,7 @@ const WallpaperModal = ({ wallpaper, onClose, onNext, onPrev, hasNext, hasPrev, 
 
                       {/* Similar Wallpapers */}
                       {similar.length > 0 && (
-                        <div className="pb-8">
+                        <div className="pb-8 lg:pb-0">
                           <h3 className="text-sm font-semibold text-white/80 mb-4 uppercase tracking-wider">More like this</h3>
                           <div className="grid grid-cols-3 gap-3">
                             {similar.map(sim => (
