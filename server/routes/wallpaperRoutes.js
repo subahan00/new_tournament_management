@@ -118,7 +118,7 @@ router.post('/admin/upload',authenticate, upload.single('wallpaper'), async (req
 });
 
 // Get all wallpapers for admin
-router.get('/admin/all', async (req, res) => {
+router.get('/admin/all', authenticate, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -146,7 +146,7 @@ router.get('/admin/all', async (req, res) => {
 });
 
 // Update wallpaper (Admin only)
-router.put('/admin/:id', async (req, res) => {
+router.put('/admin/:id', authenticate, async (req, res) => {
   try {
     const { title, description, tags, category, featured } = req.body;
     const parsedTags = tags ? tags.split(',').map(tag => tag.trim().toLowerCase()) : [];
@@ -175,7 +175,7 @@ router.put('/admin/:id', async (req, res) => {
 });
 
 // Delete wallpaper (Admin only)
-router.delete('/admin/:id', async (req, res) => {
+router.delete('/admin/:id', authenticate, async (req, res) => {
   try {
     const wallpaper = await Wallpaper.findById(req.params.id);
     
@@ -335,7 +335,7 @@ router.get('/public/tags', async (req, res) => {
 // Seeded discovery feed - deterministic random order for stable pagination
 router.get('/public/discover', async (req, res) => {
   try {
-    const { seed = '1', page = 1, limit = 30, orientation } = req.query;
+    const { seed = '1', page = 1, limit = 30, orientation, category } = req.query;
     const seedNum = Math.max(1, Math.abs(parseInt(seed)) || 1);
     const pageNum = parseInt(page) || 1;
     const limitNum = Math.min(parseInt(limit) || 30, 50);
@@ -345,6 +345,9 @@ router.get('/public/discover', async (req, res) => {
       matchStage.$expr = { $gt: ["$resolution.height", "$resolution.width"] };
     } else if (orientation === 'landscape') {
       matchStage.$expr = { $lt: ["$resolution.height", "$resolution.width"] };
+    }
+    if (category && category !== 'all') {
+      matchStage.category = category;
     }
 
     const total = await Wallpaper.countDocuments(matchStage);

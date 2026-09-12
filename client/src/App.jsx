@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import ToastContainer from './components/ui/Toast';
 
 
 import Home from './pages/Home';
@@ -62,6 +63,7 @@ const App = () => {
     <AuthProvider>
       <Router>
         <ScrollToTop />
+        <ToastContainer />
         <Routes>
           {isMaintenanceMode ? (
             
@@ -87,7 +89,6 @@ const App = () => {
               <Route path="/wallpapers/albums/:tag" element={<WallpapersAlbumView />} />
               <Route path="/view" element={<ViewPage />} />
               <Route path="/manage-ko/:competitionId" element={<PublicManageKo />} />
-              <Route path="/delete-wallpaper" element={<DeleteWallpaper />} />
               <Route path="/trophy-cabinet" element={<TrophyCabinet />} />
               <Route path="/manage-announcements" element={<ManageAnnouncements />} />
               <Route path="/auctions" element={<AuctionList />} />
@@ -139,6 +140,7 @@ const App = () => {
                 { path: "/admin/manage-kos", component: <ManageKoResults /> },
                 { path: "/admin/manage-kos/:competitionId", component: <ResultKo /> },
                 { path: "/upload-wallpaper", component: <AdminUploadPage /> },
+                { path: "/delete-wallpaper", component: <DeleteWallpaper /> },
                 { path: "/admin/applicant-list", component: <ApplicantList /> },
                 { path: "/post-winner", component: <AdminWinnerForm /> },
                 { path: "/results", component: <ResultsEntry /> },

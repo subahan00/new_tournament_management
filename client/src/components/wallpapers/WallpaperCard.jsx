@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Download } from 'lucide-react';
-import { downloadWallpaper } from '../../services/wallpaperService';
+import { triggerDownload } from '../../utils/downloadUtils';
 
 const WallpaperCard = ({ wallpaper, onClick }) => {
   const [loaded, setLoaded] = useState(false);
@@ -8,24 +8,9 @@ const WallpaperCard = ({ wallpaper, onClick }) => {
   const h = wallpaper.resolution?.height || 4;
   const bgColor = wallpaper.dominantColor || '#1a1a1a';
 
-  const handleDownload = async (e) => {
+  const handleDownload = (e) => {
     e.stopPropagation();
-    try {
-      await downloadWallpaper(wallpaper._id);
-      const optimizedUrl = wallpaper.imageUrl.replace('/upload/', '/upload/q_auto:best,f_auto/');
-      const response = await fetch(optimizedUrl);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const ext = blob.type.split('/')[1] || 'jpg';
-      a.download = `wallpaper-${wallpaper.title.replace(/\s+/g, '-').toLowerCase()}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-    } catch (err) {
-      console.error('Download failed:', err);
-    }
+    triggerDownload(wallpaper);
   };
 
   const tinyUrl = wallpaper.imageUrl ? wallpaper.imageUrl.replace('/upload/', '/upload/w_10,c_scale,e_blur:200,q_auto,f_auto/') : '';
@@ -33,7 +18,7 @@ const WallpaperCard = ({ wallpaper, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className={`group relative overflow-hidden rounded-xl cursor-pointer lg:hover:scale-[1.02] transition-transform duration-300 w-full bg-cover bg-center ${!loaded ? 'animate-pulse' : ''}`}
+      className={`group relative overflow-hidden rounded-2xl cursor-pointer lg:hover:scale-[1.02] lg:hover:shadow-2xl lg:hover:shadow-black/50 transition-all duration-300 w-full bg-cover bg-center ${!loaded ? 'animate-pulse' : ''}`}
       style={{ 
         aspectRatio: `${w}/${h}`, 
         backgroundColor: bgColor,
@@ -52,13 +37,25 @@ const WallpaperCard = ({ wallpaper, onClick }) => {
         }`}
       />
       
-      {/* Mobile: Gradient & Title always visible. Desktop: Fades in on hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      {/* Top Left Category Badge */}
+      {wallpaper.category && (
+        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white text-[10px] uppercase tracking-wider font-semibold opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+          {wallpaper.category}
+        </div>
+      )}
+
+      {/* Smoother Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       
-      <div className="absolute bottom-0 left-0 right-0 p-3 lg:translate-y-4 lg:group-hover:translate-y-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 pointer-events-none flex items-end justify-between">
-        <span className="text-xs font-medium text-white truncate max-w-[80%] drop-shadow-md">
+      <div className="absolute bottom-0 left-0 right-0 p-3 lg:translate-y-4 lg:group-hover:translate-y-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 pointer-events-none flex flex-col justify-end gap-1">
+        <span className="text-xs font-semibold text-zinc-100 truncate max-w-[80%] drop-shadow-md">
           {wallpaper.title}
         </span>
+        {wallpaper.downloads > 10 && (
+          <span className="text-[10px] text-zinc-300 flex items-center gap-1 font-medium">
+            <Download size={10} /> {wallpaper.downloads}
+          </span>
+        )}
       </div>
 
       {/* Desktop Download Button */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, ArrowUp, FolderSearch } from 'lucide-react';
 import WallpaperNav from '../../components/wallpapers/WallpaperNav';
 import AlbumCard from '../../components/wallpapers/AlbumCard';
 import { getAlbums } from '../../services/wallpaperService';
@@ -13,6 +13,7 @@ const WallpapersAlbums = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
   
   const navigate = useNavigate();
 
@@ -66,6 +67,7 @@ const WallpapersAlbums = () => {
   
   useEffect(() => {
     const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
       if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500) {
         handleLoadMore();
       }
@@ -74,15 +76,17 @@ const WallpapersAlbums = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [handleLoadMore]);
 
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
   return (
-    <div className="min-h-screen bg-zinc-950 pt-28 sm:pt-32 pb-8 px-3 sm:px-4 lg:px-6 xl:px-8">
+    <div className="min-h-screen bg-zinc-950 pt-28 sm:pt-32 pb-8 px-4 sm:px-6 lg:px-8">
       <WallpaperNav activeTab="albums" />
       
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-xl font-semibold text-zinc-100">Albums</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 mt-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">Browse Albums</h1>
         
         <div className="relative w-full sm:w-72">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
             <Search className="h-4 w-4 text-zinc-500" />
           </div>
           <input
@@ -90,25 +94,29 @@ const WallpapersAlbums = () => {
             placeholder="Search albums..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block pl-10 p-2.5 transition-colors"
+            className="w-full bg-zinc-900 border border-white/10 text-zinc-200 text-sm rounded-full focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 block pl-10 p-2.5 transition-all outline-none"
           />
         </div>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-5">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="aspect-square bg-zinc-900 rounded-xl animate-pulse"></div>
+            <div key={i} className="aspect-square bg-zinc-900 rounded-2xl animate-pulse"></div>
           ))}
         </div>
       ) : albums.length === 0 ? (
-        <div className="flex justify-center items-center h-64">
-          <p className="text-zinc-500">
-            {debouncedSearch ? `No albums found for "${debouncedSearch}"` : "No albums yet"}
+        <div className="flex flex-col justify-center items-center h-[50vh] text-center px-4">
+          <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-4 border border-white/5">
+            <FolderSearch size={32} className="text-zinc-500" />
+          </div>
+          <h3 className="text-xl font-bold text-zinc-200 mb-2 tracking-tight">No albums found</h3>
+          <p className="text-zinc-500 max-w-sm">
+            {debouncedSearch ? `No albums match "${debouncedSearch}". Try a different keyword.` : "There are currently no albums available."}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-5 mb-8">
           {albums.map((album, idx) => (
             <AlbumCard 
               key={album.name || idx} 
@@ -120,9 +128,18 @@ const WallpapersAlbums = () => {
       )}
       
       {loadingMore && (
-        <div className="flex justify-center py-4">
-          <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex justify-center py-6">
+          <div className="w-6 h-6 border-2 border-zinc-500 border-t-zinc-200 rounded-full animate-spin"></div>
         </div>
+      )}
+
+      {showScrollTop && (
+        <button 
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 w-12 h-12 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 hover:scale-105 shadow-xl transition-all z-50"
+        >
+          <ArrowUp size={20} />
+        </button>
       )}
     </div>
   );

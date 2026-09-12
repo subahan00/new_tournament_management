@@ -106,9 +106,9 @@ export const getWallpaperTags = async () => {
   return axios.get(`${API_BASE_URL}/public/tags`);
 };
 
-export const getDiscoverWallpapers = async (seed, page = 1, limit = 30, orientation = 'all') => {
+export const getDiscoverWallpapers = async (seed, page = 1, limit = 30, orientation = 'all', category = undefined) => {
   return axios.get(`${API_BASE_URL}/public/discover`, {
-    params: { seed, page, limit, orientation }
+    params: { seed, page, limit, orientation, category }
   });
 };
 

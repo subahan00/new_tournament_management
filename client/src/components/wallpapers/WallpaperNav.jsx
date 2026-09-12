@@ -10,6 +10,10 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    setSearchQuery(initialSearchQuery);
+  }, [initialSearchQuery]);
+
+  useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
@@ -36,7 +40,7 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-white/[0.06] transition-transform duration-300 ${
+      className={`sticky top-[64px] lg:top-[72px] z-30 bg-zinc-950/80 backdrop-blur-xl border-b border-white/[0.06] transition-transform duration-300 ${
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
@@ -46,7 +50,7 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
           {!isSearchActive ? (
             <>
               <div className="flex items-center justify-between min-h-[44px]">
-                <Link to="/wallpapers" className="text-lg font-semibold text-zinc-100">
+                <Link to="/wallpapers" className="text-lg font-semibold text-zinc-100 tracking-tight">
                   Wallpapers
                 </Link>
                 <button
@@ -61,8 +65,8 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
                   to="/wallpapers"
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 ${
                     activeTab === 'discover'
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-200 text-zinc-900 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200 bg-white/5'
                   }`}
                 >
                   Discover
@@ -71,8 +75,8 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
                   to="/wallpapers/albums"
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 ${
                     activeTab === 'albums'
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-200 text-zinc-900 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200 bg-white/5'
                   }`}
                 >
                   Albums
@@ -88,9 +92,15 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
                   placeholder="Search wallpapers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-zinc-900 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50"
+                  onKeyDown={(e) => e.key === 'Escape' && setIsSearchActive(false)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-full pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
                   autoFocus
                 />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200">
+                    <X size={14} />
+                  </button>
+                )}
               </form>
               <button
                 onClick={() => setIsSearchActive(false)}
@@ -105,7 +115,7 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
         {/* Desktop Layout */}
         <div className="hidden lg:flex items-center justify-between min-h-[64px]">
           <div className="flex items-center gap-8">
-            <Link to="/wallpapers" className="text-lg font-semibold text-zinc-100">
+            <Link to="/wallpapers" className="text-lg font-semibold text-zinc-100 tracking-tight">
               Wallpapers
             </Link>
             <div className="flex items-center gap-2">
@@ -113,8 +123,8 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
                 to="/wallpapers"
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 ${
                   activeTab === 'discover'
-                    ? 'bg-zinc-800 text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-zinc-200 text-zinc-900 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200 bg-white/5'
                 }`}
               >
                 Discover
@@ -123,8 +133,8 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
                 to="/wallpapers/albums"
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 ${
                   activeTab === 'albums'
-                    ? 'bg-zinc-800 text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-zinc-200 text-zinc-900 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200 bg-white/5'
                 }`}
               >
                 Albums
@@ -132,15 +142,21 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
             </div>
           </div>
           <div className="w-64">
-            <form onSubmit={handleSearchSubmit} className="relative">
+            <form onSubmit={handleSearchSubmit} className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50"
+                onKeyDown={(e) => { if(e.key === 'Escape') setSearchQuery(''); }}
+                className="w-full bg-zinc-900 border border-white/10 rounded-full pl-9 pr-10 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
               />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X size={14} />
+                </button>
+              )}
             </form>
           </div>
         </div>

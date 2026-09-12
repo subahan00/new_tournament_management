@@ -1,45 +1,37 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAllWallpapersAdmin, deleteWallpaper } from '../services/wallpaperService.js'; // Ensure path is correct
+import { getAllWallpapersAdmin, deleteWallpaper } from '../services/wallpaperService.js';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2, CheckSquare, Square } from 'lucide-react';
+import { triggerToast } from '../components/ui/Toast';
+
 const DeleteWallpaper = () => {
   const [wallpapers, setWallpapers] = useState([]);
   const [selectedWallpapers, setSelectedWallpapers] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [sortBy, setSortBy] = useState('newest'); // 'newest' or 'oldest'
-
-  // IMPORTANT: Replace with your actual token from auth context or state
-  const authToken = localStorage.getItem('authToken');
+  const [sortBy, setSortBy] = useState('newest');
 
   const fetchWallpapers = useCallback(async (page, sortOrder) => {
     setLoading(true);
-    setError('');
     try {
-      // The backend route '/admin/all' sorts by newest first by default.
-      const response = await getAllWallpapersAdmin(page, 20, authToken);
-
+      const response = await getAllWallpapersAdmin(page, 30);
       let fetchedWallpapers = response.data.wallpapers || [];
 
-      // If user wants oldest first, we reverse the array received from the backend.
       if (sortOrder === 'oldest') {
         fetchedWallpapers.reverse();
       }
 
       setWallpapers(fetchedWallpapers);
-      // Matching the backend response structure: { pagination: { pages: ... } }
       setTotalPages(response.data.pagination.pages || 1);
     } catch (err) {
-      setError('Failed to fetch wallpapers. Please ensure you are logged in and try again.');
+      triggerToast('Failed to fetch wallpapers', 'error');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [authToken]); // Dependency on the token
+  }, []);
 
-  // Re-fetch wallpapers when page or sort order changes
   useEffect(() => {
     fetchWallpapers(currentPage, sortBy);
   }, [currentPage, sortBy, fetchWallpapers]);
@@ -47,141 +39,159 @@ const DeleteWallpaper = () => {
   const handleSelectWallpaper = (id) => {
     setSelectedWallpapers(prevSelected => {
       const newSelected = new Set(prevSelected);
-      if (newSelected.has(id)) {
-        newSelected.delete(id);
-      } else {
-        newSelected.add(id);
-      }
+      if (newSelected.has(id)) newSelected.delete(id);
+      else newSelected.add(id);
       return newSelected;
     });
   };
 
+  const handleSelectAll = () => {
+    if (selectedWallpapers.size === wallpapers.length) {
+      setSelectedWallpapers(new Set());
+    } else {
+      setSelectedWallpapers(new Set(wallpapers.map(w => w._id)));
+    }
+  };
+
   const handleDeleteSelected = async () => {
     if (selectedWallpapers.size === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedWallpapers.size} wallpaper(s)? This action is irreversible.`)) {
-      return;
-    }
+    if (!window.confirm(`Are you sure you want to delete ${selectedWallpapers.size} wallpaper(s)? This action is irreversible.`)) return;
 
     setLoading(true);
     const wallpaperIds = Array.from(selectedWallpapers);
-    // Using Promise.allSettled to attempt all deletions even if some fail
     const results = await Promise.allSettled(
-      wallpaperIds.map(id => deleteWallpaper(id, authToken))
+      wallpaperIds.map(id => deleteWallpaper(id))
     );
 
     const successfulDeletes = results.filter(res => res.status === 'fulfilled').length;
     if (successfulDeletes > 0) {
-        alert(`${successfulDeletes} wallpaper(s) deleted successfully!`);
+      triggerToast(`${successfulDeletes} wallpaper(s) deleted`, 'success');
     }
 
     const failedDeletes = results.filter(res => res.status === 'rejected').length;
     if (failedDeletes > 0) {
-        setError(`${failedDeletes} deletions failed. Check the console for details.`);
-        console.error("Failed deletions:", results.filter(res => res.status === 'rejected'));
+      triggerToast(`${failedDeletes} deletions failed`, 'error');
     }
 
     setSelectedWallpapers(new Set());
-    // Refresh the current page to show the updated list
     fetchWallpapers(currentPage, sortBy);
   };
 
   return (
-    <div className="p-4 md:p-8 font-sans bg-gray-50 min-h-screen">
-      <div className="mb-6">
-  <Link
-    to="/admin/dashboard"
-    className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-  >
-    <ArrowLeft className="w-4 h-4" />
-    Back to Dashboard
-  </Link>
-</div>
+    <div className="p-4 md:p-8 font-sans bg-zinc-950 min-h-screen text-zinc-200">
+      <div className="mb-8">
+        <Link
+          to="/admin/dashboard"
+          className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] shadow-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      </div>
 
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-4">
+        <h1 className="text-3xl font-bold text-zinc-100 mb-2 tracking-tight">
           Manage Wallpapers
         </h1>
-        <p className="text-center text-gray-500 mb-8">Select wallpapers to permanently delete them from the database and Cloudinary.</p>
+        <p className="text-zinc-500 mb-8">Select wallpapers to permanently delete them from the database and Cloudinary.</p>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 bg-white rounded-lg shadow-sm gap-4">
-          <div className="flex items-center">
-            <label htmlFor="sort-by" className="mr-2 text-gray-700 font-medium">Sort by:</label>
-            <select
-              id="sort-by"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-            </select>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 p-4 bg-zinc-900 border border-white/5 rounded-xl shadow-lg gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center">
+              <label htmlFor="sort-by" className="mr-2 text-zinc-400 font-medium text-sm">Sort:</label>
+              <select
+                id="sort-by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-zinc-950 border border-white/10 rounded-lg shadow-sm focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-sm text-zinc-200 py-1.5 px-3 outline-none"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
+            
+            {wallpapers.length > 0 && (
+              <button
+                onClick={handleSelectAll}
+                className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                {selectedWallpapers.size === wallpapers.length ? <CheckSquare size={16} /> : <Square size={16} />}
+                Select All on Page
+              </button>
+            )}
           </div>
+
           <button
             onClick={handleDeleteSelected}
             disabled={selectedWallpapers.size === 0 || loading}
-            className={`w-full sm:w-auto px-5 py-2 text-white font-semibold rounded-lg shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 ${
+            className={`w-full sm:w-auto px-5 py-2 text-white font-semibold rounded-lg shadow-md transition-all duration-200 flex items-center justify-center gap-2 ${
               selectedWallpapers.size > 0 && !loading
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-gray-400 cursor-not-allowed'
+                ? 'bg-rose-600 hover:bg-rose-500 active:scale-95'
+                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5'
             }`}
           >
-            {loading ? 'Processing...' : `Delete (${selectedWallpapers.size}) Selected`}
+            <Trash2 size={16} />
+            {loading ? 'Processing...' : `Delete (${selectedWallpapers.size})`}
           </button>
         </div>
 
         {loading && wallpapers.length === 0 ? (
-          <p className="text-center text-xl text-gray-500 mt-16">Loading...</p>
-        ) : error ? (
-          <p className="text-center text-red-600 bg-red-100 p-4 rounded-lg">{error}</p>
+          <div className="flex justify-center items-center h-64">
+            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : wallpapers.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             {wallpapers.map((wallpaper) => (
               <div
-                key={wallpaper._id} // Using MongoDB '_id' as the key
-                className={`relative border-2 rounded-lg overflow-hidden cursor-pointer group transition-all ${
-                  selectedWallpapers.has(wallpaper._id) ? 'border-blue-500 scale-105 shadow-lg' : 'border-transparent'
-                }`}
+                key={wallpaper._id}
+                className={`relative flex flex-col gap-2 cursor-pointer group`}
                 onClick={() => handleSelectWallpaper(wallpaper._id)}
               >
-                <input
-                  type="checkbox"
-                  readOnly
-                  checked={selectedWallpapers.has(wallpaper._id)}
-                  className="absolute top-2 left-2 w-5 h-5 cursor-pointer z-20 accent-blue-500"
-                />
-                <img
-                  // Using 'thumbnailUrl' for low-quality preview as per your backend
-                  src={wallpaper.thumbnailUrl}
-                  alt={wallpaper.title || 'Wallpaper'}
-                  className="w-full h-48 object-cover block group-hover:opacity-75 transition-opacity"
-                  loading="lazy"
-                />
-                 {selectedWallpapers.has(wallpaper._id) && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 z-10"></div>
-                )}
+                <div className={`relative aspect-[3/4] rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                  selectedWallpapers.has(wallpaper._id) ? 'border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[0.98]' : 'border-white/5 hover:border-white/20'
+                }`}>
+                  <div className={`absolute top-2 left-2 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                    selectedWallpapers.has(wallpaper._id) ? 'bg-indigo-500 border-indigo-500' : 'border-white/40 bg-black/40 opacity-0 group-hover:opacity-100'
+                  }`}>
+                    {selectedWallpapers.has(wallpaper._id) && <CheckSquare size={12} className="text-white" />}
+                  </div>
+                  
+                  <img
+                    src={wallpaper.thumbnailUrl || wallpaper.imageUrl}
+                    alt={wallpaper.title || 'Wallpaper'}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  {selectedWallpapers.has(wallpaper._id) && (
+                    <div className="absolute inset-0 bg-indigo-500/20 z-10 pointer-events-none"></div>
+                  )}
+                </div>
+                <div className="px-1 text-center">
+                  <p className="text-xs font-medium text-zinc-300 truncate">{wallpaper.title}</p>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-             <p className="text-center text-xl text-gray-500 mt-16">No wallpapers found.</p>
+          <p className="text-center text-xl text-zinc-500 mt-16 font-medium">No wallpapers found.</p>
         )}
 
         {totalPages > 1 && (
-          <div className="flex justify-center items-center mt-8 space-x-2 sm:space-x-4">
+          <div className="flex justify-center items-center mt-12 space-x-4">
             <button
               onClick={() => setCurrentPage(p => p - 1)}
               disabled={currentPage === 1 || loading}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2 bg-zinc-900 border border-white/10 rounded-lg text-zinc-300 font-medium shadow-sm hover:bg-zinc-800 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Previous
             </button>
-            <span className="text-gray-700 font-medium">
+            <span className="text-zinc-500 font-medium">
               Page {currentPage} of {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(p => p + 1)}
               disabled={currentPage === totalPages || loading}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2 bg-zinc-900 border border-white/10 rounded-lg text-zinc-300 font-medium shadow-sm hover:bg-zinc-800 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Next
             </button>
