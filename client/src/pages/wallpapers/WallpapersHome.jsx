@@ -115,7 +115,7 @@ const WallpapersHome = () => {
   }, [selectedWallpaper, wallpapers]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 pt-28 sm:pt-32 pb-8 px-3 sm:px-4 lg:px-6 xl:px-8">
+    <div className="min-h-screen bg-zinc-950 pt-20 sm:pt-24 pb-8 px-3 sm:px-4 lg:px-6 xl:px-8">
       <WallpaperNav activeTab="discover" />
       
       {/* Filters */}

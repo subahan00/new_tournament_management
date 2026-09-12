@@ -98,7 +98,7 @@ const WallpapersAlbumView = () => {
   }, [selectedWallpaper, wallpapers]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 pt-28 sm:pt-32 pb-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-zinc-950 pt-20 sm:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
       <WallpaperNav activeTab="albums" />
       
       <div className="mb-6 mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

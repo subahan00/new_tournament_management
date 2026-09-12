@@ -40,7 +40,7 @@ const WallpaperNav = ({ activeTab, initialSearchQuery = '' }) => {
 
   return (
     <nav
-      className={`sticky top-[64px] lg:top-[72px] z-30 bg-zinc-950/80 backdrop-blur-xl border-b border-white/[0.06] transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 w-full z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-white/[0.06] transition-transform duration-300 ${
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
