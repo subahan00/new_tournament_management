@@ -6,11 +6,11 @@ const Standing = require('../models/Standing');
 const mongoose = require('mongoose');
 const Player = require('../models/Player');
 
-const calculateStandings = async (competitionId, requestId = 'N/A') => {
+const calculateStandings = async (competitionId, passedCompetition = null, requestId = 'N/A') => {
   console.log(`[${requestId}] START calculateStandings for ${competitionId}`);
   try {
-    // 1. Get competition WITHOUT populating players
-    const competition = await Competition.findById(competitionId)
+    // 1. Get competition WITHOUT populating players, unless passed directly
+    const competition = passedCompetition || await Competition.findById(competitionId)
       .select('players type')
       .lean();
 
@@ -33,11 +33,13 @@ const calculateStandings = async (competitionId, requestId = 'N/A') => {
 
 const calculateLeagueStandings = async (competitionId, competition) => {
   try {
-    // 2. Get completed fixtures
+    // 2. Get completed fixtures (populated to grab names efficiently)
     const fixtures = await Fixture.find({
       competitionId,
       status: 'completed'
-    }).lean();
+    })
+    .populate('homePlayer awayPlayer', 'name')
+    .lean();
 
     // 3. Get existing standings
     const existingStandings = await Standing.find({ competition: competitionId })
@@ -55,9 +57,21 @@ const calculateLeagueStandings = async (competitionId, competition) => {
       if (existing?.playerName) {
         playerName = existing.playerName;
       } else {
-        // Only fetch from DB if we absolutely have to (prevents spamming DB)
-        const globalPlayer = await Player.findById(playerId).select('name').lean();
-        if (globalPlayer) playerName = globalPlayer.name;
+        // Find player name from the populated fixtures instead of querying the database again
+        const foundFixture = fixtures.find(f => 
+          (f.homePlayer && f.homePlayer._id.equals(playerId)) || 
+          (f.awayPlayer && f.awayPlayer._id.equals(playerId))
+        );
+        
+        if (foundFixture) {
+          playerName = foundFixture.homePlayer._id.equals(playerId) 
+            ? foundFixture.homePlayer.name 
+            : foundFixture.awayPlayer.name;
+        } else {
+           // Extreme fallback
+           const globalPlayer = await Player.findById(playerId).select('name').lean();
+           if (globalPlayer) playerName = globalPlayer.name;
+        }
       }
 
       return {
@@ -84,17 +98,17 @@ const calculateLeagueStandings = async (competitionId, competition) => {
     // 5. Process fixtures
     // We use a standard for...of loop to allow await inside if we need to fetch a missing player
     for (const fixture of fixtures) {
-      const homeId = fixture.homePlayer.toString();
-      const awayId = fixture.awayPlayer.toString();
+      const homeId = fixture.homePlayer._id ? fixture.homePlayer._id.toString() : fixture.homePlayer.toString();
+      const awayId = fixture.awayPlayer._id ? fixture.awayPlayer._id.toString() : fixture.awayPlayer.toString();
 
       // SELF-HEALING: If player is in fixture but not map, add them now!
       if (!standingsMap.has(homeId)) {
         console.log(`[Auto-Fix] Found player ${homeId} in fixture but not in competition list. Adding...`);
-        standingsMap.set(homeId, await createEntry(fixture.homePlayer));
+        standingsMap.set(homeId, await createEntry(fixture.homePlayer._id || fixture.homePlayer));
       }
       if (!standingsMap.has(awayId)) {
         console.log(`[Auto-Fix] Found player ${awayId} in fixture but not in competition list. Adding...`);
-        standingsMap.set(awayId, await createEntry(fixture.awayPlayer));
+        standingsMap.set(awayId, await createEntry(fixture.awayPlayer._id || fixture.awayPlayer));
       }
 
       const homeEntry = standingsMap.get(homeId);

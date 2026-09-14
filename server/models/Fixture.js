@@ -103,13 +103,15 @@ fixtureSchema.pre('save', async function (next) {
     const isBye = this.awayPlayer === null && this.awayPlayerName === 'BYE';
 
     if (!isBye) {
-      const competition = await Competition.findOne({
-        _id: this.competitionId,
-        players: { $all: [this.homePlayer, this.awayPlayer] },
-        isDeleted: false
-      });
+      if (this.isNew || this.isModified('homePlayer') || this.isModified('awayPlayer') || this.isModified('competitionId')) {
+        const competition = await Competition.findOne({
+          _id: this.competitionId,
+          players: { $all: [this.homePlayer, this.awayPlayer] },
+          isDeleted: false
+        });
 
-      if (!competition) throw new Error('One or both players do not belong to this competition');
+        if (!competition) throw new Error('One or both players do not belong to this competition');
+      }
 
       // --- NEW: AUTO-UPDATE STATUS & RESULT ---
       // If both scores are present, mark as completed

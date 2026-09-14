@@ -879,11 +879,9 @@ exports.updateFixtureResult = async (req, res) => {
     fixture.updatedAt = new Date();
     await fixture.save();
 
-    // 3. Populate fixture data for response
-    // Using .lean() for performance
-    let populatedFixture = await Fixture.findById(fixtureId)
-      .populate('homePlayer awayPlayer', 'name _id')
-      .lean();
+    // 3. Populate fixture data for response directly on the memory document
+    await fixture.populate('homePlayer awayPlayer', 'name _id');
+    let populatedFixture = fixture.toObject();
 
     // --- SAFETY CHECK: Prevent crash if players are missing ---
     if (!populatedFixture.homePlayer) {
@@ -898,27 +896,21 @@ exports.updateFixtureResult = async (req, res) => {
 
     if (competitionId) {
       try {
-        const competition = await Competition.findById(competitionId).select('type').lean();
-        // Skip standings calc for knockout games usually
-        const isKnockout = competition?.type === 'KO_REGULAR';
+        const competition = await Competition.findById(competitionId).select('type players').lean();
+        const isKnockout = ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'].includes(competition?.type);
+        let updatedStandings = [];
 
         if (!isKnockout) {
-          // Recalculate standings. 
-          // If reverted, this match is now 'pending' so it won't count toward points.
-          // If updated, it counts with the new scores.
-          await calculateStandings(competitionId);
+          // Recalculate standings, passing the competition to save a DB query inside calculateStandings
+          updatedStandings = await calculateStandings(competitionId, competition);
         }
 
         // Emit real-time updates
         if (global.io || req.app.get('io')) {
           const io = global.io || req.app.get('io');
 
-          // Emit STANDINGS update (only for leagues)
+          // Emit STANDINGS update (only for leagues) using the returned array
           if (!isKnockout) {
-            const updatedStandings = await Standing.find({
-              competition: competitionId
-            }).lean();
-
             io.emit('standingsUpdate', {
               competitionId: competitionId.toString(),
               competitionType: competition?.type || 'LEAGUE',
@@ -970,34 +962,10 @@ exports.updateFixtureResult = async (req, res) => {
 // Add this to controllers/fixtureController.js
 
 exports.revertFixtureResult = async (req, res) => {
-    try {
-        const { fixtureId } = req.params;
-        const fixture = await Fixture.findById(fixtureId);
-
-        if (!fixture) return res.status(404).json({ error: 'Fixture not found' });
-
-        // Force Manual Update (Bypasses all checks)
-        fixture.homeScore = null;
-        fixture.awayScore = null;
-        fixture.status = 'pending';
-        fixture.result = null;
-        fixture.completedAt = null;
-
-        await fixture.save();
-
-        // Recalculate Standings to remove points
-        if (fixture.competitionId) {
-             // Assuming you have this imported
-             // const { calculateStandings } = require('../utils/standingsUtils'); 
-             try { await calculateStandings(fixture.competitionId); } catch(e) {}
-        }
-
-        res.json({ success: true, message: 'Reverted successfully' });
-
-    } catch (err) {
-        console.error("Revert Error:", err);
-        res.status(500).json({ error: err.message });
-    }
+    // Delegate to updateFixtureResult which natively handles revert logic
+    // when status is set to 'pending' or scores are null.
+    req.body = { status: 'pending', homeScore: null, awayScore: null };
+    return exports.updateFixtureResult(req, res);
 };
 // Additional Methods
 exports.getOngoingCompetitions = async (req, res) => {
