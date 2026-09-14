@@ -33,150 +33,91 @@ const calculateStandings = async (competitionId, passedCompetition = null, reque
 
 const calculateLeagueStandings = async (competitionId, competition) => {
   try {
-    // 2. Get completed fixtures (populated to grab names efficiently)
-    const fixtures = await Fixture.find({
-      competitionId,
-      status: 'completed'
-    })
-    .populate('homePlayer awayPlayer', 'name')
-    .lean();
+    // 1. Calculate stats via MongoDB Aggregation (Offloads computation from Node.js)
+    const aggResults = await Fixture.aggregate([
+      { $match: { competitionId: new mongoose.Types.ObjectId(competitionId), status: 'completed', isDeleted: false } },
+      { $project: {
+          records: [
+             {
+               player: "$homePlayer",
+               gf: "$homeScore",
+               ga: "$awayScore",
+               win: { $cond: [{ $gt: ["$homeScore", "$awayScore"] }, 1, 0] },
+               draw: { $cond: [{ $eq: ["$homeScore", "$awayScore"] }, 1, 0] },
+               loss: { $cond: [{ $lt: ["$homeScore", "$awayScore"] }, 1, 0] },
+               pts: { $cond: [{ $gt: ["$homeScore", "$awayScore"] }, 3, { $cond: [{ $eq: ["$homeScore", "$awayScore"] }, 1, 0] }] }
+             },
+             {
+               player: "$awayPlayer",
+               gf: "$awayScore",
+               ga: "$homeScore",
+               win: { $cond: [{ $gt: ["$awayScore", "$homeScore"] }, 1, 0] },
+               draw: { $cond: [{ $eq: ["$homeScore", "$awayScore"] }, 1, 0] },
+               loss: { $cond: [{ $lt: ["$awayScore", "$homeScore"] }, 1, 0] },
+               pts: { $cond: [{ $gt: ["$awayScore", "$homeScore"] }, 3, { $cond: [{ $eq: ["$homeScore", "$awayScore"] }, 1, 0] }] }
+             }
+          ]
+      }},
+      { $unwind: "$records" },
+      { $group: {
+          _id: "$records.player",
+          matchesPlayed: { $sum: 1 },
+          wins: { $sum: "$records.win" },
+          draws: { $sum: "$records.draw" },
+          losses: { $sum: "$records.loss" },
+          goalsFor: { $sum: "$records.gf" },
+          goalsAgainst: { $sum: "$records.ga" },
+          points: { $sum: "$records.pts" }
+      }}
+    ]);
 
-    // 3. Get existing standings
-    const existingStandings = await Standing.find({ competition: competitionId })
-      .select('player playerName')
-      .lean();
+    const aggMap = new Map();
+    aggResults.forEach(r => aggMap.set(r._id.toString(), r));
 
-    // 4. Initialize standings map
-    const standingsMap = new Map();
+    // 2. We need player names. Fetch competition with populated players.
+    const populatedComp = await Competition.findById(competitionId).populate('players', 'name').lean();
+    if (!populatedComp) throw new Error("Competition not found");
     
-    // Helper to create a blank entry safely
-    const createEntry = async (playerId) => {
-      const existing = existingStandings.find(s => s.player && s.player.equals(playerId));
-      let playerName = 'Unknown Player';
-      
-      if (existing?.playerName) {
-        playerName = existing.playerName;
-      } else {
-        // Find player name from the populated fixtures instead of querying the database again
-        const foundFixture = fixtures.find(f => 
-          (f.homePlayer && f.homePlayer._id.equals(playerId)) || 
-          (f.awayPlayer && f.awayPlayer._id.equals(playerId))
-        );
-        
-        if (foundFixture) {
-          playerName = foundFixture.homePlayer._id.equals(playerId) 
-            ? foundFixture.homePlayer.name 
-            : foundFixture.awayPlayer.name;
-        } else {
-           // Extreme fallback
-           const globalPlayer = await Player.findById(playerId).select('name').lean();
-           if (globalPlayer) playerName = globalPlayer.name;
-        }
-      }
+    // We also need existing standings to preserve custom names if they exist (though usually populated players are enough)
+    const existingStandings = await Standing.find({ competition: competitionId }).select('player playerName').lean();
 
-      return {
-        competition: new mongoose.Types.ObjectId(competitionId),
-        player: playerId, // Keep as ID for now, cast later if needed
-        playerName: playerName,
-        matchesPlayed: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        goalsFor: 0,
-        goalsAgainst: 0,
-        points: 0
-      };
-    };
+    const finalStandings = [];
 
-    // Pre-fill with known competition players
-    if (competition.players && competition.players.length > 0) {
-      for (const playerId of competition.players) {
-        standingsMap.set(playerId.toString(), await createEntry(playerId));
-      }
+    // 3. Map aggregation results into final standings objects (fills 0s for players who haven't played)
+    for (const player of populatedComp.players) {
+       const pid = player._id.toString();
+       const stats = aggMap.get(pid);
+       const existing = existingStandings.find(s => s.player && s.player.toString() === pid);
+       
+       finalStandings.push({
+           competition: new mongoose.Types.ObjectId(competitionId),
+           player: player._id,
+           playerName: existing?.playerName || player.name || 'Unknown Player',
+           matchesPlayed: stats ? stats.matchesPlayed : 0,
+           wins: stats ? stats.wins : 0,
+           draws: stats ? stats.draws : 0,
+           losses: stats ? stats.losses : 0,
+           goalsFor: stats ? stats.goalsFor : 0,
+           goalsAgainst: stats ? stats.goalsAgainst : 0,
+           points: stats ? stats.points : 0
+       });
     }
 
-    // 5. Process fixtures
-    // We use a standard for...of loop to allow await inside if we need to fetch a missing player
-    for (const fixture of fixtures) {
-      const homeId = fixture.homePlayer._id ? fixture.homePlayer._id.toString() : fixture.homePlayer.toString();
-      const awayId = fixture.awayPlayer._id ? fixture.awayPlayer._id.toString() : fixture.awayPlayer.toString();
-
-      // SELF-HEALING: If player is in fixture but not map, add them now!
-      if (!standingsMap.has(homeId)) {
-        console.log(`[Auto-Fix] Found player ${homeId} in fixture but not in competition list. Adding...`);
-        standingsMap.set(homeId, await createEntry(fixture.homePlayer._id || fixture.homePlayer));
-      }
-      if (!standingsMap.has(awayId)) {
-        console.log(`[Auto-Fix] Found player ${awayId} in fixture but not in competition list. Adding...`);
-        standingsMap.set(awayId, await createEntry(fixture.awayPlayer._id || fixture.awayPlayer));
-      }
-
-      const homeEntry = standingsMap.get(homeId);
-      const awayEntry = standingsMap.get(awayId);
-
-      // Safety check: If we STILL don't have entries (e.g. null IDs), skip
-      if (!homeEntry || !awayEntry) continue;
-
-      // Update match counts
-      homeEntry.matchesPlayed++;
-      awayEntry.matchesPlayed++;
-
-      // Update goals
-      homeEntry.goalsFor += (fixture.homeScore || 0);
-      homeEntry.goalsAgainst += (fixture.awayScore || 0);
-      awayEntry.goalsFor += (fixture.awayScore || 0);
-      awayEntry.goalsAgainst += (fixture.homeScore || 0);
-
-      // Update points and results
-      // Ensure numbers are treated as numbers
-      const result = fixture.result || 
-                     (fixture.homeScore > fixture.awayScore ? 'home' : 
-                      fixture.awayScore > fixture.homeScore ? 'away' : 'draw');
-
-      switch (result) {
-        case 'home':
-          homeEntry.wins++;
-          homeEntry.points += 3;
-          awayEntry.losses++;
-          break;
-        case 'away':
-          awayEntry.wins++;
-          awayEntry.points += 3;
-          homeEntry.losses++;
-          break;
-        case 'draw':
-          homeEntry.draws++;
-          awayEntry.draws++;
-          homeEntry.points++;
-          awayEntry.points++;
-          break;
-      }
-    }
-
-    // 6. Prepare bulk operations
-    const bulkOps = Array.from(standingsMap.values()).map(standing => ({
+    // 4. Save bulk update
+    const bulkOps = finalStandings.map(standing => ({
       updateOne: {
-        filter: { 
-          competition: standing.competition,
-          player: standing.player 
-        },
-        update: { 
-          $set: { 
-            ...standing,
-            lastUpdated: new Date()
-          } 
-        },
+        filter: { competition: standing.competition, player: standing.player },
+        update: { $set: { ...standing, lastUpdated: new Date() } },
         upsert: true
       }
     }));
 
-    // 7. Update database
     if (bulkOps.length > 0) {
         await Standing.bulkWrite(bulkOps, { ordered: false });
     }
 
-    // Return sorted standings
-    return Array.from(standingsMap.values()).sort((a, b) => {
+    // 5. Return sorted standings
+    return finalStandings.sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
       const bGD = (b.goalsFor - b.goalsAgainst);
       const aGD = (a.goalsFor - a.goalsAgainst);

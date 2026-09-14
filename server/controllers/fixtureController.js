@@ -798,6 +798,9 @@ exports.getCompetitionFixtures = async (req, res) => {
     });
   }
 };
+// Background processing queue to prevent standings calculation race conditions
+const standingsQueue = {}; 
+
 exports.updateFixtureResult = async (req, res) => {
   try {
     const { fixtureId } = req.params;
@@ -858,21 +861,16 @@ exports.updateFixtureResult = async (req, res) => {
         });
       }
 
-      // Apply updates
       fixture.homeScore = h;
       fixture.awayScore = a;
-      fixture.status = 'completed'; // Mark as completed
       
-      // Determine result
-      if (h > a) {
-        fixture.result = 'home';
-      } else if (a > h) {
-        fixture.result = 'away';
-      } else {
-        fixture.result = 'draw';
-      }
+      // Ensure completion fields are set (redundant but safe)
+      fixture.status = 'completed';
+      if (h > a) fixture.result = 'home';
+      else if (a > h) fixture.result = 'away';
+      else fixture.result = 'draw';
       
-      fixture.completedAt = new Date();
+      if(!fixture.completedAt) fixture.completedAt = new Date();
     }
 
     // 2. Save the fixture
@@ -891,53 +889,71 @@ exports.updateFixtureResult = async (req, res) => {
       populatedFixture.awayPlayer = { _id: fixture.awayPlayer, name: "Unknown Player" };
     }
 
-    // 4. Standings & Sockets Logic
-    const competitionId = fixture.competitionId || fixture.competition;
-
-    if (competitionId) {
-      try {
-        const competition = await Competition.findById(competitionId).select('type players').lean();
-        const isKnockout = ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'].includes(competition?.type);
-        let updatedStandings = [];
-
-        if (!isKnockout) {
-          // Recalculate standings, passing the competition to save a DB query inside calculateStandings
-          updatedStandings = await calculateStandings(competitionId, competition);
-        }
-
-        // Emit real-time updates
-        if (global.io || req.app.get('io')) {
-          const io = global.io || req.app.get('io');
-
-          // Emit STANDINGS update (only for leagues) using the returned array
-          if (!isKnockout) {
-            io.emit('standingsUpdate', {
-              competitionId: competitionId.toString(),
-              competitionType: competition?.type || 'LEAGUE',
-              standings: updatedStandings,
-              timestamp: new Date()
-            });
-          }
-
-          // Emit FIXTURE update (always)
-          io.emit('fixtureUpdate', {
-            competitionId: competitionId.toString(),
-            fixture: populatedFixture,
-            timestamp: new Date()
-          });
-        }
-      } catch (standingsError) {
-        console.error('Standings/Socket error:', standingsError);
-        // We continue because the main update succeeded
-      }
-    }
-
-    // 5. Send Success Response
+    // 4. INSTANT HTTP RESPONSE
+    // Respond to frontend immediately for instant UI feedback
     res.json({
       success: true,
       data: populatedFixture,
       message: fixture.status === 'pending' ? 'Fixture reverted successfully' : 'Fixture updated successfully'
     });
+
+    // 5. BACKGROUND PROCESSING (Standings & Sockets)
+    const competitionId = fixture.competitionId || fixture.competition;
+
+    if (competitionId) {
+      // Use setImmediate to fully detach from the HTTP response cycle
+      setImmediate(async () => {
+        try {
+          const compIdStr = competitionId.toString();
+          
+          // Initialize queue for this competition if it doesn't exist
+          if (!standingsQueue[compIdStr]) {
+             standingsQueue[compIdStr] = Promise.resolve();
+          }
+
+          // Chain this processing onto the queue to completely prevent race conditions
+          standingsQueue[compIdStr] = standingsQueue[compIdStr].then(async () => {
+              try {
+                const competition = await Competition.findById(competitionId).select('type players').lean();
+                if (!competition) return;
+                
+                const isKnockout = ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'].includes(competition.type);
+                const io = global.io || (req.app && req.app.get('io'));
+
+                if (!isKnockout) {
+                  // Recalculate standings, now highly optimized via MongoDB Aggregation
+                  const updatedStandings = await calculateStandings(competitionId, competition);
+                  
+                  if (io) {
+                    io.emit('standingsUpdate', {
+                      competitionId: compIdStr,
+                      competitionType: competition.type || 'LEAGUE',
+                      standings: updatedStandings,
+                      timestamp: new Date()
+                    });
+                  }
+                }
+
+                // Always emit fixture update
+                if (io) {
+                  io.emit('fixtureUpdate', {
+                    competitionId: compIdStr,
+                    fixture: populatedFixture,
+                    timestamp: new Date()
+                  });
+                }
+              } catch (innerErr) {
+                 console.error('Background processing inner error:', innerErr);
+              }
+          }).catch(queueErr => {
+              console.error('Standings queue error:', queueErr);
+          });
+          
+        } catch (outerErr) {
+          console.error('Background task init error:', outerErr);
+        }
+      });
+    }
 
   } catch (err) {
     console.error('Result Update Error:', err);
