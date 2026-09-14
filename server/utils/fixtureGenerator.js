@@ -46,35 +46,113 @@ async function generateClanWarRound(competitionId, clanIds, roundName) {
   }
 }
 
-function generateLeagueFixtures(players, playerNames = new Map(),roundCount ) {
+function generateLeagueFixtures(players, playerNames = new Map(), roundCount = 1) {
     const fixtures = [];
-    const totalPlayers = players.length;
+    let n = players.length;
 
     if (!Array.isArray(players) || players.length < 2) {
         throw new Error('Invalid players array');
     }
 
-    for (let round = 0; round < roundCount; round++) {
-        for (let i = 0; i < totalPlayers; i++) {
-            for (let j = i + 1; j < totalPlayers; j++) {
-                const homeId = players[i];
-                const awayId = players[j];
-                
-                fixtures.push({
-                    round: `Round ${round + 1}`,
-                    homePlayer: round % 2 === 0 ? homeId : awayId,
-                    homePlayerName: playerNames.get(
-                        (round % 2 === 0 ? homeId : awayId).toString()
-                    ) || `Player ${(round % 2 === 0 ? homeId : awayId).toString().slice(-4)}`,
-                    awayPlayer: round % 2 === 0 ? awayId : homeId,
-                    awayPlayerName: playerNames.get(
-                        (round % 2 === 0 ? awayId : homeId).toString()
-                    ) || `Player ${(round % 2 === 0 ? awayId : homeId).toString().slice(-4)}`,
-                    isNeutralVenue: round === 2
-                });
+    const hasBye = n % 2 !== 0;
+    let schedulingPlayers = [...players];
+    if (hasBye) {
+        schedulingPlayers.push('BYE');
+        n += 1; // Ensure n is even
+    }
+
+    const matchdaysPerLeg = n - 1;
+    const matchesPerMatchday = n / 2;
+    let globalMatchday = 1;
+
+    // Generate Base Leg using Berger Tables / Circle Method
+    const baseLeg = [];
+    let fixed = schedulingPlayers[0];
+    let rotating = schedulingPlayers.slice(1);
+
+    for (let md = 0; md < matchdaysPerLeg; md++) {
+        const mdPairs = [];
+
+        // Fixed player match (alternate home/away to balance)
+        if (md % 2 === 0) {
+            mdPairs.push({ home: fixed, away: rotating[0] });
+        } else {
+            mdPairs.push({ home: rotating[0], away: fixed });
+        }
+
+        // Rotating players match (alternate home/away to balance)
+        for (let i = 1; i < matchesPerMatchday; i++) {
+            let p1 = rotating[i];
+            let p2 = rotating[rotating.length - i];
+            
+            if (i % 2 === 0) {
+                mdPairs.push({ home: p1, away: p2 });
+            } else {
+                mdPairs.push({ home: p2, away: p1 });
             }
         }
+
+        baseLeg.push(mdPairs);
+        // Rotate: move last element to the front
+        rotating.unshift(rotating.pop());
     }
+
+    // Expand for 'roundCount' legs (repeating the cycle, but shifted and swapped)
+    for (let leg = 0; leg < roundCount; leg++) {
+        let currentLeg = [...baseLeg];
+
+        // Spread repeated fixtures: shift matchday order for subsequent legs
+        const shiftAmount = leg % matchdaysPerLeg;
+        if (shiftAmount > 0) {
+            currentLeg = [
+                ...currentLeg.slice(shiftAmount),
+                ...currentLeg.slice(0, shiftAmount)
+            ];
+        }
+
+        // Alternate home/away for each leg to ensure fairness across multiple rounds
+        const swapHomeAway = leg % 2 !== 0;
+
+        for (let mIndex = 0; mIndex < currentLeg.length; mIndex++) {
+            const pairs = currentLeg[mIndex];
+
+            for (const pair of pairs) {
+                let h = swapHomeAway ? pair.away : pair.home;
+                let a = swapHomeAway ? pair.home : pair.away;
+
+                // Ensure BYE is always the 'away' player for consistent data handling
+                if (h === 'BYE') {
+                    h = a;
+                    a = 'BYE';
+                }
+
+                const isByeMatch = (a === 'BYE');
+                
+                // Do not create a fixture object for BYE matches; they are just for scheduling alignment
+                if (isByeMatch) {
+                    continue;
+                }
+
+                const hId = h.toString();
+                const aId = a.toString();
+
+                const hName = playerNames.get(hId) || `Player ${hId.slice(-4)}`;
+                const aName = playerNames.get(aId) || `Player ${aId.slice(-4)}`;
+
+                fixtures.push({
+                    round: `Matchday ${globalMatchday}`,
+                    matchday: globalMatchday,
+                    homePlayer: h,
+                    homePlayerName: hName,
+                    awayPlayer: a,
+                    awayPlayerName: aName,
+                    isNeutralVenue: leg === 2 // Legacy logic: 3rd leg neutral
+                });
+            }
+            globalMatchday++;
+        }
+    }
+
     return fixtures;
 }
 

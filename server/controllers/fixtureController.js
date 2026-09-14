@@ -70,9 +70,6 @@ exports.createFixturesForLeague = async (req, res) => {
       rounds ? parseInt(rounds) : competition.rounds || 3
     );
 
-    // Assign matchdays properly before saving
-    rawFixtures = assignMatchdays(rawFixtures);
-
     // Add competition metadata
     const fixturesData = rawFixtures.map((f, index) => ({
       ...f,
