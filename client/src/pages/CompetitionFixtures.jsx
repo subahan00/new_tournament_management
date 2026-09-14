@@ -527,10 +527,11 @@ export default function CompetitionFixtures() {
   
   // CHANGED: We now use matchdaySchedule as our primary state
   const [matchdaySchedule, setMatchdaySchedule] = useState([]);
-  const [fixtures, setFixtures] = useState([]); // Keep raw fixtures if needed, or remove
+  const [fixtures, setFixtures] = useState([]); 
   const [competitionName, setCompetitionName] = useState('Competition');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [visibleMatchdays, setVisibleMatchdays] = useState(5); // Show 5 matchdays initially
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [exportFromMatchday, setExportFromMatchday] = useState(1);
   const [exportToMatchday, setExportToMatchday] = useState(1);
@@ -782,14 +783,27 @@ export default function CompetitionFixtures() {
               </div>
             </InteractiveCard>
           ) : (
-            filteredMatchdays.map((matchday) => (
-              <InteractiveCard key={matchday.matchdayNumber}>
-                <MatchdaySection
-                  matchdayNumber={matchday.matchdayNumber}
-                  fixtures={matchday.fixtures}
-                />
-              </InteractiveCard>
-            ))
+            <>
+              {(searchTerm ? filteredMatchdays : filteredMatchdays.slice(0, visibleMatchdays)).map((matchday) => (
+                <InteractiveCard key={matchday.matchdayNumber}>
+                  <MatchdaySection
+                    matchdayNumber={matchday.matchdayNumber}
+                    fixtures={matchday.fixtures}
+                  />
+                </InteractiveCard>
+              ))}
+              
+              {!searchTerm && visibleMatchdays < filteredMatchdays.length && (
+                <div className="flex justify-center mt-8">
+                  <button 
+                    onClick={() => setVisibleMatchdays(prev => prev + 5)}
+                    className="modern-cta-button px-8 py-3 rounded-full font-semibold hover:bg-gold-main/90 hover:scale-105 transition-all shadow-[0_0_15px_rgba(255,223,128,0.3)] bg-gold-main text-[#1a0f2e]"
+                  >
+                    Load Next 5 Matchdays
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

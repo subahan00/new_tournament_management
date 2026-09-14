@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import io from 'socket.io-client';
 import standingService from '../services/standingService';
 
 import {
@@ -540,6 +541,50 @@ StatsSection.displayName = 'StatsSection';
 const StandingsTable = memo(({ standings, title = null, showGroupHeader = false, isLoading = false }) => {
   const { competitionId } = useParams();
   const safeStandings = Array.isArray(standings) ? standings : [];
+  
+  // Track previous standings for real-time movement arrows and highlights
+  const prevStandingsRef = useRef({});
+  const [movement, setMovement] = useState({});
+  const [recentlyUpdated, setRecentlyUpdated] = useState({});
+
+  useEffect(() => {
+    if (safeStandings.length === 0) return;
+    
+    const newMovement = { ...movement };
+    const newUpdated = {};
+    let changed = false;
+    
+    safeStandings.forEach((s, index) => {
+      const id = s.player?.toString();
+      if (!id) return;
+      
+      const prevRank = prevStandingsRef.current[id]?.rank;
+      const prevPts = prevStandingsRef.current[id]?.pts;
+      const currentRank = index + 1;
+      
+      if (prevRank) {
+        if (currentRank < prevRank) newMovement[id] = 'up';
+        else if (currentRank > prevRank) newMovement[id] = 'down';
+        else if (newMovement[id]) delete newMovement[id];
+        
+        // If their points changed, highlight the row temporarily
+        if (prevPts !== undefined && s.points !== prevPts) {
+           newUpdated[id] = true;
+           changed = true;
+        }
+      }
+      
+      prevStandingsRef.current[id] = { rank: currentRank, pts: s.points };
+    });
+    
+    setMovement(newMovement);
+    
+    if (changed) {
+       setRecentlyUpdated(newUpdated);
+       // Clear highlights after 3 seconds
+       setTimeout(() => setRecentlyUpdated({}), 3000);
+    }
+  }, [safeStandings]);
 
   if (isLoading) {
     return (
@@ -576,14 +621,20 @@ const StandingsTable = memo(({ standings, title = null, showGroupHeader = false,
               {safeStandings.map((standing, index) => {
                 const goalDifference = (standing.goalsFor || 0) - (standing.goalsAgainst || 0);
                 const position = index + 1;
+                const pid = standing.player?.toString();
+                const move = movement[pid];
+                const isUpdated = recentlyUpdated[pid];
 
                 return (
                   <tr key={standing.player || `standing-${index}`}
-                    className={`transition-all duration-300 hover:bg-purple-dark/50 text-purple-light/90 
-                        ${position <= 4 ? 'promotion-glow' : ''}`}>
+                    className={`transition-all duration-700 text-purple-light/90 
+                        ${position <= 4 ? 'promotion-glow' : ''} 
+                        ${isUpdated ? 'bg-green-500/20' : 'hover:bg-purple-dark/50'}`}>
                     <td className="px-3 py-3 font-bold text-gold-main text-base flex items-center">
-                      {position}
-                      {position === 1 && <Trophy className="h-4 w-4 ml-2 text-gold-main" />}
+                      <span className="w-5">{position}</span>
+                      {move === 'up' && <span className="text-green-500 text-xs ml-1 font-bold">▲</span>}
+                      {move === 'down' && <span className="text-red-500 text-xs ml-1 font-bold">▼</span>}
+                      {!move && position === 1 && <Trophy className="h-4 w-4 ml-1 text-gold-main" />}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap font-medium max-w-[150px]">
                       {standing.playerName ? (
