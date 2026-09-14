@@ -66,7 +66,10 @@ export default {
 
   generateFixtures: async (competitionId) => {
     try {
-      const response = await axios.post(`${BASE_URL}/fixtures/ko/generate/${competitionId}`);
+      const token = getAuthToken();
+      const response = await axios.post(`${BASE_URL}/fixtures/ko/generate/${competitionId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
     } catch (error) {
       console.error('Error generating fixtures:', error);
@@ -170,7 +173,9 @@ export default {
 
   generateNextRound: (competitionId) => {
     const token = getAuthToken(); // ✅ FIXED
-    return axios.post(`${BASE_URL}/fixtures/${competitionId}/next-round`);
+    return axios.post(`${BASE_URL}/fixtures/${competitionId}/next-round`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
   },
 
   getCompetitionById: async (competitionId) => {

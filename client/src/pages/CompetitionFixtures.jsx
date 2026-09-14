@@ -15,8 +15,6 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
-const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
-
 //=================================================================
 // UTILITY & HELPER COMPONENTS
 //=================================================================
@@ -615,7 +613,8 @@ export default function CompetitionFixtures() {
   useEffect(() => {
     fetchFixtures();
 
-    // CHANGED: Update the MatchdaySchedule State directly on socket event
+    const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
+
     const handleFixtureUpdate = (updatedFixture) => {
       setMatchdaySchedule(prevSchedule => {
         return prevSchedule.map(md => ({
@@ -626,7 +625,6 @@ export default function CompetitionFixtures() {
         }));
       });
       
-      // Also update raw fixtures list just in case
       setFixtures(prev => {
         const index = prev.findIndex(f => f._id === updatedFixture._id);
         if (index === -1) return prev;
@@ -637,7 +635,6 @@ export default function CompetitionFixtures() {
     };
 
     const handlePlayerUpdate = ({ playerId, newName }) => {
-       // Helper to update name in a list
        const updateList = (list) => list.map(f => ({
           ...f,
           homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
@@ -658,6 +655,7 @@ export default function CompetitionFixtures() {
     return () => {
       socket.off('fixtureUpdate', handleFixtureUpdate);
       socket.off('playerNameUpdate', handlePlayerUpdate);
+      socket.disconnect();
     };
   }, [fetchFixtures]);
 
@@ -676,7 +674,7 @@ export default function CompetitionFixtures() {
         });
 
       // 2. Sort fixtures (Live > Pending > Completed)
-      const sortedFixtures = filteredFixtures.sort((a, b) => {
+      const sortedFixtures = [...filteredFixtures].sort((a, b) => {
         const getVal = (s) => s === 'pending' ? 0 : s === 'live' ? 1 : 2;
         return getVal(a.status) - getVal(b.status);
       });

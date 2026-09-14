@@ -3,7 +3,7 @@ const Fixture = require('../models/Fixture');
 const Competition = require('../models/Competition');
 const Player = require('../models/Player');
 const mongoose = require('mongoose');
-const Standings = require('../models/Standing');
+const Standing = require('../models/Standing');
 const {
   generateLeagueFixtures,
   generateKnockoutFixtures,
@@ -14,12 +14,9 @@ const {
   pairPlayers,
   shuffleArray,
   generateRoundRobinFixtures,
-
-
-
+  assignMatchdays
 } = require('../utils/fixtureGenerator');
 const { calculateStandings } = require('../utils/standingsCalculator');
-let ioInstance;
 
 // Helper function to calculate match dates
 const calculateMatchDate = (fixtureIndex) => {
@@ -27,10 +24,6 @@ const calculateMatchDate = (fixtureIndex) => {
   const weeksToAdd = Math.floor(fixtureIndex / 10); // 10 matches per week
   startDate.setDate(startDate.getDate() + (weeksToAdd * 7));
   return startDate;
-};
-
-exports.setIOInstance = (io) => {
-  ioInstance = io;
 };
 
 exports.createFixturesForLeague = async (req, res) => {
@@ -64,18 +57,21 @@ exports.createFixturesForLeague = async (req, res) => {
 
     if (validPlayers.length < 2 || validPlayers.length > 100) {
       return res.status(400).json({
-        error: validPlayers.length < 2 ? 'Not enough valid players' : 'Maximum 20 players allowed',
+        error: validPlayers.length < 2 ? 'Not enough valid players' : 'Maximum 100 players allowed',
         playerCount: validPlayers.length
       });
     }
 
     // Generate fixtures
     const playerMap = new Map(validPlayers.map(p => [p.id, p.name]));
-    const rawFixtures = generateLeagueFixtures(
+    let rawFixtures = generateLeagueFixtures(
       validPlayers.map(p => p.id),
       playerMap,
       rounds ? parseInt(rounds) : competition.rounds || 3
     );
+
+    // Assign matchdays properly before saving
+    rawFixtures = assignMatchdays(rawFixtures);
 
     // Add competition metadata
     const fixturesData = rawFixtures.map((f, index) => ({
@@ -516,9 +512,6 @@ exports.generateKoFixtures = async (req, res) => {
       status: 'pending',
       createdAt: new Date()
     }));
-
-    console.log("Generated fixture objects:", fixtures);
-
     // Remove existing fixtures for the competition
     await Fixture.deleteMany({ competitionId });
 
@@ -607,24 +600,6 @@ exports.updateKoFixtureResult = async (req, res) => {
     });
   }
 };
-async function updateCompetitionPlayerNames(competitionId, playerId, storedName) {
-  const currentPlayer = await Player.findById(playerId);
-  if (currentPlayer.name !== storedName) {
-    await Fixture.updateMany(
-      { competitionId, $or: [{ homePlayer: playerId }, { awayPlayer: playerId }] },
-      {
-        $set: {
-          'homePlayerName': currentPlayer.name,
-          'awayPlayerName': currentPlayer.name
-        }
-      }
-    );
-    await Standings.updateMany(
-      { competition: competitionId, player: playerId },
-      { $set: { playerName: currentPlayer.name } }
-    );
-  }
-}
 exports.advanceToNextRound = async (req, res) => {
   try {
     const { competitionId, currentRound } = req.body;
@@ -796,103 +771,11 @@ exports.getCompetitionFixtures = async (req, res) => {
   try {
     const competitionId = req.params.competitionId;
 
-    // 1. Fetch fixtures
-    const fixtures = await Fixture.find({ competitionId })
-      .populate('homePlayer awayPlayer', 'name')
-      .lean();
-
-    // ✅ CONDITION 1: Check if assignment is needed
-    const needsAssignment = fixtures.some(f => f.matchday == null);
-
-    if (needsAssignment) {
-      // 2. Group by round
-      const roundMap = new Map();
-
-      fixtures.forEach(f => {
-        const r = f.round ?? 1;
-        if (!roundMap.has(r)) roundMap.set(r, []);
-        roundMap.get(r).push(f);
-      });
-
-      const bulkOps = [];
-      let matchdayOffset = 0;
-
-      // 3. Assign matchdays using round-robin
-      for (const [, roundFixtures] of [...roundMap.entries()].sort()) {
-        // Only fixtures without matchday
-        const unassigned = roundFixtures.filter(f => f.matchday == null);
-        if (unassigned.length === 0) {
-          // Still need to advance offset correctly
-          const players = new Set();
-          roundFixtures.forEach(f => {
-            players.add(f.homePlayer._id.toString());
-            players.add(f.awayPlayer._id.toString());
-          });
-          const count = players.size % 2 === 0 ? players.size - 1 : players.size;
-          matchdayOffset += count;
-          continue;
-        }
-
-        // Collect players
-        const players = new Set();
-        unassigned.forEach(f => {
-          players.add(f.homePlayer._id.toString());
-          players.add(f.awayPlayer._id.toString());
-        });
-
-        let playerList = [...players];
-        if (playerList.length % 2 === 1) playerList.push(null);
-
-        const totalMDs = playerList.length - 1;
-        const half = playerList.length / 2;
-
-        const fixed = playerList[0];
-        let rotating = playerList.slice(1);
-
-        for (let md = 0; md < totalMDs; md++) {
-          const pairs = [
-            [fixed, rotating[0]],
-            ...Array.from({ length: half - 1 }, (_, i) => [
-              rotating[i + 1],
-              rotating[rotating.length - 1 - i]
-            ])
-          ];
-
-          for (const [a, b] of pairs) {
-            if (!a || !b) continue;
-
-            const fixture = unassigned.find(f =>
-              (f.homePlayer._id.equals(a) && f.awayPlayer._id.equals(b)) ||
-              (f.homePlayer._id.equals(b) && f.awayPlayer._id.equals(a))
-            );
-
-            if (fixture) {
-              bulkOps.push({
-                updateOne: {
-                  // ✅ CONDITION 2: only if matchday is still null
-                  filter: { _id: fixture._id, matchday: { $in: [null, undefined] } },
-                  update: { $set: { matchday: matchdayOffset + md + 1 } }
-                }
-              });
-            }
-          }
-
-          rotating.unshift(rotating.pop());
-        }
-
-        matchdayOffset += totalMDs;
-      }
-
-      // 4. Persist matchdays ONCE
-      if (bulkOps.length) {
-        await Fixture.bulkWrite(bulkOps);
-      }
-    }
-
-    // 5. Fetch final schedule
+    // 1. Fetch final schedule
     const finalFixtures = await Fixture.find({ competitionId })
       .populate('homePlayer awayPlayer', 'name')
-      .sort({ matchday: 1 });
+      .sort({ matchday: 1 })
+      .lean();
 
     // 6. Group for frontend
     const scheduleMap = {};
@@ -1039,7 +922,7 @@ exports.updateFixtureResult = async (req, res) => {
               competition: competitionId
             }).lean();
 
-            io.emit('standings_update', {
+            io.emit('standingsUpdate', {
               competitionId: competitionId.toString(),
               competitionType: competition?.type || 'LEAGUE',
               standings: updatedStandings,
@@ -1048,7 +931,7 @@ exports.updateFixtureResult = async (req, res) => {
           }
 
           // Emit FIXTURE update (always)
-          io.emit('fixture_update', {
+          io.emit('fixtureUpdate', {
             competitionId: competitionId.toString(),
             fixture: populatedFixture,
             timestamp: new Date()
@@ -1090,8 +973,6 @@ exports.updateFixtureResult = async (req, res) => {
 // Add this to controllers/fixtureController.js
 
 exports.revertFixtureResult = async (req, res) => {
-    console.log("🔥 REVERT API HIT for:", req.params.fixtureId);
-
     try {
         const { fixtureId } = req.params;
         const fixture = await Fixture.findById(fixtureId);
@@ -1106,8 +987,6 @@ exports.revertFixtureResult = async (req, res) => {
         fixture.completedAt = null;
 
         await fixture.save();
-
-        console.log("✅ Database Reverted Successfully");
 
         // Recalculate Standings to remove points
         if (fixture.competitionId) {
@@ -1155,9 +1034,6 @@ exports.getUpcomingCompetitions = async (req, res) => {
 exports.getPlayerFixtures = async (req, res) => {
   try {
     const { competitionId, playerId } = req.params;
-    // const Fixture = require('../models/Fixture');
-    // const Competition = require('../models/Competition');
-    // const Player = require('../models/Player');
 
     // Verify competition exists
     const competition = await Competition.findById(competitionId);

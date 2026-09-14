@@ -32,27 +32,27 @@ router.post('/generate/knockout/:competitionId',
 
 // League fixtures
 router.post('/create/:competitionId', 
- 
+  authenticate,
   createFixturesForLeague
 );
 
 router.post('/create-groupstage/:competitionId', 
- 
+  authenticate,
   createFixturesForGroupStage);
 
 // Results management
 router.put('/:fixtureId/result', 
-  
+  authenticate,
   updateFixtureResult
 );
 router.get('/ko/competitions', getKnockoutCompetitions);
 router.get('/competition-details/:competitionId', getCompetitionById);
 router.get('/ko/competition/:competitionId', getFixturesByCompetition);
-router.post('/ko/generate/:competitionId', generateKoFixtures);
-router.put('/ko/:fixtureId/result', updateKoFixtureResult);
-router.post('/advance-round', advanceToNextRound);
-router.put('/competition/:competitionId/status', updateCompetitionStatus);
-router.put('/competition/:competitionId/winner', setCompetitionWinner);
+router.post('/ko/generate/:competitionId', authenticate, generateKoFixtures);
+router.put('/ko/:fixtureId/result', authenticate, updateKoFixtureResult);
+router.post('/advance-round', authenticate, advanceToNextRound);
+router.put('/competition/:competitionId/status', authenticate, updateCompetitionStatus);
+router.put('/competition/:competitionId/winner', authenticate, setCompetitionWinner);
 
 
 // Next round generation
@@ -75,6 +75,6 @@ router.get('/upcoming',
   getUpcomingCompetitions
 );
 router.get('/player/:competitionId/:playerId', getPlayerFixtures);
-router.put('/:fixtureId/revert',revertFixtureResult);
+router.put('/:fixtureId/revert', authenticate, revertFixtureResult);
 
 module.exports = router;

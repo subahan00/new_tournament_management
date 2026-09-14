@@ -12,7 +12,6 @@ export default function ManageFixtures() {
   const fetchCompetitions = async () => {
     try {
       const res = await fixtureService.getOngoingCompetitions();
-      console.log("API competitions data:", res.data);  // <-- add this
 setCompetitions(res.data.data);
     } catch (err) {
       console.error(err);

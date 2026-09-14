@@ -114,9 +114,6 @@ const generateKnockoutFixtures = {
 };
 
 // Shared Helper Functions
-// function shuffleArray(array) {
-//   return array.sort(() => Math.random() - 0.5);
-// }
 
 function pairPlayers(players, competitionId, roundName, playerNames) { // Add playerNames parameter
   return Array.from({ length: Math.ceil(players.length / 2) }, (_, i) => ({
@@ -125,7 +122,7 @@ function pairPlayers(players, competitionId, roundName, playerNames) { // Add pl
     homePlayer: players[i * 2],
     homePlayerName: playerNames.get(players[i * 2]),
     awayPlayer: players[i * 2 + 1] || null,
-    awayPlayerName: players[i * 2 + 1] ? playerNames.get(players[i * 2 + 1]) : 'Bye',
+    awayPlayerName: players[i * 2 + 1] ? playerNames.get(players[i * 2 + 1]) : 'BYE',
     status: 'pending',
     matchDate: calculateRoundDate(roundName)
   }));
@@ -344,6 +341,77 @@ const generateRoundRobinFixtures=(players, competitionId, groupName)=> {
     
     return fixtures;
   };
+
+/**
+ * Assign matchday numbers to fixtures using round-robin (circle method) scheduling.
+ * Mutates the fixtures array in-place by setting the `matchday` property.
+ * Groups fixtures by round and processes each round independently.
+ * 
+ * @param {Array} fixtures - Array of fixture objects with homePlayer/awayPlayer as string IDs
+ * @returns {Array} - The same array with matchday numbers assigned
+ */
+function assignMatchdays(fixtures) {
+  // Group by round
+  const roundMap = new Map();
+  fixtures.forEach(f => {
+    const r = f.round ?? 'Round 1';
+    if (!roundMap.has(r)) roundMap.set(r, []);
+    roundMap.get(r).push(f);
+  });
+
+  let matchdayOffset = 0;
+
+  for (const [, roundFixtures] of [...roundMap.entries()].sort()) {
+    // Collect unique players
+    const players = new Set();
+    roundFixtures.forEach(f => {
+      const homeId = typeof f.homePlayer === 'object' ? f.homePlayer.toString() : f.homePlayer;
+      const awayId = typeof f.awayPlayer === 'object' ? f.awayPlayer.toString() : f.awayPlayer;
+      players.add(homeId);
+      players.add(awayId);
+    });
+
+    let playerList = [...players];
+    if (playerList.length % 2 === 1) playerList.push(null);
+
+    const totalMDs = playerList.length - 1;
+    const half = playerList.length / 2;
+
+    const fixed = playerList[0];
+    let rotating = playerList.slice(1);
+
+    for (let md = 0; md < totalMDs; md++) {
+      const pairs = [
+        [fixed, rotating[0]],
+        ...Array.from({ length: half - 1 }, (_, i) => [
+          rotating[i + 1],
+          rotating[rotating.length - 1 - i]
+        ])
+      ];
+
+      for (const [a, b] of pairs) {
+        if (!a || !b) continue;
+
+        const fixture = roundFixtures.find(f => {
+          const hId = typeof f.homePlayer === 'object' ? f.homePlayer.toString() : f.homePlayer;
+          const aId = typeof f.awayPlayer === 'object' ? f.awayPlayer.toString() : f.awayPlayer;
+          return (hId === a && aId === b) || (hId === b && aId === a);
+        });
+
+        if (fixture && fixture.matchday == null) {
+          fixture.matchday = matchdayOffset + md + 1;
+        }
+      }
+
+      rotating.unshift(rotating.pop());
+    }
+
+    matchdayOffset += totalMDs;
+  }
+
+  return fixtures;
+}
+
 module.exports = {
   generateLeagueFixtures,
   generateKnockoutFixtures,
@@ -353,8 +421,9 @@ module.exports = {
   calculateTotalRounds,
   getRoundName,
   shuffleArray,
-  pairPlayers ,
+  pairPlayers,
   generateRoundRobinFixtures,
-  generateClanWarRound
+  generateClanWarRound,
+  assignMatchdays
 };
 

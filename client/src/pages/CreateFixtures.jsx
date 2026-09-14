@@ -36,7 +36,6 @@ export default function FixtureManagement() {
       setError(null);
 
       let response;
-      console.log("competition",competition);
       if (competition.type === "LEAGUE") {
         response = await fixtureService.createLeagueFixtures(competition._id);
       } else if (competition.type === "KO_REGULAR") {
