@@ -183,111 +183,218 @@ const FixtureRow = ({
   };
 
   return (
-    <div className={`group flex items-center gap-3 px-4 py-3 border-l-[3px] rounded-lg transition-all duration-200 ${
+    <div className={`group border-l-[3px] rounded-lg transition-all duration-200 px-3 py-2.5 md:px-4 md:py-3 ${
       isEditing && scores ? `${colors.left} bg-gray-900/80 border border-gray-700/50` :
       `${colors.left} bg-gray-900/40 border border-gray-800/30 hover:bg-gray-900/60`
     }`}>
-      {/* Status dot */}
-      <div className="shrink-0">
-        {fixture.status === 'completed' ? (
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-        ) : (
-          <div className={`w-3 h-3 rounded-full ${colors.dot} opacity-60`} />
-        )}
-      </div>
-
-      {/* Home player */}
-      <div className="flex-1 min-w-0 text-right">
-        <span className={`text-sm font-semibold truncate block ${
-          fixture.status === 'completed' && fixture.result === 'home' ? 'text-amber-300' : 'text-gray-200'
-        }`} title={homeName}>
-          {homeName}
-        </span>
-      </div>
-
-      {/* Score area */}
-      <div className="shrink-0 flex items-center gap-1.5 min-w-[140px] justify-center">
-        {isEditing ? (
-          <>
-            <input
-              type="number"
-              min="0"
-              value={scores?.home ?? ''}
-              onChange={(e) => onScoreChange(fixture._id, 'home', e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-12 h-9 text-center text-base font-bold bg-black/60 border border-gray-600 rounded-md focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 focus:outline-none transition-all text-white placeholder-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              placeholder="-"
-              tabIndex={0}
-            />
-            <span className="text-gray-600 font-bold text-sm">:</span>
-            <input
-              type="number"
-              min="0"
-              value={scores?.away ?? ''}
-              onChange={(e) => onScoreChange(fixture._id, 'away', e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-12 h-9 text-center text-base font-bold bg-black/60 border border-gray-600 rounded-md focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 focus:outline-none transition-all text-white placeholder-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              placeholder="-"
-              tabIndex={0}
-            />
-          </>
-        ) : (
-          <div className="text-lg font-black text-white tracking-widest font-mono">
-            {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
+      {/* ---- MOBILE LAYOUT (stacked) ---- */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {/* Names row */}
+        <div className="flex items-center gap-2">
+          {/* Status dot */}
+          <div className="shrink-0">
+            {fixture.status === 'completed' ? (
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <div className={`w-2.5 h-2.5 rounded-full ${colors.dot} opacity-60`} />
+            )}
           </div>
-        )}
+          <span className={`text-xs font-semibold break-words ${
+            fixture.status === 'completed' && fixture.result === 'home' ? 'text-amber-300' : 'text-gray-200'
+          }`}>
+            {homeName}
+          </span>
+          <span className="text-gray-600 text-xs font-bold">vs</span>
+          <span className={`text-xs font-semibold break-words ${
+            fixture.status === 'completed' && fixture.result === 'away' ? 'text-amber-300' : 'text-gray-200'
+          }`}>
+            {awayName}
+          </span>
+        </div>
+
+        {/* Score + actions row */}
+        <div className="flex items-center justify-between pl-5">
+          <div className="flex items-center gap-1.5">
+            {isEditing ? (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  value={scores?.home ?? ''}
+                  onChange={(e) => onScoreChange(fixture._id, 'home', e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-10 h-8 text-center text-sm font-bold bg-black/60 border border-gray-600 rounded-md focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 focus:outline-none transition-all text-white placeholder-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="-"
+                  tabIndex={0}
+                />
+                <span className="text-gray-600 font-bold text-xs">:</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={scores?.away ?? ''}
+                  onChange={(e) => onScoreChange(fixture._id, 'away', e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-10 h-8 text-center text-sm font-bold bg-black/60 border border-gray-600 rounded-md focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 focus:outline-none transition-all text-white placeholder-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="-"
+                  tabIndex={0}
+                />
+              </>
+            ) : (
+              <div className="text-base font-black text-white tracking-widest font-mono">
+                {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile actions — always visible */}
+          <div className="flex items-center gap-1">
+            {isEditing && canSubmitRow && (
+              <button
+                onClick={() => onSubmitSingle(fixture._id)}
+                disabled={isSubmitting}
+                className="p-1.5 rounded-md bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all disabled:opacity-50"
+                title="Save result"
+              >
+                {isSubmitting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              </button>
+            )}
+
+            {fixture.status === 'completed' && !isEditingCompleted && (
+              <>
+                <button
+                  onClick={() => onStartEdit(fixture)}
+                  className="p-1.5 rounded-md text-gray-500 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+                  title="Edit score"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => onRevertClick(fixture._id)}
+                  className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  title="Revert to pending"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+
+            {isEditingCompleted && (
+              <button
+                onClick={() => onCancelEdit(fixture._id)}
+                className="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-700/50 transition-all"
+                title="Cancel edit"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Away player */}
-      <div className="flex-1 min-w-0 text-left">
-        <span className={`text-sm font-semibold truncate block ${
-          fixture.status === 'completed' && fixture.result === 'away' ? 'text-amber-300' : 'text-gray-200'
-        }`} title={awayName}>
-          {awayName}
-        </span>
-      </div>
+      {/* ---- DESKTOP LAYOUT (horizontal row) ---- */}
+      <div className="hidden md:flex items-center gap-3">
+        {/* Status dot */}
+        <div className="shrink-0">
+          {fixture.status === 'completed' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          ) : (
+            <div className={`w-3 h-3 rounded-full ${colors.dot} opacity-60`} />
+          )}
+        </div>
 
-      {/* Actions */}
-      <div className="shrink-0 flex items-center gap-1 min-w-[70px] justify-end">
-        {isEditing && canSubmitRow && (
-          <button
-            onClick={() => onSubmitSingle(fixture._id)}
-            disabled={isSubmitting}
-            className="p-1.5 rounded-md bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all disabled:opacity-50"
-            title="Save result"
-          >
-            {isSubmitting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          </button>
-        )}
+        {/* Home player */}
+        <div className="flex-1 min-w-0 text-right">
+          <span className={`text-sm font-semibold block break-words ${
+            fixture.status === 'completed' && fixture.result === 'home' ? 'text-amber-300' : 'text-gray-200'
+          }`}>
+            {homeName}
+          </span>
+        </div>
 
-        {fixture.status === 'completed' && !isEditingCompleted && (
-          <>
+        {/* Score area */}
+        <div className="shrink-0 flex items-center gap-1.5 min-w-[140px] justify-center">
+          {isEditing ? (
+            <>
+              <input
+                type="number"
+                min="0"
+                value={scores?.home ?? ''}
+                onChange={(e) => onScoreChange(fixture._id, 'home', e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-12 h-9 text-center text-base font-bold bg-black/60 border border-gray-600 rounded-md focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 focus:outline-none transition-all text-white placeholder-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="-"
+                tabIndex={0}
+              />
+              <span className="text-gray-600 font-bold text-sm">:</span>
+              <input
+                type="number"
+                min="0"
+                value={scores?.away ?? ''}
+                onChange={(e) => onScoreChange(fixture._id, 'away', e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-12 h-9 text-center text-base font-bold bg-black/60 border border-gray-600 rounded-md focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 focus:outline-none transition-all text-white placeholder-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="-"
+                tabIndex={0}
+              />
+            </>
+          ) : (
+            <div className="text-lg font-black text-white tracking-widest font-mono">
+              {fixture.homeScore} <span className="text-gray-600">-</span> {fixture.awayScore}
+            </div>
+          )}
+        </div>
+
+        {/* Away player */}
+        <div className="flex-1 min-w-0 text-left">
+          <span className={`text-sm font-semibold block break-words ${
+            fixture.status === 'completed' && fixture.result === 'away' ? 'text-amber-300' : 'text-gray-200'
+          }`}>
+            {awayName}
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="shrink-0 flex items-center gap-1 min-w-[70px] justify-end">
+          {isEditing && canSubmitRow && (
             <button
-              onClick={() => onStartEdit(fixture)}
-              className="p-1.5 rounded-md text-gray-500 hover:text-amber-400 hover:bg-amber-500/10 transition-all opacity-0 group-hover:opacity-100"
-              title="Edit score"
+              onClick={() => onSubmitSingle(fixture._id)}
+              disabled={isSubmitting}
+              className="p-1.5 rounded-md bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all disabled:opacity-50"
+              title="Save result"
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              {isSubmitting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             </button>
-            <button
-              onClick={() => onRevertClick(fixture._id)}
-              className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
-              title="Revert to pending"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </>
-        )}
+          )}
 
-        {isEditingCompleted && (
-          <button
-            onClick={() => onCancelEdit(fixture._id)}
-            className="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-700/50 transition-all"
-            title="Cancel edit"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+          {fixture.status === 'completed' && !isEditingCompleted && (
+            <>
+              <button
+                onClick={() => onStartEdit(fixture)}
+                className="p-1.5 rounded-md text-gray-500 hover:text-amber-400 hover:bg-amber-500/10 transition-all opacity-0 group-hover:opacity-100"
+                title="Edit score"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onRevertClick(fixture._id)}
+                className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                title="Revert to pending"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+
+          {isEditingCompleted && (
+            <button
+              onClick={() => onCancelEdit(fixture._id)}
+              className="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-700/50 transition-all"
+              title="Cancel edit"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
