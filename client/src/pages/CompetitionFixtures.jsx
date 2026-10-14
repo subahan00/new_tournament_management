@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from '
 import { Link, useParams } from 'react-router-dom';
 import fixtureService from '../services/fixtureService';
 import { toast } from 'react-toastify';
-import io from 'socket.io-client';
 import competitionService from '../services/competitionService';
 import {
   ChevronLeft,
@@ -613,51 +612,6 @@ export default function CompetitionFixtures() {
 
   useEffect(() => {
     fetchFixtures();
-
-    const socket = io(`${process.env.REACT_APP_BACKEND_URL}`);
-
-    const handleFixtureUpdate = (updatedFixture) => {
-      setMatchdaySchedule(prevSchedule => {
-        return prevSchedule.map(md => ({
-          ...md,
-          fixtures: md.fixtures.map(f => 
-            f._id === updatedFixture._id ? updatedFixture : f
-          )
-        }));
-      });
-      
-      setFixtures(prev => {
-        const index = prev.findIndex(f => f._id === updatedFixture._id);
-        if (index === -1) return prev;
-        const newArr = [...prev];
-        newArr[index] = updatedFixture;
-        return newArr;
-      });
-    };
-
-    const handlePlayerUpdate = ({ playerId, newName }) => {
-       const updateList = (list) => list.map(f => ({
-          ...f,
-          homePlayerName: f.homePlayer === playerId ? newName : f.homePlayerName,
-          awayPlayerName: f.awayPlayer === playerId ? newName : f.awayPlayerName,
-       }));
-
-       setMatchdaySchedule(prev => prev.map(md => ({
-         ...md,
-         fixtures: updateList(md.fixtures)
-       })));
-
-       setFixtures(prev => updateList(prev));
-    };
-
-    socket.on('fixtureUpdate', handleFixtureUpdate);
-    socket.on('playerNameUpdate', handlePlayerUpdate);
-
-    return () => {
-      socket.off('fixtureUpdate', handleFixtureUpdate);
-      socket.off('playerNameUpdate', handlePlayerUpdate);
-      socket.disconnect();
-    };
   }, [fetchFixtures]);
 
   const filteredMatchdays = useMemo(() => {

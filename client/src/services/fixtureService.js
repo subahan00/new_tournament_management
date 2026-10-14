@@ -150,11 +150,32 @@ export default {
 
   revertFixtureResult: async (fixtureId) => {
     try {
-      const response = await axios.put(`${BASE_URL}/fixtures/${fixtureId}/revert`);
+      const token = getAuthToken();
+      const response = await axios.put(`${BASE_URL}/fixtures/${fixtureId}/revert`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
     } catch (error) {
       console.error('Error reverting fixture result:', error);
-      throw error;
+      const backendError = error.response?.data?.error;
+      throw new Error(backendError || 'Failed to revert result');
+    }
+  },
+
+  bulkUpdateResults: async (updates) => {
+    try {
+      const token = getAuthToken();
+      const response = await axios.post(`${BASE_URL}/fixtures/bulk-update`, { updates }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Bulk update error:', error);
+      const backendError = error.response?.data?.error;
+      throw new Error(backendError || 'Failed to bulk update results');
     }
   },
 

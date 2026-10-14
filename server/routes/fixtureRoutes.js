@@ -19,7 +19,8 @@ const {
   createFixturesForGroupStage,
   getclanWarFixtures,
   getPlayerFixtures,
-  revertFixtureResult
+  revertFixtureResult,
+  bulkUpdateResults
 } = require('../controllers/fixtureController');
 
 const { authenticate } = require('../utils/middlewares');
@@ -45,6 +46,12 @@ router.put('/:fixtureId/result',
   authenticate,
   updateFixtureResult
 );
+
+router.post('/bulk-update',
+  authenticate,
+  bulkUpdateResults
+);
+
 router.get('/ko/competitions', getKnockoutCompetitions);
 router.get('/competition-details/:competitionId', getCompetitionById);
 router.get('/ko/competition/:competitionId', getFixturesByCompetition);

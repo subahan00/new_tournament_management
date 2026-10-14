@@ -788,7 +788,9 @@ exports.getCompetitionFixtures = async (req, res) => {
         fixtures: scheduleMap[md]
       }));
 
-    res.json({ success: true, matchdaySchedule });
+    const competition = await Competition.findById(competitionId).select('name').lean();
+
+    res.json({ success: true, matchdaySchedule, competitionName: competition?.name || '' });
 
   } catch (err) {
     console.error('getCompetitionFixtures error:', err);
@@ -906,41 +908,18 @@ exports.updateFixtureResult = async (req, res) => {
         try {
           const compIdStr = competitionId.toString();
           
-          // Initialize queue for this competition if it doesn't exist
           if (!standingsQueue[compIdStr]) {
              standingsQueue[compIdStr] = Promise.resolve();
           }
 
-          // Chain this processing onto the queue to completely prevent race conditions
           standingsQueue[compIdStr] = standingsQueue[compIdStr].then(async () => {
               try {
                 const competition = await Competition.findById(competitionId).select('type players').lean();
                 if (!competition) return;
                 
                 const isKnockout = ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'].includes(competition.type);
-                const io = global.io || (req.app && req.app.get('io'));
-
                 if (!isKnockout) {
-                  // Recalculate standings, now highly optimized via MongoDB Aggregation
-                  const updatedStandings = await calculateStandings(competitionId, competition);
-                  
-                  if (io) {
-                    io.emit('standingsUpdate', {
-                      competitionId: compIdStr,
-                      competitionType: competition.type || 'LEAGUE',
-                      standings: updatedStandings,
-                      timestamp: new Date()
-                    });
-                  }
-                }
-
-                // Always emit fixture update
-                if (io) {
-                  io.emit('fixtureUpdate', {
-                    competitionId: compIdStr,
-                    fixture: populatedFixture,
-                    timestamp: new Date()
-                  });
+                  await calculateStandings(competitionId, competition);
                 }
               } catch (innerErr) {
                  console.error('Background processing inner error:', innerErr);
@@ -982,6 +961,126 @@ exports.revertFixtureResult = async (req, res) => {
     // when status is set to 'pending' or scores are null.
     req.body = { status: 'pending', homeScore: null, awayScore: null };
     return exports.updateFixtureResult(req, res);
+};
+
+exports.bulkUpdateResults = async (req, res) => {
+  try {
+    const { updates } = req.body;
+
+    // --- VALIDATION PASS (reject entire batch if anything is invalid) ---
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'No updates provided' });
+    }
+
+    if (updates.length > 50) {
+      return res.status(400).json({ success: false, error: 'Maximum 50 updates per batch' });
+    }
+
+    // Validate all scores upfront
+    for (const update of updates) {
+      if (!update.fixtureId) {
+        return res.status(400).json({ success: false, error: 'Each update must have a fixtureId' });
+      }
+      const h = Number(update.homeScore);
+      const a = Number(update.awayScore);
+      if (isNaN(h) || isNaN(a)) {
+        return res.status(400).json({ success: false, error: `Invalid scores for fixture ${update.fixtureId}` });
+      }
+      if (h < 0 || a < 0) {
+        return res.status(400).json({ success: false, error: `Scores cannot be negative for fixture ${update.fixtureId}` });
+      }
+    }
+
+    // Fetch all fixtures at once
+    const fixtureIds = updates.map(u => u.fixtureId);
+    const fixtures = await Fixture.find({ _id: { $in: fixtureIds }, isDeleted: { $ne: true } });
+
+    if (fixtures.length !== updates.length) {
+      const foundIds = new Set(fixtures.map(f => f._id.toString()));
+      const missing = fixtureIds.filter(id => !foundIds.has(id));
+      return res.status(404).json({ success: false, error: `Fixtures not found: ${missing.join(', ')}` });
+    }
+
+    // --- ALL VALIDATION PASSED — NOW SAVE ---
+    const now = new Date();
+    const bulkOps = updates.map(update => {
+      const h = Number(update.homeScore);
+      const a = Number(update.awayScore);
+      const result = h > a ? 'home' : a > h ? 'away' : 'draw';
+
+      return {
+        updateOne: {
+          filter: { _id: update.fixtureId },
+          update: {
+            $set: {
+              homeScore: h,
+              awayScore: a,
+              status: 'completed',
+              result: result,
+              updatedAt: now,
+              completedAt: now
+            }
+          }
+        }
+      };
+    });
+
+    await Fixture.bulkWrite(bulkOps, { ordered: false });
+
+    // Fetch updated fixtures with populated player data for response
+    const updatedFixtures = await Fixture.find({ _id: { $in: fixtureIds } })
+      .populate('homePlayer', 'name _id')
+      .populate('awayPlayer', 'name _id')
+      .lean();
+
+    // Add safety fallbacks for missing player refs
+    const safeFixtures = updatedFixtures.map(f => ({
+      ...f,
+      homePlayerName: f.homePlayerName || f.homePlayer?.name || 'Unknown',
+      awayPlayerName: f.awayPlayerName || f.awayPlayer?.name || 'Unknown'
+    }));
+
+    // Respond immediately
+    res.json({
+      success: true,
+      data: safeFixtures,
+      message: `${safeFixtures.length} fixture(s) updated successfully`
+    });
+
+    // --- BACKGROUND: Recalculate standings ONCE per competition ---
+    const competitionIds = new Set();
+    fixtures.forEach(f => {
+      const compId = (f.competitionId || f.competition);
+      if (compId) competitionIds.add(compId.toString());
+    });
+
+    setImmediate(async () => {
+      for (const compIdStr of competitionIds) {
+        try {
+          if (!standingsQueue[compIdStr]) {
+            standingsQueue[compIdStr] = Promise.resolve();
+          }
+
+          standingsQueue[compIdStr] = standingsQueue[compIdStr].then(async () => {
+            const competition = await Competition.findById(compIdStr).select('type players').lean();
+            if (!competition) return;
+            const isKnockout = ['KO_REGULAR', 'KO_CLUBS', 'KO_BASE'].includes(competition.type);
+            if (!isKnockout) {
+              await calculateStandings(compIdStr, competition);
+            }
+          }).catch(err => {
+            console.error('Bulk standings queue error:', err);
+          });
+        } catch (err) {
+          console.error('Bulk background task init error:', err);
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Bulk Update Error:', err);
+    res.status(500).json({ success: false, error: 'Failed to bulk update results' });
+  }
 };
 // Additional Methods
 exports.getOngoingCompetitions = async (req, res) => {

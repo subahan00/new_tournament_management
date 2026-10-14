@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import io from 'socket.io-client';
 import standingService from '../services/standingService';
 
 import {
